@@ -1,0 +1,296 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────
+
+enum KybStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum Chain {
+  ARC_TESTNET
+  ARC_MAINNET
+  ETH_SEPOLIA
+  ETH_MAINNET
+  SOLANA
+  BASE
+  AVAX
+  ARBITRUM
+}
+
+enum LedgerAccountType {
+  OPERATING
+  RESERVE
+  PAYROLL
+  SAVINGS
+  CUSTOM
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
+}
+
+enum LedgerReferenceType {
+  ONCHAIN_TX
+  INTERNAL_TRANSFER
+  INVOICE
+  PAYROLL_RUN
+  SAVINGS_SWEEP
+  DCA
+  ADJUSTMENT
+}
+
+enum OnchainDirection {
+  IN
+  OUT
+}
+
+enum OnchainTxStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+}
+
+enum IdentifierType {
+  USERNAME
+  ADDRESS
+}
+
+enum IdempotencyKeyStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CORE TABLES
+// ─────────────────────────────────────────────────────────────────────────
+
+model Organization {
+  id                     String            @id @default(cuid())
+  legalName              String
+  username               String?           @unique
+  defaultLedgerAccountId String?
+  kybStatus              KybStatus         @default(PENDING)
+  kybApprovedAt          DateTime?
+  kybApprovedBy          String? // admin user id, manual-approval stub
+
+  // Circle references
+  circleEntityId         String? // Circle-side entity/customer reference, if applicable
+
+  users                  User[]
+  wallets                Wallet[]
+  ledgerAccounts         LedgerAccount[]
+  contacts               Contact[]
+  idempotencyKeys        IdempotencyKey[]
+  defaultLedgerAccount   LedgerAccount?    @relation("OrganizationDefaultLedgerAccount", fields: [defaultLedgerAccountId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kybStatus])
+  @@map("organizations")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  orgId         String
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  email         String    @unique
+  passwordHash  String? // null if using magic-link only
+  emailVerified DateTime?
+  name          String?
+  role          UserRole  @default(MEMBER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+  @@map("users")
+}
+
+// Maps an Organization to its single Circle-custodied Arc wallet.
+// One-to-one for now (an org has exactly one Wallet row); the schema
+// allows one-to-many later (multiple onchain wallets per org) since
+// orgId is not marked @unique.
+model Wallet {
+  id             String @id @default(cuid())
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  circleWalletId String @unique // Circle's internal wallet id
+  circleWalletSetId String? // Circle wallet set id, useful for key rotation/lookups
+  arcAddress     String @unique // 0x... address on Arc
+  chain          Chain  @default(ARC_TESTNET)
+
+  ledgerAccounts   LedgerAccount[]
+  onchainTxs       OnchainTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+  @@map("wallets")
+}
+
+// Internal balance "buckets" (Operating / Tax / Payroll / Savings / custom).
+// All backed by the SAME Wallet row — this is the multiple-balances abstraction.
+model LedgerAccount {
+  id               String            @id @default(cuid())
+  orgId            String
+  organization     Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  walletId         String
+  wallet           Wallet            @relation(fields: [walletId], references: [id], onDelete: Restrict)
+
+  name             String
+  type             LedgerAccountType @default(CUSTOM)
+
+  entries          LedgerEntry[]
+  defaultForOrgs   Organization[]    @relation("OrganizationDefaultLedgerAccount")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, name])
+  @@index([orgId])
+  @@index([walletId])
+  @@map("ledger_accounts")
+}
+
+// APPEND-ONLY. Never update or delete rows — corrections are new
+// offsetting entries. Sum of entries for an org must always equal
+// the sum across its LedgerAccounts and reconcile against the
+// actual onchain wallet balance.
+model LedgerEntry {
+  id              String @id @default(cuid())
+  ledgerAccountId String
+  ledgerAccount   LedgerAccount @relation(fields: [ledgerAccountId], references: [id], onDelete: Restrict)
+
+  // Stored as bigint in smallest USDC unit (6 decimals). Never use float.
+  amount        BigInt
+  direction     LedgerDirection
+  referenceType LedgerReferenceType
+  referenceId   String // polymorphic FK — id of the Invoice/PayrollRun/OnchainTransaction/etc that created this entry
+
+  // Denormalized snapshot of the ledger account's balance immediately
+  // after this entry, for fast reads without summing full history.
+  balanceAfter BigInt
+
+  createdAt DateTime @default(now())
+
+  @@index([ledgerAccountId, createdAt])
+  @@index([referenceType, referenceId])
+  @@map("ledger_entries")
+}
+
+model OnchainTransaction {
+  id                  String @id @default(cuid())
+  walletId            String
+  wallet              Wallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+
+  txHash              String? @unique // null until broadcast/confirmed
+  direction           OnchainDirection
+  amount              BigInt // smallest USDC unit
+  counterpartyAddress String
+  chain               Chain
+  sourceChain         Chain?
+  status              OnchainTxStatus @default(PENDING)
+
+  circleTransactionId String? @unique
+  rawPayload          Json?
+  memo                String?
+  referenceType       LedgerReferenceType?
+  referenceId         String?
+
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+
+  @@index([walletId, status])
+  @@index([circleTransactionId])
+  @@map("onchain_transactions")
+}
+
+// Raw storage of every inbound Circle webhook BEFORE processing,
+// so a bug in handler logic can never lose an event.
+model WebhookEvent {
+  id            String @id @default(cuid())
+  source        String @default("circle")
+  eventType     String?
+  signatureOk   Boolean @default(false)
+  rawPayload    Json
+  status        WebhookEventStatus @default(RECEIVED)
+  processError  String?
+
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([status])
+  @@index([eventType])
+  @@map("webhook_events")
+}
+
+model Contact {
+  id             String         @id @default(cuid())
+  orgId          String
+  organization   Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  displayName    String
+  identifier     String
+  identifierType IdentifierType
+  notes          String?
+  lastPaidAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, identifier])
+  @@index([orgId, lastPaidAt])
+  @@map("contacts")
+}
+
+model IdempotencyKey {
+  id             String                @id @default(cuid())
+  orgId          String
+  organization   Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  endpoint       String
+  key            String
+  requestHash    String
+  status         IdempotencyKeyStatus @default(PENDING)
+  responseBody   Json?
+  responseStatus Int?
+  expiresAt      DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, endpoint, key])
+  @@index([orgId])
+  @@map("idempotency_keys")
+}
