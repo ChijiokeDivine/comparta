@@ -17,6 +17,7 @@ import { prisma } from "@/lib/db/prisma";
 import { recordEntry } from "@/lib/ledger/engine";
 import { toSmallestUnit } from "@/lib/circle/amount";
 import { mapCircleBlockchain } from "@/lib/circle/chainMapping";
+import { reconcileInboundPaymentAgainstInvoices, notifyInvoicePaidIfMatched } from "@/lib/invoices/reconciliation";
 import type { Chain, Prisma } from "@/app/generated/prisma/client";
 
 export interface InboundNotification {
@@ -101,7 +102,7 @@ export async function handleInboundTransfer(notification: InboundNotification): 
   const sourceChain: Chain =
     mapCircleBlockchain(notification.sourceBlockchain ?? notification.blockchain) ?? settlementChain;
 
-  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  const reconciliation = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const onchainTx = await tx.onchainTransaction.create({
       data: {
         walletId: wallet.id,
@@ -128,9 +129,16 @@ export async function handleInboundTransfer(notification: InboundNotification): 
       },
       tx
     );
+
+    // Invoice auto-reconciliation happens in the SAME transaction as the
+    // ledger credit: an invoice must never flip to PAID off a transfer
+    // whose own write later rolls back. This is the interim stand-in for
+    // Phase 4 payment-link matching — see lib/invoices/reconciliation.ts.
+    return reconcileInboundPaymentAgainstInvoices(tx, wallet.orgId, onchainTx.id, amount);
   });
 
   await notifyPaymentReceived(wallet.orgId, amount);
+  await notifyInvoicePaidIfMatched(wallet.orgId, reconciliation);
 }
 
 /**

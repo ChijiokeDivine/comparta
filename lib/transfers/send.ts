@@ -33,7 +33,7 @@ import { resolve, ResolverError } from "@/lib/identity/resolver";
 import { recordEntry, getBalance, InsufficientBalanceError as LedgerInsufficientBalanceError } from "@/lib/ledger/engine";
 import { sendTransaction as circleSendTransaction, CircleApiError } from "@/lib/circle/wallets";
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
-import { touchContactLastPaid } from "@/lib/contacts/service";
+import { touchContactLastPaid } from "@/app/api/contacts/service";
 import { getQueue, QUEUE_NAMES } from "@/jobs/queue";
 import type { LedgerReferenceType, Prisma } from "@/app/generated/prisma/client";
 

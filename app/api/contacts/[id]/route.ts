@@ -9,7 +9,7 @@ import {
   deleteContact,
   ContactValidationError,
   ContactNotFoundError,
-} from "@/lib/contacts/service";
+} from "@/app/api/contacts/service";
 
 const updateSchema = z.object({
   displayName: z.string().min(1).optional(),

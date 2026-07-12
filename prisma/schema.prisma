@@ -88,6 +88,33 @@ enum IdempotencyKeyStatus {
   FAILED
 }
 
+// Phase 3 — Invoicing
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum InvoiceEventType {
+  CREATED
+  SENT
+  VIEWED
+  REMINDER_SENT
+  PAID
+  VOID
+}
+
+// USDC is the only currency actually settled today. EURC is modeled now
+// so the column/type exists, but invoice creation rejects anything other
+// than USDC until Phase 4 FX lands (see lib/invoices/service.ts).
+enum InvoiceCurrency {
+  USDC
+  EURC
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // CORE TABLES
 // ─────────────────────────────────────────────────────────────────────────
@@ -109,6 +136,7 @@ model Organization {
   ledgerAccounts         LedgerAccount[]
   contacts               Contact[]
   idempotencyKeys        IdempotencyKey[]
+  invoices               Invoice[]
   defaultLedgerAccount   LedgerAccount?    @relation("OrganizationDefaultLedgerAccount", fields: [defaultLedgerAccountId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -231,6 +259,10 @@ model OnchainTransaction {
   referenceType       LedgerReferenceType?
   referenceId         String?
 
+  // Back-reference for Invoice.paidTxId — set when this inbound tx was
+  // auto-reconciled against an invoice (see lib/invoices/reconciliation.ts).
+  paidInvoice         Invoice?
+
   createdAt   DateTime  @default(now())
   confirmedAt DateTime?
 
@@ -294,4 +326,86 @@ model IdempotencyKey {
   @@unique([orgId, endpoint, key])
   @@index([orgId])
   @@map("idempotency_keys")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PHASE 3 — INVOICING
+// ─────────────────────────────────────────────────────────────────────────
+
+// An invoice issued BY orgId, to be paid by recipientIdentifier (who may
+// or may not be a Comparta org — invoices can go to plain emails/addresses
+// outside the platform). All money fields are bigint smallest-unit, computed
+// server-side from lineItems — never trust a client-submitted total.
+model Invoice {
+  id           String @id @default(cuid())
+  orgId        String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  // Who owes this invoice. Not a FK to Organization/User — invoices can
+  // target a username, a raw Arc address, or a bare email for someone
+  // with no Comparta account at all. Resolved (if possible) only at
+  // send-time for in-app notification purposes; never required to resolve.
+  recipientIdentifier String
+  recipientEmail      String? // required to actually deliver the "sent" email if recipientIdentifier isn't itself an email
+
+  // [{ description: string, quantity: string, unitPrice: string (decimal),
+  //    lineTotal: string (decimal) }] — quantity/unitPrice/lineTotal are
+  // stored as decimal strings for display; subtotal/total below are the
+  // authoritative bigint smallest-unit values computed from this array.
+  lineItems Json
+
+  subtotal  BigInt
+  taxAmount BigInt @default(0)
+  total     BigInt
+
+  currency InvoiceCurrency @default(USDC)
+  status   InvoiceStatus   @default(DRAFT)
+
+  dueDate DateTime
+
+  // Reserved for Phase 4 (payment links). No relation yet — the
+  // payment_links table doesn't exist — this column just holds Phase 4's
+  // id once createPaymentLinkForInvoice() stops being a stub. See
+  // lib/paymentLinks/stub.ts.
+  paymentLinkId String?
+
+  // Set by auto-reconciliation (lib/invoices/reconciliation.ts) once a
+  // matching inbound transfer confirms. @unique: an OnchainTransaction
+  // can settle at most one invoice.
+  paidTxId String?             @unique
+  paidTx   OnchainTransaction? @relation(fields: [paidTxId], references: [id], onDelete: SetNull)
+
+  // Overdue-reminder rate limiting (see jobs/invoiceOverdue.worker.ts):
+  // reminders fire at dueDate, dueDate+3d, dueDate+7d, then stop.
+  // reminderCount is how many of those 3 milestones have fired so far.
+  reminderCount  Int       @default(0)
+  lastReminderAt DateTime?
+
+  events InvoiceEvent[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sentAt    DateTime?
+  paidAt    DateTime?
+
+  @@index([orgId, status])
+  @@index([status, dueDate])
+  @@map("invoices")
+}
+
+// Append-only audit trail for an invoice — powers both the issuer-facing
+// status timeline ("viewed 2 days ago") and dispute resolution. Never
+// update or delete rows; corrections are new events.
+model InvoiceEvent {
+  id        String @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  eventType InvoiceEventType
+  metadata  Json? // e.g. { onchainTransactionId } for PAID, { milestoneDays } for REMINDER_SENT
+
+  createdAt DateTime @default(now())
+
+  @@index([invoiceId, createdAt])
+  @@map("invoice_events")
 }
