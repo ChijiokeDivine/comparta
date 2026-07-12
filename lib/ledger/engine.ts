@@ -147,7 +147,16 @@ export async function transferBetweenLedgerAccounts(
   toLedgerAccountId: string,
   amount: bigint,
   referenceType: LedgerReferenceType,
-  referenceId: string
+  referenceId: string,
+  // Added for the bucket-management/allocation-rules phase: lets a caller
+  // that's already inside its own interactive transaction (e.g. the
+  // allocation engine writing an AllocationRuleExecution row alongside the
+  // transfer) reuse that transaction instead of nesting a second one.
+  // Prisma doesn't support nested interactive transactions — passing the
+  // existing `tx` through is the only safe way to compose this with other
+  // writes. Omit it (as every pre-existing caller does) to keep the old
+  // standalone-transaction behavior.
+  externalTx?: Tx
 ): Promise<{ debit: LedgerEntryResult; credit: LedgerEntryResult }> {
   if (fromLedgerAccountId === toLedgerAccountId) {
     throw new LedgerError("transferBetweenLedgerAccounts: source and destination must differ");
@@ -156,7 +165,7 @@ export async function transferBetweenLedgerAccounts(
     throw new LedgerError("transferBetweenLedgerAccounts: amount must be a positive bigint");
   }
 
-  return prisma.$transaction(async (tx: Tx) => {
+  const run = async (tx: Tx): Promise<{ debit: LedgerEntryResult; credit: LedgerEntryResult }> => {
     // Lock accounts in a stable order (by id) to avoid deadlocks when two
     // transfers move money between the same pair of accounts in opposite
     // directions concurrently.
@@ -186,7 +195,9 @@ export async function transferBetweenLedgerAccounts(
     );
 
     return { debit, credit };
-  });
+  };
+
+  return externalTx ? run(externalTx) : prisma.$transaction(run);
 }
 
 export interface ReconciliationResult {

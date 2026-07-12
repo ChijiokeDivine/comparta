@@ -39,6 +39,7 @@ interface CircleWebhookPayload {
     walletId?: string;
     destinationAddress?: string;
     sourceAddress?: string;
+    tokenId?: string;
     amounts?: string[];
     state?: string;
     status?: string;
@@ -127,6 +128,7 @@ async function dispatchNotification(
       const inbound: InboundNotification = {
         circleTransactionId: notification.id,
         walletId: notification.walletId,
+        tokenId: notification.tokenId,
         blockchain: notification.blockchain,
         sourceBlockchain: notification.sourceBlockchain,
         destinationAddress: notification.destinationAddress ?? "",

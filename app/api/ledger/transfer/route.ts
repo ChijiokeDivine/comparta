@@ -11,6 +11,7 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/db/prisma";
 import { requireApprovedOrg, UnauthenticatedError, KybNotApprovedError } from "@/lib/auth/kyb-gate";
+import { assertCanManageBucket, BucketPermissionError } from "@/lib/auth/canManageBucket";
 import { transferBetweenLedgerAccounts, InsufficientBalanceError, LedgerError } from "@/lib/ledger/engine";
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
 
@@ -22,7 +23,13 @@ const transferSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const { orgId } = await requireApprovedOrg();
+    const ctx = await requireApprovedOrg();
+    const { orgId } = ctx;
+
+    // MEMBER role users can view bucket balances but never move money
+    // between them — see lib/auth/canManageBucket.ts. This is the same
+    // check Payroll/Savings will call for their own fund-moving actions.
+    assertCanManageBucket(ctx);
 
     const body = await req.json().catch(() => null);
     const parsed = transferSchema.safeParse(body);
@@ -35,15 +42,23 @@ export async function POST(req: Request) {
 
     const { fromLedgerAccountId, toLedgerAccountId, amount } = parsed.data;
 
-    // Ownership check — both accounts must belong to the caller's org.
+    // Ownership check — both accounts must belong to the caller's org, and
+    // neither may be archived (an archived bucket is retired — no new
+    // activity, in or out).
     const accounts = await prisma.ledgerAccount.findMany({
       where: { id: { in: [fromLedgerAccountId, toLedgerAccountId] }, orgId },
-      select: { id: true },
+      select: { id: true, archived: true },
     });
     if (accounts.length !== 2) {
       return NextResponse.json(
         { error: "One or both ledger accounts were not found on this organization" },
         { status: 404 }
+      );
+    }
+    if (accounts.some((a) => a.archived)) {
+      return NextResponse.json(
+        { error: "One or both ledger accounts are archived and can no longer be used in a transfer" },
+        { status: 409 }
       );
     }
 
@@ -68,6 +83,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     if (err instanceof KybNotApprovedError) {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
+    if (err instanceof BucketPermissionError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
     }
     if (err instanceof InsufficientBalanceError) {

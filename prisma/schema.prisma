@@ -58,6 +58,7 @@ enum LedgerReferenceType {
   SAVINGS_SWEEP
   DCA
   ADJUSTMENT
+  ALLOCATION_RULE
 }
 
 enum OnchainDirection {
@@ -85,6 +86,22 @@ enum IdentifierType {
 enum IdempotencyKeyStatus {
   PENDING
   COMPLETED
+  FAILED
+}
+
+enum AllocationRuleType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum AllocationTrigger {
+  ON_INCOMING_PAYMENT
+  SCHEDULED
+}
+
+enum AllocationExecutionStatus {
+  EXECUTED
+  SKIPPED_ZERO_AMOUNT
   FAILED
 }
 
@@ -168,6 +185,7 @@ model Organization {
   idempotencyKeys        IdempotencyKey[]
   invoices               Invoice[]
   paymentLinks           PaymentLink[]
+  allocationRules        AllocationRule[]
   defaultLedgerAccount   LedgerAccount?    @relation("OrganizationDefaultLedgerAccount", fields: [defaultLedgerAccountId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -222,25 +240,31 @@ model Wallet {
 // Internal balance "buckets" (Operating / Tax / Payroll / Savings / custom).
 // All backed by the SAME Wallet row — this is the multiple-balances abstraction.
 model LedgerAccount {
-  id               String            @id @default(cuid())
-  orgId            String
-  organization     Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  id                     String            @id @default(cuid())
+  orgId                  String
+  organization           Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
-  walletId         String
-  wallet           Wallet            @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  walletId               String
+  wallet                 Wallet            @relation(fields: [walletId], references: [id], onDelete: Restrict)
 
-  name             String
-  type             LedgerAccountType @default(CUSTOM)
+  name                   String
+  type                   LedgerAccountType @default(CUSTOM)
 
-  entries          LedgerEntry[]
-  defaultForOrgs   Organization[]    @relation("OrganizationDefaultLedgerAccount")
-  paymentLinks     PaymentLink[]
+  entries                LedgerEntry[]
+  defaultForOrgs         Organization[]    @relation("OrganizationDefaultLedgerAccount")
+  paymentLinks           PaymentLink[]
+  allocationRulesAsSource AllocationRule[] @relation("AllocationRuleSource")
+  allocationRulesAsTarget AllocationRule[] @relation("AllocationRuleTarget")
+  archived               Boolean           @default(false)
+  archivedAt             DateTime?
+  archivedBy             String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([orgId, name])
   @@index([orgId])
+  @@index([orgId, archived])
   @@index([walletId])
   @@map("ledger_accounts")
 }
@@ -551,4 +575,102 @@ model PaymentLinkPayment {
   @@index([paymentLinkId, status])
   @@index([status, createdAt])
   @@map("payment_link_payments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PHASE — BUCKET MANAGEMENT & ALLOCATION RULES
+// ─────────────────────────────────────────────────────────────────────────
+
+// A standing rule: "whenever <sourceLedgerAccount> receives money via
+// <trigger>, move <value> to <targetLedgerAccount>." Created/edited only by
+// OWNER/ADMIN — see lib/auth/canManageBucket.ts. Executed by
+// lib/allocationRules/engine.ts.
+model AllocationRule {
+  id    String       @id @default(cuid())
+  orgId String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  sourceLedgerAccountId String
+  sourceLedgerAccount   LedgerAccount @relation("AllocationRuleSource", fields: [sourceLedgerAccountId], references: [id], onDelete: Restrict)
+
+  targetLedgerAccountId String
+  targetLedgerAccount   LedgerAccount @relation("AllocationRuleTarget", fields: [targetLedgerAccountId], references: [id], onDelete: Restrict)
+
+  // Optional human label shown in the UI, e.g. "20% to Tax Reserve".
+  // Auto-generated from ruleType/value/target if not supplied — see
+  // lib/allocationRules/service.ts#describeRule.
+  name String?
+
+  ruleType AllocationRuleType
+
+  // PERCENTAGE: basis points, 1–10000 (10000 = 100.00%). Never a float.
+  // FIXED_AMOUNT: smallest USDC unit (6 decimals), same convention as
+  // every other money column in this schema.
+  value BigInt
+
+  trigger AllocationTrigger @default(ON_INCOMING_PAYMENT)
+
+  // SCHEDULED rules only. Standard 5-field cron string, evaluated in UTC
+  // by jobs/workers/allocationRulesScheduled.worker.ts. Null for
+  // ON_INCOMING_PAYMENT rules.
+  scheduleCron String?
+
+  // Execution order when a source account has multiple active rules —
+  // lower runs first. Matters for FIXED_AMOUNT rules, since an earlier
+  // rule's transfer reduces the balance available to a later one.
+  priority Int @default(0)
+
+  active         Boolean   @default(true)
+  lastExecutedAt DateTime?
+
+  executions AllocationRuleExecution[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Enforced in application code, not the DB: for a given
+  // (orgId, sourceLedgerAccountId, trigger), the sum of `value` across all
+  // active PERCENTAGE rules must never exceed 10000 basis points. See
+  // lib/allocationRules/service.ts#assertPercentageBudget. A DB-level
+  // CHECK can't express a cross-row SUM constraint, so this must stay a
+  // service-layer invariant — every write path (create + update) goes
+  // through that one function.
+  @@index([orgId, sourceLedgerAccountId, trigger, active])
+  @@index([trigger, active])
+  @@map("allocation_rules")
+}
+
+// APPEND-ONLY audit log, one row per attempted trigger firing — including
+// skipped (rounds to zero) and failed (insufficient balance) attempts, so
+// "why didn't my rule fire" is always answerable from the DB. Mirrors
+// InvoiceEvent / LedgerEntry's append-only convention elsewhere in this
+// schema. Never update or delete rows.
+model AllocationRuleExecution {
+  id               String         @id @default(cuid())
+  allocationRuleId String
+  allocationRule   AllocationRule @relation(fields: [allocationRuleId], references: [id], onDelete: Cascade)
+
+  // What inbound event caused this rule to be evaluated, e.g.
+  // referenceType=ONCHAIN_TX, referenceId=<the OnchainTransaction.id>
+  // that credited the source bucket. For SCHEDULED rules this instead
+  // references the sweep job run (see jobs/workers/allocationRulesScheduled.worker.ts).
+  triggerReferenceType LedgerReferenceType
+  triggerReferenceId   String
+
+  amountAllocated BigInt // 0 for SKIPPED_ZERO_AMOUNT / FAILED
+  status          AllocationExecutionStatus
+
+  // Set only when status = EXECUTED — the referenceId shared by the two
+  // LedgerEntry rows (debit + credit) this execution created, so a
+  // support engineer can go straight from this row to the exact ledger
+  // movement it caused via LedgerEntry.referenceType/referenceId.
+  ledgerReferenceId String?
+
+  errorMessage String? // set only when status = FAILED
+
+  createdAt DateTime @default(now())
+
+  @@index([allocationRuleId, createdAt])
+  @@index([status])
+  @@map("allocation_rule_executions")
 }

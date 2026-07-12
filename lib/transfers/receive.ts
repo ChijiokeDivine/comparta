@@ -29,6 +29,7 @@ import { toSmallestUnit } from "@/lib/circle/amount";
 import { mapCircleBlockchain } from "@/lib/circle/chainMapping";
 import { reconcileInboundPaymentAgainstInvoices, notifyInvoicePaidIfMatched } from "@/lib/invoices/reconciliation";
 import { reconcileWalletTransferAgainstPaymentLinks, issueWrongAmountRefund } from "@/lib/paymentLinks/reconciliation";
+import { executeIncomingPaymentAllocationRules } from "@/lib/allocationRules/engine";
 import type { Chain, Prisma } from "@/app/generated/prisma/client";
 
 export interface InboundNotification {
@@ -45,6 +46,7 @@ export interface InboundNotification {
    * don't carry a separate source-chain field, meaning the transfer
    * originated and settled on the same chain.
    */
+  tokenId?: string;
   sourceBlockchain?: string;
   destinationAddress: string;
   sourceAddress?: string;
@@ -107,7 +109,7 @@ export async function handleInboundTransfer(notification: InboundNotification): 
   const sourceChain: Chain =
     mapCircleBlockchain(notification.sourceBlockchain ?? notification.blockchain) ?? settlementChain;
 
-  const { reconciliation, paymentLinkResult, onchainTxId } = await prisma.$transaction(
+  const { reconciliation, paymentLinkResult, onchainTxId, allocationSource } = await prisma.$transaction(
     async (tx: Prisma.TransactionClient) => {
       const onchainTx = await tx.onchainTransaction.create({
         data: {
@@ -149,6 +151,12 @@ export async function handleInboundTransfer(notification: InboundNotification): 
           reconciliation: { matched: Boolean(linkResult.invoiceId), invoiceId: linkResult.invoiceId },
           paymentLinkResult: linkResult,
           onchainTxId: onchainTx.id,
+          // Payment-link credits go to the link's own receivingLedgerAccountId,
+          // not the org's default bucket — allocation rules are scoped to the
+          // default-bucket path today (see module docstring above and
+          // lib/allocationRules/engine.ts). A future phase wanting rules to
+          // also apply here would set this instead of null.
+          allocationSource: null as { orgId: string; ledgerAccountId: string } | null,
         };
       }
 
@@ -183,12 +191,33 @@ export async function handleInboundTransfer(notification: InboundNotification): 
         amount
       );
 
-      return { reconciliation: invoiceReconciliation, paymentLinkResult: linkResult, onchainTxId: onchainTx.id };
+      return {
+        reconciliation: invoiceReconciliation,
+        paymentLinkResult: linkResult,
+        onchainTxId: onchainTx.id,
+        allocationSource: { orgId: wallet.orgId, ledgerAccountId: defaultLedgerAccountId },
+      };
     }
   );
 
   await notifyPaymentReceived(wallet.orgId, amount);
   await notifyInvoicePaidIfMatched(wallet.orgId, reconciliation);
+
+  // Auto-allocation rules (e.g. "move 20% of every incoming payment to Tax
+  // Reserve") run AFTER the credit transaction above has committed — see
+  // lib/allocationRules/engine.ts's docstring for why this can't be nested
+  // inside that transaction. A rule failing (e.g. a misconfigured
+  // FIXED_AMOUNT rule that can't be covered) is logged and never affects
+  // the inbound payment that was already durably credited.
+  if (allocationSource) {
+    await executeIncomingPaymentAllocationRules({
+      orgId: allocationSource.orgId,
+      sourceLedgerAccountId: allocationSource.ledgerAccountId,
+      creditedAmount: amount,
+      triggerReferenceType: "ONCHAIN_TX",
+      triggerReferenceId: onchainTxId,
+    }).catch((err) => console.error(`[receive] allocation rules failed for onchainTx ${onchainTxId}`, err));
+  }
 
   if (paymentLinkResult.kind === "wrong_amount_pending_refund") {
     // Submitted outside the transaction that recorded the inbound
