@@ -12,7 +12,7 @@ import { prisma } from "@/lib/db/prisma";
 import { resolve, ResolverError } from "@/lib/identity/resolver";
 import { toDecimalString } from "@/lib/circle/amount";
 import { computeLineItems, parseTaxAmount, InvoiceValidationError, type RawLineItemInput } from "./money";
-import { createPaymentLinkForInvoice } from "@/lib/paymentLinks/stub";
+import { createPaymentLinkForInvoice } from "@/lib/paymentLinks/service";
 import {
   sendInvoiceCreatedEmail,
   notifyInAppInvoiceReceived,
@@ -112,11 +112,17 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
     return created;
   });
 
-  // Auto-generate a payment link — stubbed until Phase 4 exists. Never
-  // block invoice creation on this; the public page falls back cleanly
-  // to the direct-address flow if paymentLinkId stays null.
+  // Auto-generate a single-use, amount-locked payment link (Phase 4).
+  // Never block invoice creation on this; the public page falls back
+  // cleanly to the direct-address flow if paymentLinkId stays null.
   try {
-    const paymentLinkId = await createPaymentLinkForInvoice(invoice.id);
+    const paymentLinkId = await createPaymentLinkForInvoice({
+      invoiceId: invoice.id,
+      orgId: invoice.orgId,
+      totalSmallestUnit: invoice.total,
+      currency: invoice.currency,
+      dueDate: invoice.dueDate,
+    });
     if (paymentLinkId) {
       await prisma.invoice.update({ where: { id: invoice.id }, data: { paymentLinkId } });
       return { ...invoice, paymentLinkId };

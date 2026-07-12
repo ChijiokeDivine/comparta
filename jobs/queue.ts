@@ -41,6 +41,7 @@ export const QUEUE_NAMES = {
   DCA_EXECUTION: "dca-execution",
   CONFIRM_TRANSACTION: "confirm-transaction",
   INVOICE_OVERDUE_SWEEP: "invoice-overdue-sweep",
+  PAYMENT_LINK_EXPIRY_SWEEP: "payment-link-expiry-sweep",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

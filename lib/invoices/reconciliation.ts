@@ -66,7 +66,24 @@ export async function reconcileInboundPaymentAgainstInvoices(
   }
 
   const invoiceId = candidates[0]!.id;
+  await markInvoicePaid(tx, invoiceId, onchainTransactionId);
 
+  return { matched: true, invoiceId };
+}
+
+/**
+ * Flips a specific, already-identified invoice to PAID. Extracted so
+ * callers that already know the exact invoice — no amount-matching
+ * heuristic needed — can reuse the same write path rather than
+ * duplicating it. Used by reconcileInboundPaymentAgainstInvoices above
+ * (heuristic match) and by lib/paymentLinks/completion.ts (unambiguous
+ * match via a payment link's checkout session).
+ */
+export async function markInvoicePaid(
+  tx: Tx,
+  invoiceId: string,
+  onchainTransactionId: string
+): Promise<void> {
   await tx.invoice.update({
     where: { id: invoiceId },
     data: { status: "PAID", paidTxId: onchainTransactionId, paidAt: new Date() },
@@ -74,8 +91,6 @@ export async function reconcileInboundPaymentAgainstInvoices(
   await tx.invoiceEvent.create({
     data: { invoiceId, eventType: "PAID", metadata: { onchainTransactionId } as never },
   });
-
-  return { matched: true, invoiceId };
 }
 
 /** Fire-and-forget notification, called after the transaction that reconciled the invoice commits. */

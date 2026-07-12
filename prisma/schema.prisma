@@ -115,6 +115,36 @@ enum InvoiceCurrency {
   EURC
 }
 
+// Phase 4 — Payment Links
+enum PaymentLinkType {
+  FIXED_AMOUNT
+  OPEN_AMOUNT
+}
+
+enum PaymentLinkStatus {
+  ACTIVE
+  PAUSED
+  EXPIRED
+}
+
+// Lifecycle of a single checkout attempt (one PaymentLinkPayment row per
+// attempt — a payer who abandons and retries gets a fresh row, not a
+// reused one, so history is a truthful append-only log of attempts).
+enum PaymentLinkPaymentStatus {
+  PENDING            // checkout session opened, funds not yet observed
+  CONFIRMED          // funds received and the ledger was credited
+  FAILED             // card/ACH declined, or the wallet tx itself failed onchain
+  WRONG_AMOUNT_REFUNDED // wallet path only: payer sent an amount that didn't
+  // match any open session on a FIXED_AMOUNT link; funds were credited then
+  // immediately refunded onchain rather than silently accepted — see
+  // lib/paymentLinks/reconciliation.ts.
+}
+
+enum PaymentMethod {
+  WALLET
+  CARD
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // CORE TABLES
 // ─────────────────────────────────────────────────────────────────────────
@@ -137,6 +167,7 @@ model Organization {
   contacts               Contact[]
   idempotencyKeys        IdempotencyKey[]
   invoices               Invoice[]
+  paymentLinks           PaymentLink[]
   defaultLedgerAccount   LedgerAccount?    @relation("OrganizationDefaultLedgerAccount", fields: [defaultLedgerAccountId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -203,6 +234,7 @@ model LedgerAccount {
 
   entries          LedgerEntry[]
   defaultForOrgs   Organization[]    @relation("OrganizationDefaultLedgerAccount")
+  paymentLinks     PaymentLink[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -262,6 +294,12 @@ model OnchainTransaction {
   // Back-reference for Invoice.paidTxId — set when this inbound tx was
   // auto-reconciled against an invoice (see lib/invoices/reconciliation.ts).
   paidInvoice         Invoice?
+
+  // Back-reference for PaymentLinkPayment.txId — set once this tx has been
+  // matched to a payment-link checkout session (see
+  // lib/paymentLinks/reconciliation.ts). Either side of a refund pair
+  // (the original inbound IN and the refund OUT) may point back here.
+  paymentLinkPayment  PaymentLinkPayment?
 
   createdAt   DateTime  @default(now())
   confirmedAt DateTime?
@@ -363,15 +401,21 @@ model Invoice {
 
   dueDate DateTime
 
-  // Reserved for Phase 4 (payment links). No relation yet — the
-  // payment_links table doesn't exist — this column just holds Phase 4's
-  // id once createPaymentLinkForInvoice() stops being a stub. See
-  // lib/paymentLinks/stub.ts.
-  paymentLinkId String?
+  // Phase 4: every invoice gets a single-use, amount-locked PaymentLink at
+  // creation time (see lib/paymentLinks/service.ts#createPaymentLinkForInvoice,
+  // called from lib/invoices/service.ts#createInvoice). @unique because the
+  // relationship is 1:1 — an invoice-linked PaymentLink is never shared
+  // across invoices. Nullable/SetNull so a failed link-creation attempt (or
+  // a link created before this relation existed) never blocks invoice
+  // reads/writes — the public invoice page falls back to the direct-address
+  // flow when this is null (see lib/invoices/service.ts#getPublicInvoice).
+  paymentLinkId String? @unique
+  paymentLink   PaymentLink? @relation(fields: [paymentLinkId], references: [id], onDelete: SetNull)
 
-  // Set by auto-reconciliation (lib/invoices/reconciliation.ts) once a
-  // matching inbound transfer confirms. @unique: an OnchainTransaction
-  // can settle at most one invoice.
+  // Set by auto-reconciliation (lib/invoices/reconciliation.ts, or
+  // lib/paymentLinks/completion.ts when paid via this invoice's payment
+  // link) once a matching inbound transfer confirms. @unique: an
+  // OnchainTransaction can settle at most one invoice.
   paidTxId String?             @unique
   paidTx   OnchainTransaction? @relation(fields: [paidTxId], references: [id], onDelete: SetNull)
 
@@ -408,4 +452,103 @@ model InvoiceEvent {
 
   @@index([invoiceId, createdAt])
   @@map("invoice_events")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PHASE 4 — PAYMENT LINKS
+// ─────────────────────────────────────────────────────────────────────────
+
+// A standalone shareable checkout URL (/pay/[slug]), usable on its own
+// ("pay me $50 for consulting") or attached 1:1 to an Invoice (see
+// Invoice.paymentLinkId). Never mutate amount/type after creation for a
+// link that already has a CONFIRMED payment — create a new link instead;
+// this table has no versioning story and callers shouldn't need one.
+model PaymentLink {
+  id    String @id @default(cuid())
+  orgId String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  // Short, collision-resistant, URL-safe. Generated server-side (see
+  // lib/paymentLinks/slug.ts) — never client-supplied, so there's no
+  // user-facing "this slug is taken" flow to design around.
+  slug String @unique
+
+  type        PaymentLinkType
+  amount      BigInt? // smallest USDC unit; must be set iff type = FIXED_AMOUNT
+  description String?
+
+  status    PaymentLinkStatus @default(ACTIVE)
+  expiresAt DateTime?
+  maxUses   Int? // null = unlimited
+  useCount  Int  @default(0)
+
+  // Which internal balance bucket a successful payment credits. Must
+  // belong to the same org (enforced in lib/paymentLinks/service.ts).
+  receivingLedgerAccountId String
+  receivingLedgerAccount   LedgerAccount @relation(fields: [receivingLedgerAccountId], references: [id], onDelete: Restrict)
+
+  payments PaymentLinkPayment[]
+  invoice  Invoice? // back-reference: at most one invoice may attach to this link
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, status])
+  @@index([status, expiresAt])
+  @@map("payment_links")
+}
+
+// One row per checkout attempt (not per successful payment — an abandoned
+// or wrong-amount attempt still gets a row, so the merchant's usage list
+// is a truthful log rather than only-happy-path). This is also the
+// correlation anchor that lets an inbound onchain transfer or a Circle
+// Payments API webhook be matched back to *this specific* checkout
+// without guessing — see lib/paymentLinks/reconciliation.ts (wallet path)
+// and lib/paymentLinks/checkout.ts (card path, matched by circlePaymentId).
+model PaymentLinkPayment {
+  id            String @id @default(cuid())
+  paymentLinkId String
+  paymentLink   PaymentLink @relation(fields: [paymentLinkId], references: [id], onDelete: Restrict)
+
+  // Anonymous/external payer identifier — email (card path) or the
+  // sending wallet address (wallet path, filled in once observed).
+  // Nullable: a payer may never be identified at all.
+  payerIdentifier String?
+  method          PaymentMethod
+
+  // Amount this session expects to receive, in smallest USDC unit — set
+  // at session-start time (equal to PaymentLink.amount for FIXED_AMOUNT
+  // links, or payer-entered and validated for OPEN_AMOUNT links). This is
+  // the value inbound-transfer matching compares against, NOT a
+  // post-hoc record of what arrived.
+  amountExpected BigInt
+
+  // What was actually credited, if anything. Differs from amountExpected
+  // only in the WRONG_AMOUNT_REFUNDED case.
+  amountPaid BigInt?
+
+  status PaymentLinkPaymentStatus @default(PENDING)
+
+  // Set once a matching inbound OnchainTransaction is found (wallet path)
+  // or once Circle's USDC settlement transaction lands (card path, after
+  // conversion). @unique — a given onchain transaction settles at most
+  // one checkout attempt.
+  txId String? @unique
+  tx   OnchainTransaction? @relation(fields: [txId], references: [id], onDelete: SetNull)
+
+  // Card/ACH path only: Circle Payments API's payment id, echoed back on
+  // its webhook, and our own idempotency key sent on creation. Because we
+  // control both ends of this API call, this path never needs the
+  // amount-matching heuristic the wallet path relies on.
+  circlePaymentId String? @unique
+  idempotencyKey  String? @unique
+
+  failureReason String?
+
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+
+  @@index([paymentLinkId, status])
+  @@index([status, createdAt])
+  @@map("payment_link_payments")
 }
