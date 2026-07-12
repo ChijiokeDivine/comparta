@@ -17,10 +17,7 @@ import { prisma } from "@/lib/db/prisma";
 import { recordEntry } from "@/lib/ledger/engine";
 import { toSmallestUnit } from "@/lib/circle/amount";
 import { mapCircleBlockchain } from "@/lib/circle/chainMapping";
-import type { Chain } from "@/app/generated/prisma/client";
-import type { Prisma } from "@prisma/client/extension";
-
-
+import type { Chain, Prisma } from "@/app/generated/prisma/client";
 
 export interface InboundNotification {
   /** Circle's notification.id — the transaction identifier, used as our idempotency key. */

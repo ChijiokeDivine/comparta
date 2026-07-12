@@ -225,6 +225,7 @@ model OnchainTransaction {
   status              OnchainTxStatus @default(PENDING)
 
   circleTransactionId String? @unique
+  idempotencyKey      String? @unique
   rawPayload          Json?
   memo                String?
   referenceType       LedgerReferenceType?

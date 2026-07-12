@@ -15,20 +15,16 @@ const globalForQueues = globalThis as unknown as {
 };
 
 function getConnection(): ConnectionOptions {
-  if (!globalForQueues.redisConnection) {
-    globalForQueues.redisConnection = new IORedis(getEnv().REDIS_URL, {
-      maxRetriesPerRequest: null, // required by BullMQ
-    });
-  }
-  // BullMQ bundles its own (compatible) copy of ioredis as a nested
-  // dependency, which TypeScript treats as a structurally-identical but
-  // nominally distinct type from the top-level `ioredis` package here.
-  // They're interoperable at runtime — this is a type-identity artifact
-  // of npm's dependency deduping, not a real mismatch.
-  return globalForQueues.redisConnection as unknown as ConnectionOptions;
+  return getRawRedisClient() as unknown as ConnectionOptions;
 }
 
-export function getRedisClient(): IORedis {
+/**
+ * Returns the actual IORedis client instance, properly typed with its
+ * real command methods (incr, expire, ttl, etc.) — for callers that need
+ * to run Redis commands directly (e.g. lib/rateLimit.ts) rather than just
+ * handing a connection to BullMQ.
+ */
+function getRawRedisClient(): IORedis {
   if (!globalForQueues.redisConnection) {
     globalForQueues.redisConnection = new IORedis(getEnv().REDIS_URL, {
       maxRetriesPerRequest: null, // required by BullMQ
@@ -69,4 +65,4 @@ export function getQueue(name: QueueName): Queue {
   return queue;
 }
 
-export { getConnection as getRedisConnection };
+export { getConnection as getRedisConnection, getRawRedisClient };

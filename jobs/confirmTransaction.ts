@@ -23,7 +23,7 @@ import { getRedisConnection, QUEUE_NAMES } from "@/jobs/queue";
 import { prisma } from "@/lib/db/prisma";
 import { recordEntry } from "@/lib/ledger/engine";
 import { getTransactionStatus } from "@/lib/circle/wallets";
-import type { Prisma } from "@prisma/client/extension";
+import type { Prisma } from "@/app/generated/prisma/client";
 
 const SUCCESS_STATES = new Set(["CONFIRMED", "COMPLETE"]);
 const FAILURE_STATES = new Set(["FAILED", "CANCELLED", "DENIED"]);

@@ -35,8 +35,7 @@ import { sendTransaction as circleSendTransaction, CircleApiError } from "@/lib/
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
 import { touchContactLastPaid } from "@/lib/contacts/service";
 import { getQueue, QUEUE_NAMES } from "@/jobs/queue";
-import type { LedgerReferenceType } from "@/app/generated/prisma/client";
-import type { Prisma } from "@prisma/client/extension";
+import type { LedgerReferenceType, Prisma } from "@/app/generated/prisma/client";
 
 export class SendPaymentError extends Error {
   constructor(message: string, public readonly code: SendErrorCode) {

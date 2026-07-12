@@ -5,7 +5,7 @@
 // automated username-squatting attempts without pulling in a dedicated
 // rate-limiting service — one INCR + one conditional EXPIRE per check.
 
-import { getRedisClient } from "@/jobs/queue";
+import { getRawRedisClient } from "@/jobs/queue";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -25,7 +25,7 @@ export async function checkRateLimit(
   limit: number,
   windowSeconds: number
 ): Promise<RateLimitResult> {
-  const redis = getRedisClient();
+  const redis = getRawRedisClient();
   const redisKey = `ratelimit:${key}`;
 
   const count = await redis.incr(redisKey);

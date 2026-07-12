@@ -12,7 +12,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth, UnauthenticatedError } from "@/lib/auth/kyb-gate";
 import { toDecimalString } from "@/lib/circle/amount";
-import type { Prisma, OnchainDirection, Wallet, LedgerEntry, OnchainTransaction } from "@/app/generated/prisma/client";
+import type { Prisma, OnchainDirection, OnchainTransaction } from "@/app/generated/prisma/client";
 
 const querySchema = z.object({
   ledgerAccountId: z.string().optional(),
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     const q = parsed.data;
 
     const wallets = await prisma.wallet.findMany({ where: { orgId }, select: { id: true } });
-    const walletIds = wallets.map((w: Pick<Wallet, "id">) => w.id);
+    const walletIds = wallets.map((w: { id: string }) => w.id);
     if (walletIds.length === 0) {
       return NextResponse.json({ transactions: [], nextCursor: null });
     }
@@ -70,7 +70,7 @@ export async function GET(req: Request) {
         where: { ledgerAccountId: q.ledgerAccountId, referenceType: "ONCHAIN_TX" },
         select: { referenceId: true },
       });
-      where.id = { in: entries.map((e: Pick<LedgerEntry, "referenceId">) => e.referenceId) };
+      where.id = { in: entries.map((e: { referenceId: string }) => e.referenceId) };
     }
 
     const transactions = await prisma.onchainTransaction.findMany({
