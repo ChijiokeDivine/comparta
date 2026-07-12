@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth, UnauthenticatedError } from "@/lib/auth/kyb-gate";
-import { createContact, listContacts, ContactValidationError } from "@/app/api/contacts/service";
+import { createContact, listContacts, ContactValidationError } from "@/lib/contacts/service";
 
 const createSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
