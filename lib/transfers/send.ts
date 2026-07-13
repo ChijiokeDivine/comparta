@@ -34,6 +34,11 @@ import { recordEntry, getBalance, InsufficientBalanceError as LedgerInsufficient
 import { sendTransaction as circleSendTransaction, CircleApiError } from "@/lib/circle/wallets";
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
 import { touchContactLastPaid } from "@/lib/contacts/service";
+// Phase 7 — Smart Savings: ROUND_UP SavingsRules fire on the outbound
+// debit — the one trigger AllocationRule has no equivalent for. See
+// lib/savings/sweep.ts's module docstring for why this lives here
+// rather than on the inbound side.
+import { executeOutgoingPaymentSavingsRules } from "@/lib/savings/sweep";
 import { getQueue, QUEUE_NAMES } from "@/jobs/queue";
 import type { LedgerReferenceType, Prisma } from "@/app/generated/prisma/client";
 
@@ -202,6 +207,19 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
 
     // Best-effort address-book denormalization — never block the send on this.
     touchContactLastPaid(input.orgId, input.toIdentifier.trim()).catch(() => {});
+
+    // Phase 7 — Smart Savings: ROUND_UP rules sourced from this same
+    // bucket. Post-commit, best-effort, same posture as every other
+    // rule-engine hook in this codebase — a savings sweep failing must
+    // never affect (or be affected by) the outbound payment that already
+    // debited successfully.
+    executeOutgoingPaymentSavingsRules({
+      orgId: input.orgId,
+      sourceLedgerAccountId: input.fromLedgerAccountId,
+      debitedAmount: amountSmallestUnit,
+      triggerReferenceType: "ONCHAIN_TX",
+      triggerReferenceId: onchainTx.id,
+    }).catch((err) => console.error(`[sendPayment] savings rules failed for onchainTx ${onchainTx.id}`, err));
 
     return {
       onchainTransactionId: onchainTx.id,

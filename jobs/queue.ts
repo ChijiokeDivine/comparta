@@ -4,6 +4,12 @@
 // (jobs/workers/*) process them. Kept as a Postgres-independent layer so
 // payroll runs, DCA transfers, and savings sweeps survive a process
 // restart mid-job — Redis has the durable job state, not in-memory timers.
+//
+// Phase 7 (Smart Savings) note: SAVINGS_SWEEP already existed (reserved
+// for this phase) and is now wired up by
+// jobs/workers/savingsSweep.worker.ts. YIELD_REDEMPTION_CONFIRMATION is
+// new — it's the polling queue for jobs/confirmYieldRedemption.ts,
+// mirroring how CONFIRM_TRANSACTION backs jobs/confirmTransaction.ts.
 
 import { Queue, type ConnectionOptions } from "bullmq";
 import IORedis from "ioredis";
@@ -21,8 +27,8 @@ function getConnection(): ConnectionOptions {
 /**
  * Returns the actual IORedis client instance, properly typed with its
  * real command methods (incr, expire, ttl, etc.) — for callers that need
- * to run Redis commands directly (e.g. lib/rateLimit.ts) rather than just
- * handing a connection to BullMQ.
+ * to run Redis commands directly (e.g. lib/rateLimit.ts, lib/savings/yieldRate.ts)
+ * rather than just handing a connection to BullMQ.
  */
 function getRawRedisClient(): IORedis {
   if (!globalForQueues.redisConnection) {
@@ -44,6 +50,7 @@ export const QUEUE_NAMES = {
   PAYMENT_LINK_EXPIRY_SWEEP: "payment-link-expiry-sweep",
   ALLOCATION_RULE_SCHEDULED_SWEEP: "allocation-rule-scheduled-sweep",
   PAYROLL_SCHEDULE_SWEEP: "payroll-schedule-sweep",
+  YIELD_REDEMPTION_CONFIRMATION: "yield-redemption-confirmation",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

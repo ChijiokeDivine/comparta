@@ -30,6 +30,10 @@ import { mapCircleBlockchain } from "@/lib/circle/chainMapping";
 import { reconcileInboundPaymentAgainstInvoices, notifyInvoicePaidIfMatched } from "@/lib/invoices/reconciliation";
 import { reconcileWalletTransferAgainstPaymentLinks, issueWrongAmountRefund } from "@/lib/paymentLinks/reconciliation";
 import { executeIncomingPaymentAllocationRules } from "@/lib/allocationRules/engine";
+// Phase 7 — Smart Savings: PERCENTAGE_OF_INCOME SavingsRules fire on the
+// exact same trigger point as ON_INCOMING_PAYMENT AllocationRules, for
+// the same reason (see lib/savings/sweep.ts's module docstring).
+import { executeIncomingPaymentSavingsRules } from "@/lib/savings/sweep";
 import type { Chain, Prisma } from "@/app/generated/prisma/client";
 
 export interface InboundNotification {
@@ -217,6 +221,18 @@ export async function handleInboundTransfer(notification: InboundNotification): 
       triggerReferenceType: "ONCHAIN_TX",
       triggerReferenceId: onchainTxId,
     }).catch((err) => console.error(`[receive] allocation rules failed for onchainTx ${onchainTxId}`, err));
+
+    // Phase 7 — Smart Savings: PERCENTAGE_OF_INCOME rules sourced from
+    // this same bucket. Independent of (and never blocking) allocation
+    // rules — a savings sweep failing must never affect an allocation
+    // rule that also fired off this payment, and vice versa.
+    await executeIncomingPaymentSavingsRules({
+      orgId: allocationSource.orgId,
+      sourceLedgerAccountId: allocationSource.ledgerAccountId,
+      creditedAmount: amount,
+      triggerReferenceType: "ONCHAIN_TX",
+      triggerReferenceId: onchainTxId,
+    }).catch((err) => console.error(`[receive] savings rules failed for onchainTx ${onchainTxId}`, err));
   }
 
   if (paymentLinkResult.kind === "wrong_amount_pending_refund") {

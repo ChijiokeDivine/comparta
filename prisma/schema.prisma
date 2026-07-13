@@ -50,6 +50,8 @@ enum LedgerDirection {
   DEBIT
 }
 
+// YIELD_DEPLOYMENT / YIELD_REDEMPTION added for Phase 7 (Smart Savings) —
+// see lib/savings/yield.ts. Every other value predates that phase.
 enum LedgerReferenceType {
   ONCHAIN_TX
   INTERNAL_TRANSFER
@@ -59,6 +61,8 @@ enum LedgerReferenceType {
   DCA
   ADJUSTMENT
   ALLOCATION_RULE
+  YIELD_DEPLOYMENT
+  YIELD_REDEMPTION
 }
 
 enum OnchainDirection {
@@ -190,6 +194,32 @@ enum PaymentMethod {
   CARD
 }
 
+// Phase 7 — Smart Savings (yield)
+enum YieldPositionStatus {
+  ACTIVE
+  REDEEMED
+}
+
+enum SavingsRuleTrigger {
+  PERCENTAGE_OF_INCOME
+  ROUND_UP
+  FIXED_RECURRING
+}
+
+enum SavingsRuleExecutionStatus {
+  EXECUTED
+  SKIPPED_ZERO_AMOUNT
+  SKIPPED_FLOOR_PROTECTED
+  FAILED
+}
+
+enum YieldRedemptionStatus {
+  PENDING     // request created, not yet submitted to Circle
+  PROCESSING  // submitted to Circle, awaiting settlement confirmation
+  COMPLETED   // USDC credited back to the bucket's liquid balance
+  FAILED
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // CORE TABLES
 // ─────────────────────────────────────────────────────────────────────────
@@ -217,6 +247,7 @@ model Organization {
   payees                 Payee[]
   payrollSchedules       PayrollSchedule[]
   payrollRuns            PayrollRun[]
+  savingsRules           SavingsRule[]
   defaultLedgerAccount   LedgerAccount?    @relation("OrganizationDefaultLedgerAccount", fields: [defaultLedgerAccountId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -284,6 +315,26 @@ model LedgerAccount {
   name                   String
   type                   LedgerAccountType @default(CUSTOM)
 
+  // ── Phase 7 — Smart Savings (yield) ─────────────────────────────────
+  // A bucket's ledger balance (lib/ledger/engine.ts#getBalance) ALWAYS
+  // represents only liquid, immediately-spendable USDC — that invariant
+  // is unchanged by this phase. When isYieldEnabled is true, a slice of
+  // every fresh inflow swept into this bucket is additionally deployed
+  // into USYC (tracked in YieldPosition, valued separately) rather than
+  // sitting idle. See lib/savings/sweep.ts and lib/savings/yield.ts.
+  isYieldEnabled         Boolean           @default(false)
+  // Basis points (0–10000) of a fresh sweep INTO this bucket that should
+  // be deployed into USYC; the remainder stays liquid as an instant-
+  // withdrawal buffer. Required (non-null) iff isYieldEnabled — enforced
+  // in lib/savings/service.ts#setBucketYieldConfig (a DB CHECK can't
+  // express "required iff sibling column is true" declaratively).
+  yieldAllocationPct     Int?
+  // Smallest USDC unit. Any sweep (savings or allocation) sourcing FROM
+  // this bucket must never bring its liquid balance below this floor —
+  // see lib/savings/sweep.ts#computeFloorConstrainedAmount. 0 (default)
+  // preserves all pre-Phase-7 behavior (no floor).
+  minimumBalanceFloor    BigInt            @default(0)
+
   entries                LedgerEntry[]
   defaultForOrgs         Organization[]    @relation("OrganizationDefaultLedgerAccount")
   paymentLinks           PaymentLink[]
@@ -291,6 +342,10 @@ model LedgerAccount {
   allocationRulesAsTarget AllocationRule[] @relation("AllocationRuleTarget")
   payrollSchedules        PayrollSchedule[]
   payrollRuns             PayrollRun[]
+  savingsRulesAsSource    SavingsRule[]    @relation("SavingsRuleSource")
+  savingsRulesAsTarget    SavingsRule[]    @relation("SavingsRuleTarget")
+  yieldPositions          YieldPosition[]
+  yieldRedemptionRequests YieldRedemptionRequest[]
   archived               Boolean           @default(false)
   archivedAt             DateTime?
   archivedBy             String?
@@ -309,6 +364,13 @@ model LedgerAccount {
 // offsetting entries. Sum of entries for an org must always equal
 // the sum across its LedgerAccounts and reconcile against the
 // actual onchain wallet balance.
+//
+// Phase 7 note: this invariant is specifically about USDC custody. Once
+// a bucket deploys funds into USYC (a different token held in the same
+// Circle wallet), that value leaves this reconciliation's scope by
+// design — LedgerEntry/getBalance stays USDC-only, and YieldPosition is
+// the parallel ledger for deployed value. See lib/savings/overview.ts
+// for the composed liquid+deployed view.
 model LedgerEntry {
   id              String @id @default(cuid())
   ledgerAccountId String
@@ -926,4 +988,186 @@ model PayrollRunItem {
   @@index([payrollRunId, status])
   @@index([payeeId])
   @@map("payroll_run_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PHASE 7 — SMART SAVINGS (YIELD)
+// ─────────────────────────────────────────────────────────────────────────
+
+// One deployment of a bucket's liquid USDC into USYC. Deploying DEBITs the
+// bucket's LedgerAccount (referenceType YIELD_DEPLOYMENT — see
+// lib/savings/yield.ts#deployToYield): LedgerAccount balance
+// (lib/ledger/engine.ts#getBalance) reflects ONLY spendable/liquid USDC,
+// same as every other bucket in this codebase. The value held in USYC
+// lives here instead, and is added back for display purposes by
+// lib/savings/overview.ts#getSavingsBucketOverview.
+//
+// Partial redemption is supported by reducing usycAmount on this SAME
+// row (never below 0) rather than requiring a fresh row per partial
+// redemption — the row is only marked REDEEMED once it reaches exactly
+// zero. See YieldRedemptionRequest for the per-attempt audit trail.
+model YieldPosition {
+  id              String @id @default(cuid())
+  ledgerAccountId String
+  ledgerAccount   LedgerAccount @relation(fields: [ledgerAccountId], references: [id], onDelete: Restrict)
+
+  // Smallest USYC unit — this codebase assumes USYC exposes the same
+  // 6-decimal convention as USDC (see lib/circle/amount.ts); adjust
+  // USDC_DECIMALS-equivalent scaling in lib/savings/yield.ts if Circle's
+  // USYC integration uses a different decimal count. Reduced (never
+  // below 0) on each partial redemption.
+  usycAmount BigInt
+
+  // Smallest USDC unit — the amount of USDC that was converted into
+  // usycAmount at deploy time (this position's cost basis). Never
+  // recomputed after deploy; accrued yield is always (current USYC
+  // value at today's NAV) minus this basis, computed on read in
+  // lib/savings/overview.ts, never stored, so it can never go stale.
+  usdcEquivalentAtDeploy BigInt
+
+  // NAV (USDC per whole USYC token) at the moment of deployment, decimal
+  // string (e.g. "1.05123456"). USYC accrues via NAV APPRECIATION, not by
+  // minting more tokens — this is the reference point every later
+  // valuation and partial-redemption settlement is measured against.
+  navAtDeploy String
+
+  status     YieldPositionStatus @default(ACTIVE)
+  deployedAt DateTime @default(now())
+  redeemedAt DateTime?
+
+  redemptionRequests YieldRedemptionRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ledgerAccountId, status])
+  @@map("yield_positions")
+}
+
+// One redemption ATTEMPT (full or partial) against a single YieldPosition.
+// APPEND-ONLY, one row per attempt — mirrors PaymentLinkPayment's "one
+// row per attempt, not per success" convention, so an attempt that fails
+// or is still settling is a truthful row rather than silently discarded.
+//
+// This row is also the async state machine the UI polls:
+// "near-instant" USYC redemption is still always modeled as
+// PENDING -> PROCESSING -> COMPLETED/FAILED, never assumed synchronous —
+// see lib/savings/yield.ts and jobs/confirmYieldRedemption.ts.
+model YieldRedemptionRequest {
+  id              String @id @default(cuid())
+  ledgerAccountId String
+  ledgerAccount   LedgerAccount @relation(fields: [ledgerAccountId], references: [id], onDelete: Restrict)
+
+  yieldPositionId String
+  yieldPosition   YieldPosition @relation(fields: [yieldPositionId], references: [id], onDelete: Restrict)
+
+  // Smallest USYC unit requested for redemption from this position.
+  usycAmountRequested BigInt
+
+  // Filled in once Circle reports settlement — the actual USDC credited.
+  // May differ from a naive usycAmountRequested * navAtDeploy estimate,
+  // since the NAV applied is the NAV AT REDEMPTION, not at deploy.
+  usdcAmountSettled BigInt?
+
+  status YieldRedemptionStatus @default(PENDING)
+
+  // Circle's USYC conversion/order id, echoed back on status polls — same
+  // idempotency posture as OnchainTransaction.circleTransactionId.
+  circleConversionId String? @unique
+  idempotencyKey     String? @unique
+
+  // Set once settlement lands and the bucket's LedgerAccount has been
+  // credited (referenceType YIELD_REDEMPTION, referenceId = this row's id).
+  ledgerEntryId String?
+
+  failureReason String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  settledAt DateTime?
+
+  @@index([ledgerAccountId, status])
+  @@index([yieldPositionId])
+  @@map("yield_redemption_requests")
+}
+
+// A standing instruction that sweeps money INTO a yield-enabled savings
+// bucket. Mirrors AllocationRule's shape closely (see
+// lib/allocationRules/engine.ts) but with a third trigger, ROUND_UP, that
+// AllocationRule has no equivalent for — see lib/savings/sweep.ts for why
+// ROUND_UP has to hook outbound payments rather than inbound ones.
+model SavingsRule {
+  id    String @id @default(cuid())
+  orgId String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  name String?
+
+  trigger SavingsRuleTrigger
+
+  // PERCENTAGE_OF_INCOME: basis points, 1–10000, of every inbound payment
+  //   credited to sourceLedgerAccountId.
+  // ROUND_UP: the round-up unit, smallest USDC unit (e.g. 10_000000 =
+  //   round up to the nearest $10). Every OUTBOUND payment debited from
+  //   sourceLedgerAccountId is rounded up to the next multiple of this
+  //   value; the difference is swept to targetLedgerAccountId.
+  // FIXED_RECURRING: smallest USDC unit swept on scheduleCron's cadence,
+  //   regardless of payment activity.
+  value BigInt
+
+  // FIXED_RECURRING only — standard 5-field cron, evaluated in UTC by
+  // jobs/workers/savingsSweep.worker.ts, same day-granularity caveat as
+  // AllocationRule.scheduleCron (see lib/allocationRules/engine.ts).
+  scheduleCron   String?
+  lastExecutedAt DateTime?
+
+  sourceLedgerAccountId String
+  sourceLedgerAccount   LedgerAccount @relation("SavingsRuleSource", fields: [sourceLedgerAccountId], references: [id], onDelete: Restrict)
+
+  // Must have isYieldEnabled = true — enforced in
+  // lib/savings/service.ts#createSavingsRule, not at the DB level (a
+  // schema-level CHECK can't reach across to another row's boolean).
+  targetLedgerAccountId String
+  targetLedgerAccount   LedgerAccount @relation("SavingsRuleTarget", fields: [targetLedgerAccountId], references: [id], onDelete: Restrict)
+
+  active Boolean @default(true)
+
+  executions SavingsRuleExecution[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, sourceLedgerAccountId, trigger, active])
+  @@index([trigger, active])
+  @@map("savings_rules")
+}
+
+// APPEND-ONLY audit log, one row per attempted trigger firing — including
+// skipped (zero amount, or blocked by the source bucket's minimum-floor
+// protection) and failed attempts. Mirrors AllocationRuleExecution.
+model SavingsRuleExecution {
+  id            String @id @default(cuid())
+  savingsRuleId String
+  savingsRule   SavingsRule @relation(fields: [savingsRuleId], references: [id], onDelete: Cascade)
+
+  triggerReferenceType LedgerReferenceType
+  triggerReferenceId   String
+
+  amountSwept BigInt // 0 for SKIPPED_* / FAILED
+  status      SavingsRuleExecutionStatus
+
+  // Set only when status = EXECUTED — the referenceId shared by the
+  // sweep's debit+credit LedgerEntry pair, so a support engineer can go
+  // straight from this row to the exact ledger movement it caused.
+  ledgerReferenceId String?
+  // Set only when the swept-in funds also triggered a USYC deployment.
+  yieldPositionId   String?
+
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+
+  @@index([savingsRuleId, createdAt])
+  @@index([status])
+  @@map("savings_rule_executions")
 }
