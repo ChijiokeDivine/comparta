@@ -1,31 +1,29 @@
-// app/api/allocation-rules/[id]/route.ts
+// app/api/payroll/schedules/[id]/route.ts
 //
-// GET: single rule detail. Any authenticated org member. PATCH: edit
-// value/active/priority/name/scheduleCron (re-validates the 100% budget
-// when relevant — see lib/allocationRules/service.ts). DELETE: remove a
-// rule that's never fired (otherwise 422 — deactivate instead). Both
-// mutations are OWNER/ADMIN only.
+// GET: single schedule. PATCH: update. DELETE: deactivate (schedules are
+// never hard-deleted — their PayrollRun history references them).
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth, requireApprovedOrg, UnauthenticatedError, KybNotApprovedError } from "@/lib/auth/kyb-gate";
 import { assertCanManageBucket, BucketPermissionError } from "@/lib/auth/canManageBucket";
+import { BucketNotFoundError } from "@/lib/buckets/service";
 import {
-  getAllocationRule,
-  updateAllocationRule,
-  deleteAllocationRule,
-  AllocationRuleNotFoundError,
-  AllocationRuleValidationError,
-} from "@/lib/allocationRules/service";
-import { serializeAllocationRule } from "@/lib/allocationRules/serialize";
+  getPayrollSchedule,
+  updatePayrollSchedule,
+  deactivatePayrollSchedule,
+  PayrollScheduleNotFoundError,
+  PayrollScheduleValidationError,
+} from "@/lib/payroll/schedules";
+import { serializePayrollSchedule } from "@/lib/payroll/serialize";
 
 const updateSchema = z
   .object({
-    value: z.string().min(1).optional(),
+    sourceLedgerAccountId: z.string().min(1).optional(),
+    frequency: z.enum(["WEEKLY", "BIWEEKLY", "MONTHLY"]).optional(),
+    nextRunDate: z.string().min(1).optional(),
+    name: z.string().max(200).nullable().optional(),
     active: z.boolean().optional(),
-    priority: z.number().int().optional(),
-    name: z.string().max(200).optional(),
-    scheduleCron: z.string().min(1).optional(),
   })
   .strict();
 
@@ -33,8 +31,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     const { id } = await params;
     const { orgId } = await requireAuth();
-    const rule = await getAllocationRule(orgId, id);
-    return NextResponse.json({ allocationRule: serializeAllocationRule(rule) });
+    const schedule = await getPayrollSchedule(orgId, id);
+    return NextResponse.json({ schedule: serializePayrollSchedule(schedule) });
   } catch (err) {
     return handleError(err);
   }
@@ -44,16 +42,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try {
     const { id } = await params;
     const ctx = await requireApprovedOrg();
-    assertCanManageBucket(ctx);
 
     const body = await req.json().catch(() => null);
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid request", issues: parsed.error.flatten() }, { status: 400 });
     }
+    assertCanManageBucket(ctx, parsed.data.sourceLedgerAccountId);
 
-    const rule = await updateAllocationRule(ctx.orgId, id, parsed.data);
-    return NextResponse.json({ allocationRule: serializeAllocationRule(rule) });
+    const schedule = await updatePayrollSchedule(ctx.orgId, id, parsed.data);
+    return NextResponse.json({ schedule: serializePayrollSchedule(schedule) });
   } catch (err) {
     return handleError(err);
   }
@@ -65,8 +63,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     const ctx = await requireApprovedOrg();
     assertCanManageBucket(ctx);
 
-    await deleteAllocationRule(ctx.orgId, id);
-    return NextResponse.json({ deleted: true });
+    const schedule = await deactivatePayrollSchedule(ctx.orgId, id);
+    return NextResponse.json({ schedule: serializePayrollSchedule(schedule) });
   } catch (err) {
     return handleError(err);
   }
@@ -82,12 +80,15 @@ function handleError(err: unknown) {
   if (err instanceof BucketPermissionError) {
     return NextResponse.json({ error: err.message }, { status: 403 });
   }
-  if (err instanceof AllocationRuleNotFoundError) {
+  if (err instanceof PayrollScheduleNotFoundError) {
     return NextResponse.json({ error: err.message }, { status: 404 });
   }
-  if (err instanceof AllocationRuleValidationError) {
+  if (err instanceof BucketNotFoundError) {
+    return NextResponse.json({ error: err.message }, { status: 404 });
+  }
+  if (err instanceof PayrollScheduleValidationError) {
     return NextResponse.json({ error: err.message }, { status: 422 });
   }
-  console.error("[allocation-rules/:id] request failed", err);
+  console.error("[payroll/schedules/:id] request failed", err);
   return NextResponse.json({ error: "Request failed" }, { status: 500 });
 }

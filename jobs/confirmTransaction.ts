@@ -23,6 +23,7 @@ import { getRedisConnection, QUEUE_NAMES } from "@/jobs/queue";
 import { prisma } from "@/lib/db/prisma";
 import { recordEntry } from "@/lib/ledger/engine";
 import { getTransactionStatus } from "@/lib/circle/wallets";
+import { handlePayrollTransactionResolved } from "@/lib/payroll/completion";
 import type { Prisma } from "@/app/generated/prisma/client";
 
 const SUCCESS_STATES = new Set(["CONFIRMED", "COMPLETE"]);
@@ -69,7 +70,7 @@ export async function confirmTransaction(onchainTransactionId: string): Promise<
   const status = await getTransactionStatus(onchainTx.circleTransactionId);
 
   if (SUCCESS_STATES.has(status.state)) {
-    await prisma.onchainTransaction.update({
+    const updated = await prisma.onchainTransaction.update({
       where: { id: onchainTx.id },
       data: {
         status: "CONFIRMED",
@@ -77,6 +78,11 @@ export async function confirmTransaction(onchainTransactionId: string): Promise<
         txHash: status.txHash ?? onchainTx.txHash,
       },
     });
+    // Best-effort, post-commit follow-up — see lib/payroll/completion.ts.
+    // A no-op for any non-payroll transaction.
+    await handlePayrollTransactionResolved(updated).catch((err) =>
+      console.error(`[confirmTransaction] payroll completion hook failed for ${onchainTx.id}`, err)
+    );
     return;
   }
 
@@ -90,12 +96,12 @@ export async function confirmTransaction(onchainTransactionId: string): Promise<
 }
 
 async function handleFailedTransaction(onchainTransactionId: string): Promise<void> {
-  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const onchainTx = await tx.onchainTransaction.findUnique({
       where: { id: onchainTransactionId },
       include: { wallet: true },
     });
-    if (!onchainTx || onchainTx.status !== "PENDING") return; // already handled (idempotency)
+    if (!onchainTx || onchainTx.status !== "PENDING") return null; // already handled (idempotency)
 
     // Find the original debit this send created, to reverse it exactly —
     // never infer the amount independently.
@@ -104,7 +110,7 @@ async function handleFailedTransaction(onchainTransactionId: string): Promise<vo
       orderBy: { createdAt: "asc" },
     });
 
-    await tx.onchainTransaction.update({
+    const updatedTx = await tx.onchainTransaction.update({
       where: { id: onchainTransactionId },
       data: { status: "FAILED" },
     });
@@ -125,7 +131,17 @@ async function handleFailedTransaction(onchainTransactionId: string): Promise<vo
         `[confirmTransaction] No original DEBIT entry found for failed tx ${onchainTransactionId} — nothing to reverse. Investigate.`
       );
     }
+
+    return updatedTx;
   });
+
+  if (updated) {
+    // Best-effort, post-commit follow-up — see lib/payroll/completion.ts.
+    // A no-op for any non-payroll transaction.
+    await handlePayrollTransactionResolved(updated).catch((err) =>
+      console.error(`[confirmTransaction] payroll completion hook failed for ${onchainTransactionId}`, err)
+    );
+  }
 
   await notifyPaymentFailed(onchainTransactionId);
 }

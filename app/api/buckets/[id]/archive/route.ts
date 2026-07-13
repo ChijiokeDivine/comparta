@@ -18,12 +18,13 @@ import {
 } from "@/lib/buckets/service";
 import { toDecimalString } from "@/lib/circle/amount";
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const ctx = await requireApprovedOrg();
-    assertCanManageBucket(ctx, params.id);
+    assertCanManageBucket(ctx, id);
 
-    const bucket = await archiveBucket(ctx.orgId, params.id, ctx.userId);
+    const bucket = await archiveBucket(ctx.orgId, id, ctx.userId);
     return NextResponse.json({ bucket });
   } catch (err) {
     if (err instanceof UnauthenticatedError) {

@@ -17,20 +17,22 @@ import {
 
 const renameSchema = z.object({ name: z.string().min(1).max(100) }).strict();
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const { orgId } = await requireAuth();
-    const bucket = await getBucketDetail(orgId, params.id);
+    const bucket = await getBucketDetail(orgId, id);
     return NextResponse.json({ bucket });
   } catch (err) {
     return handleError(err);
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const ctx = await requireApprovedOrg();
-    assertCanManageBucket(ctx, params.id);
+    assertCanManageBucket(ctx, id);
 
     const body = await req.json().catch(() => null);
     const parsed = renameSchema.safeParse(body);
@@ -38,7 +40,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ error: "Invalid request", issues: parsed.error.flatten() }, { status: 400 });
     }
 
-    const bucket = await renameBucket(ctx.orgId, params.id, parsed.data.name);
+    const bucket = await renameBucket(ctx.orgId, id, parsed.data.name);
     return NextResponse.json({ bucket });
   } catch (err) {
     return handleError(err);

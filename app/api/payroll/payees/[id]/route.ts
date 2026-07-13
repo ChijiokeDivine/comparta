@@ -1,31 +1,33 @@
-// app/api/allocation-rules/[id]/route.ts
+// app/api/payroll/payees/[id]/route.ts
 //
-// GET: single rule detail. Any authenticated org member. PATCH: edit
-// value/active/priority/name/scheduleCron (re-validates the 100% budget
-// when relevant — see lib/allocationRules/service.ts). DELETE: remove a
-// rule that's never fired (otherwise 422 — deactivate instead). Both
-// mutations are OWNER/ADMIN only.
+// GET: single payee. PATCH: update (OWNER/ADMIN). DELETE: hard-delete if
+// never used in a run, otherwise deactivate instead
+// (lib/payroll/payees.ts#deletePayee enforces this).
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth, requireApprovedOrg, UnauthenticatedError, KybNotApprovedError } from "@/lib/auth/kyb-gate";
 import { assertCanManageBucket, BucketPermissionError } from "@/lib/auth/canManageBucket";
 import {
-  getAllocationRule,
-  updateAllocationRule,
-  deleteAllocationRule,
-  AllocationRuleNotFoundError,
-  AllocationRuleValidationError,
-} from "@/lib/allocationRules/service";
-import { serializeAllocationRule } from "@/lib/allocationRules/serialize";
+  getPayee,
+  updatePayee,
+  deletePayee,
+  PayeeNotFoundError,
+  PayeeValidationError,
+  PayeeIdentifierFormatError,
+  PayeeInUseError,
+} from "@/lib/payroll/payees";
+import { serializePayee } from "@/lib/payroll/serialize";
 
 const updateSchema = z
   .object({
-    value: z.string().min(1).optional(),
+    name: z.string().min(1).optional(),
+    identifier: z.string().min(1).optional(),
+    payType: z.enum(["SALARY", "HOURLY", "CONTRACT"]).optional(),
+    defaultAmount: z.string().min(1).nullable().optional(),
+    notes: z.string().max(2000).nullable().optional(),
     active: z.boolean().optional(),
-    priority: z.number().int().optional(),
-    name: z.string().max(200).optional(),
-    scheduleCron: z.string().min(1).optional(),
+    contactId: z.string().min(1).nullable().optional(),
   })
   .strict();
 
@@ -33,8 +35,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     const { id } = await params;
     const { orgId } = await requireAuth();
-    const rule = await getAllocationRule(orgId, id);
-    return NextResponse.json({ allocationRule: serializeAllocationRule(rule) });
+    const payee = await getPayee(orgId, id);
+    return NextResponse.json({ payee: serializePayee(payee) });
   } catch (err) {
     return handleError(err);
   }
@@ -52,8 +54,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: "Invalid request", issues: parsed.error.flatten() }, { status: 400 });
     }
 
-    const rule = await updateAllocationRule(ctx.orgId, id, parsed.data);
-    return NextResponse.json({ allocationRule: serializeAllocationRule(rule) });
+    const payee = await updatePayee(ctx.orgId, id, parsed.data);
+    return NextResponse.json({ payee: serializePayee(payee) });
   } catch (err) {
     return handleError(err);
   }
@@ -65,8 +67,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     const ctx = await requireApprovedOrg();
     assertCanManageBucket(ctx);
 
-    await deleteAllocationRule(ctx.orgId, id);
-    return NextResponse.json({ deleted: true });
+    await deletePayee(ctx.orgId, id);
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return handleError(err);
   }
@@ -82,12 +84,15 @@ function handleError(err: unknown) {
   if (err instanceof BucketPermissionError) {
     return NextResponse.json({ error: err.message }, { status: 403 });
   }
-  if (err instanceof AllocationRuleNotFoundError) {
+  if (err instanceof PayeeNotFoundError) {
     return NextResponse.json({ error: err.message }, { status: 404 });
   }
-  if (err instanceof AllocationRuleValidationError) {
+  if (err instanceof PayeeInUseError) {
+    return NextResponse.json({ error: err.message }, { status: 409 });
+  }
+  if (err instanceof PayeeIdentifierFormatError || err instanceof PayeeValidationError) {
     return NextResponse.json({ error: err.message }, { status: 422 });
   }
-  console.error("[allocation-rules/:id] request failed", err);
+  console.error("[payroll/payees/:id] request failed", err);
   return NextResponse.json({ error: "Request failed" }, { status: 500 });
 }

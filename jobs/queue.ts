@@ -43,6 +43,7 @@ export const QUEUE_NAMES = {
   INVOICE_OVERDUE_SWEEP: "invoice-overdue-sweep",
   PAYMENT_LINK_EXPIRY_SWEEP: "payment-link-expiry-sweep",
   ALLOCATION_RULE_SCHEDULED_SWEEP: "allocation-rule-scheduled-sweep",
+  PAYROLL_SCHEDULE_SWEEP: "payroll-schedule-sweep",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

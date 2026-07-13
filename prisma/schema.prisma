@@ -105,6 +105,34 @@ enum AllocationExecutionStatus {
   FAILED
 }
 
+// Phase 6 — Payroll
+enum PayType {
+  SALARY
+  HOURLY
+  CONTRACT
+}
+
+enum PayrollFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum PayrollRunStatus {
+  DRAFT
+  PENDING_APPROVAL
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum PayrollRunItemStatus {
+  PENDING
+  SENT
+  CONFIRMED
+  FAILED
+}
+
 // Phase 3 — Invoicing
 enum InvoiceStatus {
   DRAFT
@@ -186,6 +214,9 @@ model Organization {
   invoices               Invoice[]
   paymentLinks           PaymentLink[]
   allocationRules        AllocationRule[]
+  payees                 Payee[]
+  payrollSchedules       PayrollSchedule[]
+  payrollRuns            PayrollRun[]
   defaultLedgerAccount   LedgerAccount?    @relation("OrganizationDefaultLedgerAccount", fields: [defaultLedgerAccountId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -205,6 +236,9 @@ model User {
   emailVerified DateTime?
   name          String?
   role          UserRole  @default(MEMBER)
+
+  payrollRunsInitiated PayrollRun[] @relation("PayrollRunInitiator")
+  payrollRunsApproved  PayrollRun[] @relation("PayrollRunApprover")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -255,6 +289,8 @@ model LedgerAccount {
   paymentLinks           PaymentLink[]
   allocationRulesAsSource AllocationRule[] @relation("AllocationRuleSource")
   allocationRulesAsTarget AllocationRule[] @relation("AllocationRuleTarget")
+  payrollSchedules        PayrollSchedule[]
+  payrollRuns             PayrollRun[]
   archived               Boolean           @default(false)
   archivedAt             DateTime?
   archivedBy             String?
@@ -325,6 +361,11 @@ model OnchainTransaction {
   // (the original inbound IN and the refund OUT) may point back here.
   paymentLinkPayment  PaymentLinkPayment?
 
+  // Back-reference for PayrollRunItem.txId — set when this outbound tx
+  // is a payroll disbursement (see lib/payroll/execution.ts). @unique —
+  // a given onchain transaction settles at most one payroll run item.
+  payrollRunItem      PayrollRunItem?
+
   createdAt   DateTime  @default(now())
   confirmedAt DateTime?
 
@@ -361,6 +402,12 @@ model Contact {
   identifierType IdentifierType
   notes          String?
   lastPaidAt     DateTime?
+
+  // A Payee may optionally link back to this Contact to avoid duplicate
+  // data entry — see Payee.contactId. Not unique: nothing stops two
+  // Payee rows (e.g. a stale/duplicate one) from pointing at the same
+  // Contact, though the UI shouldn't normally create that.
+  payees Payee[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -673,4 +720,210 @@ model AllocationRuleExecution {
   @@index([allocationRuleId, createdAt])
   @@index([status])
   @@map("allocation_rule_executions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PHASE 6 — PAYROLL
+// ─────────────────────────────────────────────────────────────────────────
+
+// A formal payroll relationship — distinct from Contact (the general
+// address book). A Payee may optionally point at a Contact to reuse an
+// already-saved identifier, but Payee is never derived data: it carries
+// payroll-specific fields (pay type, default amount) that don't belong
+// on the address book. See lib/payroll/payees.ts.
+model Payee {
+  id    String @id @default(cuid())
+  orgId String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  name String
+
+  // Username or Arc address — same format/validation convention as
+  // Contact.identifier (lib/payroll/payees.ts mirrors the normalization
+  // in lib/contacts/service.ts). Resolvability against this identifier
+  // is (re-)checked every time a payroll run is generated, NOT just
+  // once at Payee creation — a username can be transferred/deactivated
+  // after this row is created.
+  identifier String
+  identifierType IdentifierType
+  payType    PayType @default(CONTRACT)
+
+  // Smallest USDC unit. Null for payees whose amount varies per run
+  // (e.g. many HOURLY workers) — a run built for such a payee must have
+  // its item amount supplied explicitly (manual run creation, or an
+  // edit to a DRAFT run before submitting for approval). Auto-generation
+  // from a schedule (lib/payroll/scheduler.ts) skips any active payee
+  // with no defaultAmount and logs it, rather than guessing an amount.
+  defaultAmount BigInt?
+
+  notes  String?
+  active Boolean @default(true)
+
+  // Optional link to an existing Contact row purely to avoid re-entering
+  // an identifier that's already in the address book. Never required —
+  // onDelete: SetNull so deleting the Contact never cascades into
+  // deleting payroll history.
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  runItems PayrollRunItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, identifier])
+  @@index([orgId, active])
+  @@map("payees")
+}
+
+// A standing instruction: "every <frequency>, build a draft payroll run
+// from <sourceLedgerAccountId>'s active Payees." Never executes money on
+// its own — it only ever produces a DRAFT PayrollRun (see
+// lib/payroll/scheduler.ts), which still needs a full human approval
+// before a cent moves. Created/edited only by OWNER/ADMIN, same gate as
+// buckets/allocation rules — see lib/auth/canManageBucket.ts.
+model PayrollSchedule {
+  id    String @id @default(cuid())
+  orgId String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  sourceLedgerAccountId String
+  sourceLedgerAccount   LedgerAccount @relation(fields: [sourceLedgerAccountId], references: [id], onDelete: Restrict)
+
+  name      String? // optional human label, e.g. "Biweekly payroll"
+  frequency PayrollFrequency
+
+  // The next date this schedule is due to auto-generate a DRAFT run.
+  // Advanced by lib/payroll/scheduler.ts AFTER a run is successfully
+  // generated for this date — never advanced speculatively — so a
+  // worker crash between generating the run and advancing this field
+  // just means the next sweep re-evaluates the same date (harmless: run
+  // generation itself is deduped by PayrollRun's
+  // (payrollScheduleId, scheduledFor) unique constraint).
+  nextRunDate DateTime
+  active      Boolean  @default(true)
+
+  runs PayrollRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, active])
+  @@index([active, nextRunDate])
+  @@map("payroll_schedules")
+}
+
+// One payroll batch. DRAFT (auto-generated or built manually) ->
+// PENDING_APPROVAL (submitted for review) -> PROCESSING (approved,
+// execution under way) -> COMPLETED (every item reached a terminal
+// state) or FAILED (the run could not even begin executing — see
+// lib/payroll/execution.ts). Individual payee failures during execution
+// do NOT move the run to FAILED; they're tracked per-item on
+// PayrollRunItem so one bad payee never blocks or misrepresents the
+// rest of the run.
+model PayrollRun {
+  id                String           @id @default(cuid())
+  payrollScheduleId String?
+  payrollSchedule   PayrollSchedule? @relation(fields: [payrollScheduleId], references: [id], onDelete: SetNull)
+
+  orgId String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  // Always set, even for schedule-generated runs (copied from
+  // PayrollSchedule.sourceLedgerAccountId at generation time). Kept as
+  // its own column rather than only reachable via payrollSchedule
+  // because payrollScheduleId is nullable (manual one-off runs) — a run
+  // must always know its funding source directly, without an optional
+  // hop through a possibly-absent schedule.
+  sourceLedgerAccountId String
+  sourceLedgerAccount   LedgerAccount @relation(fields: [sourceLedgerAccountId], references: [id], onDelete: Restrict)
+
+  // The schedule's nextRunDate at the moment this run was auto-generated.
+  // This is the double-trigger guard (see @@unique below and
+  // lib/payroll/scheduler.ts): if the daily sweep somehow fires twice for
+  // the same due date (e.g. an overlapping cron invocation, a retried
+  // job), the second attempt hits a unique-constraint violation instead
+  // of creating a duplicate run. Null for manually-created one-off runs,
+  // which have no period to dedupe against.
+  scheduledFor DateTime?
+
+  status      PayrollRunStatus @default(DRAFT)
+  // Sum of item amounts, smallest USDC unit. Recomputed by
+  // lib/payroll/runs.ts on every item add/remove/amount-edit while the
+  // run is still DRAFT — never trust a client-submitted total.
+  totalAmount BigInt           @default(0)
+
+  // Nullable: auto-generated runs have no human initiator (see
+  // lib/payroll/scheduler.ts). Manual runs always set this to the
+  // creating user.
+  initiatedBy String?
+  initiator   User?   @relation("PayrollRunInitiator", fields: [initiatedBy], references: [id], onDelete: SetNull)
+
+  // Required to be set together with the PENDING_APPROVAL -> PROCESSING
+  // transition — see lib/payroll/runs.ts#approveRun. Enforced in
+  // application code (an OWNER/ADMIN via canManageBucket), not the DB.
+  approvedBy String?
+  approver   User?     @relation("PayrollRunApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  approvedAt DateTime?
+
+  items PayrollRunItem[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@unique([payrollScheduleId, scheduledFor])
+  @@index([orgId, status])
+  @@index([orgId, createdAt])
+  @@map("payroll_runs")
+}
+
+// One payee's line item within a PayrollRun. PENDING (not yet attempted)
+// -> SENT (sendPayment succeeded, tx submitted and PENDING onchain) ->
+// CONFIRMED (onchain tx confirmed) or FAILED (either sendPayment itself
+// failed — bad identifier, provider error, mid-run balance race — or the
+// onchain tx subsequently failed and was reversed; see
+// lib/payroll/completion.ts). FAILED items are the manual-retry unit —
+// see lib/payroll/execution.ts#retryPayrollRunItem.
+model PayrollRunItem {
+  id           String     @id @default(cuid())
+  payrollRunId String
+  payrollRun   PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+
+  payeeId String
+  payee   Payee  @relation(fields: [payeeId], references: [id], onDelete: Restrict)
+
+  amount BigInt // smallest USDC unit
+  status PayrollRunItemStatus @default(PENDING)
+
+  // Set once sendPayment() has submitted this item (status becomes
+  // SENT). @unique — a given onchain transaction settles at most one
+  // payroll run item. Cleared (set back to null) on manual retry so a
+  // fresh attempt gets its own OnchainTransaction row rather than
+  // reusing a failed one.
+  txId String?             @unique
+  tx   OnchainTransaction? @relation(fields: [txId], references: [id], onDelete: SetNull)
+
+  // True when this item's payee identifier failed to resolve at
+  // run-creation (or regeneration) time — the "flag at run-creation,
+  // not execution" edge case. A run with any identifierIssue item is
+  // blocked from approval until the item is fixed (payee identifier
+  // corrected and the run regenerated/edited) or removed from the run.
+  // Distinct from a runtime send/onchain failure, which is a normal
+  // FAILED status with no identifierIssue flag.
+  identifierIssue Boolean @default(false)
+
+  // User-facing reason for a FAILED status (send-time error, onchain
+  // failure, or — combined with identifierIssue — an unresolved
+  // recipient identifier).
+  failureReason String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  sentAt      DateTime?
+  confirmedAt DateTime?
+
+  @@index([payrollRunId, status])
+  @@index([payeeId])
+  @@map("payroll_run_items")
 }
