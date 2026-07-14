@@ -23,3 +23,15 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+.hero-inline-icon lord-icon {
+  width: 60px;
+  height: 60px;
+}
+
+@media (min-width: 640px) {
+  .hero-inline-icon lord-icon {
+    width: 100px;
+    height: 100px;
+  }
+}

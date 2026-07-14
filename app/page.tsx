@@ -1,7 +1,20 @@
+
 import Image from "next/image";
+
 
 export default function Home() {
   return (
+    <>
+      <style>{`
+        .hero-inline-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          vertical-align: middle;
+          margin-left: 10px;
+          // transform: translateY(10px);
+        }
+      `}</style>
     <div className="min-h-screen bg-white">
       {/* Header */}
       <header className="relative z-20 w-full">
@@ -58,26 +71,33 @@ export default function Home() {
       </header>
 
       {/* Hero section with background image */}
-      <section className="relative overflow-hidden" style={{backgroundImage: "url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", height: "80vh"}}>
+      <section className="relative overflow-hidden" >
        
 
-        <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 py-20 text-center sm:px-6 md:h-[80vh]">
-          <h1 className="text-[56px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[68px] md:text-[76px] lg:text-[80px] xl:text-[86px]">
-            The future of business 
+        <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 py-20 text-center sm:px-6 md:h-[70vh]">
+          <h1 className="text-[45px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[68px] md:text-[76px] lg:text-[80px] xl:text-[86px]">
+            Move money like 
             <br />
-            payments.
+            it's easy
+            <span className="hero-inline-icon">
+              <lord-icon
+                src="https://cdn.lordicon.com/rhmhivzj.json"
+                trigger="hover"
+              ></lord-icon>
+            </span>
+           
           </h1>
+          
 
-          <p className="mt-9 max-w-[600px] text-[19px] text-[#7C8CA6] md:text-[21px]">
-            One app. All your savings and investment needs. Trusted by
-            individuals, HNIs, and corporates.
+          <p className="mt-9 max-w-[600px] text-[16px] text-[#7C8CA6] md:text-[21px]">
+            Comparta unifies invoicing, payments, payroll, and savings. instant settlement, all from one account. 
           </p>
 
           <a
             href="#"
             className="mt-10 inline-flex items-center gap-3 rounded-sm bg-[#2A5CE6] px-9 py-3 text-[16px] font-semibold text-white "
           >
-            Start building wealth
+            <span className="md:block hidden">Create your account</span><span className="md:hidden block">Get started</span>
             <svg
               width="18"
               height="18"
@@ -95,7 +115,9 @@ export default function Home() {
         </div>
       </section>
     </div>
+    </>
   );
+
 }
 
 function NavDropdown({ label }: { label: string }) {
@@ -115,5 +137,7 @@ function NavDropdown({ label }: { label: string }) {
         <path d="m6 9 6 6 6-6" />
       </svg>
     </button>
+
   );
+  
 }
