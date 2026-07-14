@@ -220,6 +220,28 @@ enum YieldRedemptionStatus {
   FAILED
 }
 
+// Phase 8 — DCA / Recurring Transfers
+enum RecurringTransferFrequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum RecurringTransferStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED  // user-initiated stop
+  COMPLETED  // reached its endDate — a terminal state distinct from CANCELLED
+}
+
+enum RecurringTransferExecutionStatus {
+  PENDING
+  SUCCESS
+  FAILED_INSUFFICIENT_FUNDS
+  FAILED_OTHER
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // CORE TABLES
 // ─────────────────────────────────────────────────────────────────────────
@@ -248,6 +270,7 @@ model Organization {
   payrollSchedules       PayrollSchedule[]
   payrollRuns            PayrollRun[]
   savingsRules           SavingsRule[]
+  recurringTransfers     RecurringTransfer[]
   defaultLedgerAccount   LedgerAccount?    @relation("OrganizationDefaultLedgerAccount", fields: [defaultLedgerAccountId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -270,6 +293,7 @@ model User {
 
   payrollRunsInitiated PayrollRun[] @relation("PayrollRunInitiator")
   payrollRunsApproved  PayrollRun[] @relation("PayrollRunApprover")
+  recurringTransfersCreated RecurringTransfer[] @relation("RecurringTransferCreator")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -346,6 +370,8 @@ model LedgerAccount {
   savingsRulesAsTarget    SavingsRule[]    @relation("SavingsRuleTarget")
   yieldPositions          YieldPosition[]
   yieldRedemptionRequests YieldRedemptionRequest[]
+  recurringTransfersAsSource      RecurringTransfer[] @relation("RecurringTransferSource")
+  recurringTransfersAsDestination RecurringTransfer[] @relation("RecurringTransferDestination")
   archived               Boolean           @default(false)
   archivedAt             DateTime?
   archivedBy             String?
@@ -427,6 +453,14 @@ model OnchainTransaction {
   // is a payroll disbursement (see lib/payroll/execution.ts). @unique —
   // a given onchain transaction settles at most one payroll run item.
   payrollRunItem      PayrollRunItem?
+
+  // Back-reference for RecurringTransferExecution.txId — set when this
+  // outbound tx is an external-facing DCA execution (see
+  // lib/dca/execution.ts). @unique — a given onchain transaction settles
+  // at most one recurring-transfer execution. Never set for the internal
+  // bucket-to-bucket DCA path, which never creates an OnchainTransaction
+  // at all (see RecurringTransfer.destinationLedgerAccountId).
+  recurringTransferExecution RecurringTransferExecution?
 
   createdAt   DateTime  @default(now())
   confirmedAt DateTime?
@@ -1170,4 +1204,129 @@ model SavingsRuleExecution {
   @@index([savingsRuleId, createdAt])
   @@index([status])
   @@map("savings_rule_executions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PHASE 8 — DCA / RECURRING TRANSFERS
+// ─────────────────────────────────────────────────────────────────────────
+
+// A standing instruction: "every <frequency>, send <amount> from
+// <sourceLedgerAccountId> to <destination>." Distinct from AllocationRule
+// / SavingsRule in two ways: it's purely TIME-interval-based (no payment-
+// event trigger at all), and its destination is flexible — an external
+// wallet, another Comparta org's username, or another bucket this same
+// org owns.
+//
+// Destination is a discriminated union — EXACTLY ONE of
+// destinationIdentifier / destinationLedgerAccountId is set, enforced in
+// lib/dca/service.ts#createRecurringTransfer (a DB CHECK can't express
+// "exactly one of these two columns is non-null" portably):
+//   - destinationIdentifier: a Comparta username or raw Arc address,
+//     resolved via lib/identity/resolver.ts — the SAME resolver
+//     lib/transfers/send.ts#sendPayment uses. Re-resolved FRESH at every
+//     single execution (see lib/dca/execution.ts) — NEVER cached here,
+//     because a username can be released, transferred, or repointed
+//     between setup and any given execution, and each cycle must send to
+//     whoever/whatever the identifier currently points to (or fail
+//     loudly if it no longer resolves).
+//   - destinationLedgerAccountId: another bucket THIS SAME ORG owns
+//     (e.g. "5% of Operating to Savings every week"). Moved via
+//     lib/ledger/engine.ts#transferBetweenLedgerAccounts with NO onchain
+//     transaction at all — sendPayment() itself rejects same-org sends,
+//     and an onchain hop between two buckets backed by the same wallet
+//     would be pointless. This is why this path is modeled as its own
+//     column rather than relying on destinationIdentifier resolving to
+//     "your own org" (which tells you WHICH org, not WHICH bucket).
+model RecurringTransfer {
+  id    String @id @default(cuid())
+  orgId String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  sourceLedgerAccountId String
+  sourceLedgerAccount   LedgerAccount @relation("RecurringTransferSource", fields: [sourceLedgerAccountId], references: [id], onDelete: Restrict)
+
+  destinationIdentifier      String? // Comparta username or raw Arc address — see header comment
+  destinationLedgerAccountId String?
+  destinationLedgerAccount   LedgerAccount? @relation("RecurringTransferDestination", fields: [destinationLedgerAccountId], references: [id], onDelete: Restrict)
+
+  // Smallest USDC unit. Fixed every cycle — v1 has no "percentage of
+  // current balance" DCA mode (that's what Phase 7's SavingsRule /
+  // AllocationRule are for); this is deliberately just "the same dollar
+  // amount, every time."
+  amount    BigInt
+  frequency RecurringTransferFrequency
+
+  // UTC always — see lib/dca/schedule.ts#computeNextExecutionDate. The
+  // API layer is responsible for converting any user-local input to UTC
+  // before this is set; nothing in this schema or lib/dca/* ever
+  // interprets this in any other timezone.
+  nextExecutionDate DateTime
+  // null = run forever. Once advancing nextExecutionDate would land past
+  // endDate, the sweep marks this COMPLETED instead of scheduling
+  // another cycle — see jobs/processRecurringTransfers.ts.
+  endDate DateTime?
+
+  status RecurringTransferStatus @default(ACTIVE)
+
+  name String? // optional human label, e.g. "Weekly payout to my personal wallet"
+
+  createdBy String
+  creator   User @relation("RecurringTransferCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  executions RecurringTransferExecution[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  cancelledAt DateTime?
+
+  @@index([orgId, status])
+  @@index([status, nextExecutionDate])
+  @@map("recurring_transfers")
+}
+
+// APPEND-ONLY, one row per scheduled cycle — including failed and
+// insufficient-funds cycles, so "why didn't this send" is always
+// answerable from the DB, same posture as every other execution-log
+// model in this schema (AllocationRuleExecution, SavingsRuleExecution,
+// PayrollRunItem). Never update an existing row to represent a NEW
+// cycle — jobs/processRecurringTransfers.ts creates a fresh row per
+// scheduledDate.
+model RecurringTransferExecution {
+  id                  String @id @default(cuid())
+  recurringTransferId String
+  recurringTransfer   RecurringTransfer @relation(fields: [recurringTransferId], references: [id], onDelete: Cascade)
+
+  // The nextExecutionDate this attempt was for — captured at the moment
+  // of attempt, not recomputed later, so this row stays a truthful
+  // record of which cycle it was even after the parent's
+  // nextExecutionDate has since advanced.
+  scheduledDate DateTime
+  executedAt    DateTime?
+
+  status RecurringTransferExecutionStatus @default(PENDING)
+
+  // External-facing path only (destinationIdentifier) — set once
+  // sendPayment() submits successfully. @unique — a given onchain
+  // transaction settles at most one recurring-transfer execution. Null
+  // for the internal bucket-to-bucket path (see ledgerReferenceId
+  // below instead) and null while PENDING/on failure.
+  txId String?             @unique
+  tx   OnchainTransaction? @relation(fields: [txId], references: [id], onDelete: SetNull)
+
+  // Internal bucket-to-bucket path only (destinationLedgerAccountId) —
+  // the referenceId shared by the debit+credit LedgerEntry pair
+  // transferBetweenLedgerAccounts() created for this cycle, so a support
+  // engineer can trace this row straight to the exact ledger movement.
+  ledgerReferenceId String?
+
+  // Set on FAILED_INSUFFICIENT_FUNDS or FAILED_OTHER — e.g. "Source
+  // bucket balance is below the scheduled amount" or "Recipient
+  // '$oldusername' could not be resolved: username not found."
+  failureReason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([recurringTransferId, createdAt])
+  @@index([status])
+  @@map("recurring_transfer_executions")
 }

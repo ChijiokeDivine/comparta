@@ -51,6 +51,7 @@ export const QUEUE_NAMES = {
   ALLOCATION_RULE_SCHEDULED_SWEEP: "allocation-rule-scheduled-sweep",
   PAYROLL_SCHEDULE_SWEEP: "payroll-schedule-sweep",
   YIELD_REDEMPTION_CONFIRMATION: "yield-redemption-confirmation",
+  RECURRING_TRANSFER_SWEEP: "recurring-transfer-sweep",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

@@ -58,21 +58,10 @@ export default function Home() {
       </header>
 
       {/* Hero section with background image */}
-      <section className="relative overflow-hidden">
-        {/* Background image placeholder */}
-        <div className="absolute inset-0 -z-10">
-          <Image
-            src="/image.jpg"
-            alt=""
-            fill
-            priority
-            className="object-cover"
-          />
-          {/* Light overlay so the background image reads subtly, matching the pale hero backdrop */}
-          <div className="absolute inset-0 bg-[#F4F7FC]/90" />
-        </div>
+      <section className="relative overflow-hidden" style={{backgroundImage: "url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", height: "80vh"}}>
+       
 
-        <div className="mx-auto flex max-w-[1600px] flex-col items-center px-4 pb-32 pt-20 text-center sm:px-6 md:pt-28">
+        <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 py-20 text-center sm:px-6 md:h-[80vh]">
           <h1 className="text-[56px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[68px] md:text-[76px] lg:text-[80px] xl:text-[86px]">
             Watch your
             <br />
