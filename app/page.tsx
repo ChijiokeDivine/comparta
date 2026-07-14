@@ -63,9 +63,9 @@ export default function Home() {
 
         <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 py-20 text-center sm:px-6 md:h-[80vh]">
           <h1 className="text-[56px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[68px] md:text-[76px] lg:text-[80px] xl:text-[86px]">
-            Watch your
+            The future of business 
             <br />
-            money do more
+            payments.
           </h1>
 
           <p className="mt-9 max-w-[600px] text-[19px] text-[#7C8CA6] md:text-[21px]">
