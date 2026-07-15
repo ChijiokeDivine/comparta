@@ -1,8 +1,29 @@
 
+"use client";
+
 import Image from "next/image";
+import { useState, useEffect } from "react";
 
 
 export default function Home() {
+  const [lordIconProps, setLordIconProps] = useState({
+    trigger: "in",
+    delay: "1500",
+    state: "in-reveal",
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLordIconProps({
+        trigger: "hover",
+        delay: undefined as unknown as string,
+        state: undefined as unknown as string,
+      });
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <>
       <style>{`
@@ -80,10 +101,14 @@ export default function Home() {
             <br />
             it's easy
             <span className="hero-inline-icon">
+      
               <lord-icon
-                src="https://cdn.lordicon.com/rhmhivzj.json"
-                trigger="hover"
-              ></lord-icon>
+                  src="https://cdn.lordicon.com/rhmhivzj.json"
+                  trigger={lordIconProps.trigger}
+                  {...(lordIconProps.delay ? { delay: lordIconProps.delay } : {})}
+                  {...(lordIconProps.state ? { state: lordIconProps.state } : {})}
+                  >
+              </lord-icon>
             </span>
            
           </h1>

@@ -11,6 +11,7 @@ declare module "react" {
         trigger?: string;
         state?: string;
         colors?: string;
+        delay?: string;
       };
     }
   }
