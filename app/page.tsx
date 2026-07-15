@@ -139,6 +139,117 @@ export default function Home() {
           </a>
         </div>
       </section>
+      <section className="grow-section">
+        {/* <div className="grow-header">
+          <h1 className="grow-heading">
+            How would you
+            <br />
+            like to grow?
+          </h1>
+          <button className="grow-start-btn">Start now</button>
+        </div> */}
+ 
+        <div className="grow-grid">
+          {/* Savings */}
+          <a href="#" className="grow-card grow-card--savings">
+            <div className="grow-card-title">
+              Savings
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 12H19M19 12L13 6M19 12L13 18"
+                  stroke="#0B1E4B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <div className="grow-illustration" />
+            <div className="grow-info">
+              <div className="grow-info-icon">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M5 12H19M19 12L13 6M19 12L13 18"
+                    stroke="#0B1E4B"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <p className="grow-info-text">
+                Automate savings for your important goals, from simple milestones to big dreams.
+              </p>
+            </div>
+          </a>
+ 
+          {/* Mutual Funds */}
+          <a href="#" className="grow-card grow-card--funds">
+            <div className="grow-card-title">
+              Mutual Funds
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 12H19M19 12L13 6M19 12L13 18"
+                  stroke="#0B1E4B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <div className="grow-illustration" />
+            <div className="grow-info">
+              <div className="grow-info-icon">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M4 17L10 11L14 15L20 7M20 7H15M20 7V12"
+                    stroke="#0B1E4B"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <p className="grow-info-text">
+                Smart returns without guesswork. Our mutual funds handle it, letting you focus on your goals.
+              </p>
+            </div>
+          </a>
+ 
+          {/* Stocks */}
+          <a href="#" className="grow-card grow-card--stocks">
+            <div className="grow-card-title">
+              Stocks
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 12H19M19 12L13 6M19 12L13 18"
+                  stroke="#0B1E4B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <div className="grow-illustration" />
+            <div className="grow-info">
+              <div className="grow-info-icon">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M4 17L10 11L14 15L20 7M20 7H15M20 7V12"
+                    stroke="#0B1E4B"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <p className="grow-info-text">
+                Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.
+              </p>
+            </div>
+          </a>
+        </div>
+      </section>
     </div>
     </>
   );
