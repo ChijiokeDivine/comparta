@@ -52,6 +52,8 @@ export const QUEUE_NAMES = {
   PAYROLL_SCHEDULE_SWEEP: "payroll-schedule-sweep",
   YIELD_REDEMPTION_CONFIRMATION: "yield-redemption-confirmation",
   RECURRING_TRANSFER_SWEEP: "recurring-transfer-sweep",
+  TRANSACTION_CATEGORIZATION_SWEEP: "transaction-categorization-sweep",
+  ANOMALY_DETECTION_SWEEP: "anomaly-detection-sweep",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

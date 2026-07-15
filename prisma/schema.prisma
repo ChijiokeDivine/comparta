@@ -242,6 +242,28 @@ enum RecurringTransferExecutionStatus {
   FAILED_OTHER
 }
 
+// Phase 9 — Spending Insights
+enum TransactionCategoryKind {
+  SYSTEM // one of the curated 7, seeded per-org — see lib/insights/categorization/seed.ts
+  CUSTOM // org-defined
+}
+
+enum CategorizationSource {
+  RULE   // deterministic referenceType -> category mapping, no LLM call
+  LLM    // LLM-suggested (may still be pending confirmation — see needsConfirmation)
+  MANUAL // user applied or overrode the category directly
+}
+
+enum AnomalyType {
+  LARGE_OUTFLOW                  // a single transaction >3x the trailing average
+  NEW_COUNTERPARTY_LARGE_PAYMENT // an unusually large FIRST payment to a new counterparty
+}
+
+enum AnomalyStatus {
+  OPEN
+  DISMISSED
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // CORE TABLES
 // ─────────────────────────────────────────────────────────────────────────
@@ -271,6 +293,9 @@ model Organization {
   payrollRuns            PayrollRun[]
   savingsRules           SavingsRule[]
   recurringTransfers     RecurringTransfer[]
+  transactionCategories  TransactionCategory[]
+  transactionCategorizations TransactionCategorization[]
+  spendingAnomalies      SpendingAnomaly[]
   defaultLedgerAccount   LedgerAccount?    @relation("OrganizationDefaultLedgerAccount", fields: [defaultLedgerAccountId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -461,6 +486,14 @@ model OnchainTransaction {
   // bucket-to-bucket DCA path, which never creates an OnchainTransaction
   // at all (see RecurringTransfer.destinationLedgerAccountId).
   recurringTransferExecution RecurringTransferExecution?
+
+  // Phase 9 — Spending Insights. @unique: a transaction has at most one
+  // active categorization (see TransactionCategorization). One-to-many
+  // for anomalies since the SAME transaction can independently trip both
+  // AnomalyType checks (e.g. a large payment that's ALSO a new
+  // counterparty's first payment).
+  categorization TransactionCategorization?
+  anomalies      SpendingAnomaly[]
 
   createdAt   DateTime  @default(now())
   confirmedAt DateTime?
@@ -1329,4 +1362,120 @@ model RecurringTransferExecution {
   @@index([recurringTransferId, createdAt])
   @@index([status])
   @@map("recurring_transfer_executions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PHASE 9 — SPENDING INSIGHTS
+// ─────────────────────────────────────────────────────────────────────────
+
+// A curated (SYSTEM, seeded per-org by lib/insights/categorization/seed.ts
+// — 7 fixed names: Payroll, Software/SaaS, Contractors, Taxes, Savings,
+// Client Refunds, Other) or org-defined (CUSTOM) spend category. Every
+// org gets its own row set rather than sharing global rows, so a SYSTEM
+// category can never accidentally be renamed/archived out from under
+// another org, and @@unique([orgId, name]) stays meaningful.
+model TransactionCategory {
+  id    String @id @default(cuid())
+  orgId String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  name String
+  kind TransactionCategoryKind @default(CUSTOM)
+  // CUSTOM categories can be archived (hidden from new-categorization
+  // pickers, kept for historical rows); SYSTEM categories never should be
+  // — enforced in lib/insights/categorization/service.ts, not the DB.
+  archived Boolean @default(false)
+
+  categorizations TransactionCategorization[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, name])
+  @@index([orgId, kind])
+  @@map("transaction_categories")
+}
+
+// The applied category for one OnchainTransaction. @unique on
+// onchainTransactionId: a transaction has exactly one CURRENT
+// categorization at a time — re-categorizing (confirm/override) UPDATES
+// this row rather than creating a new one, since (unlike
+// AllocationRuleExecution-style audit logs elsewhere in this schema) the
+// only thing worth keeping a history of here is the ORIGINAL LLM
+// suggestion, which llmSuggestedCategoryName/llmReasoning preserve even
+// after a user overrides it.
+model TransactionCategorization {
+  id    String @id @default(cuid())
+  orgId String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  onchainTransactionId String             @unique
+  onchainTransaction   OnchainTransaction @relation(fields: [onchainTransactionId], references: [id], onDelete: Cascade)
+
+  categoryId String
+  category   TransactionCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  source CategorizationSource
+
+  // LLM-suggested confidence, basis points (10000 = 100%). Null for
+  // RULE/MANUAL — those are never uncertain by construction.
+  confidenceBps Int?
+
+  // True while an LLM suggestion is below the confirmation threshold and
+  // awaiting one-tap user confirm/override (see
+  // lib/insights/categorization/service.ts#CONFIDENCE_THRESHOLD_BPS).
+  // RULE and MANUAL rows are never pending. A high-confidence LLM
+  // suggestion is auto-applied with this already false.
+  needsConfirmation Boolean @default(false)
+  confirmedAt       DateTime?
+
+  // Preserved even after a MANUAL override replaces categoryId — lets you
+  // audit/eval categorization quality later without re-calling the LLM.
+  // Null for RULE-sourced rows (never called the LLM at all).
+  llmSuggestedCategoryName String?
+  llmReasoning             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, categoryId])
+  @@index([orgId, needsConfirmation])
+  @@map("transaction_categorizations")
+}
+
+// One flagged transaction. APPEND-only in spirit (never recomputed/
+// mutated after creation except status), but naturally idempotent via
+// @@unique([onchainTransactionId, type]) — the detection sweep upserts
+// on that key so re-running it never creates duplicate flags for the
+// same transaction+reason. "Worth a second look," never an accusation —
+// `message` is written in that tone at creation time; nothing here
+// blocks or reverses the underlying transaction in any way.
+model SpendingAnomaly {
+  id    String @id @default(cuid())
+  orgId String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  onchainTransactionId String
+  onchainTransaction   OnchainTransaction @relation(fields: [onchainTransactionId], references: [id], onDelete: Cascade)
+
+  type   AnomalyType
+  status AnomalyStatus @default(OPEN)
+
+  // Pre-rendered, human-readable explanation — e.g. "This 12,000.00 USDC
+  // payment to Acme Freight is about 5.2x your trailing 90-day average
+  // outflow of 2,300.00 USDC — worth a second look." Written once at
+  // creation so every consumer (dashboard, notification, API) shows the
+  // exact same framing without re-deriving it.
+  message String
+
+  transactionAmount BigInt // smallest USDC unit — snapshot, same value as the source OnchainTransaction.amount
+  comparisonAmount  BigInt? // the trailing average compared against; null when there wasn't enough history to compute one (e.g. a brand-new-counterparty flag with no prior average)
+  multiplier        Float?  // transactionAmount / comparisonAmount; null when comparisonAmount is null
+
+  createdAt   DateTime  @default(now())
+  dismissedAt DateTime?
+
+  @@unique([onchainTransactionId, type])
+  @@index([orgId, status])
+  @@map("spending_anomalies")
 }

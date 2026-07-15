@@ -2,7 +2,7 @@
 // Centralized, typed access to environment variables. Import this instead of
 // reading process.env directly anywhere else in the codebase, so a missing
 // var fails loudly and in one place instead of silently as `undefined`
-// three files deep into a Circle API call.
+// three files deep into a Circle (or Groq) API call.
 
 import { z } from "zod";
 
@@ -41,6 +41,15 @@ const envSchema = z.object({
   // (/api/org/kyb/approve). Replace this whole flow once a real KYB
   // provider is integrated.
   ADMIN_API_SECRET: z.string().min(1, "ADMIN_API_SECRET is required"),
+
+  // Phase 9 — Spending Insights. Groq-hosted LLM inference (OpenAI-
+  // compatible chat completions via the `groq-sdk` package) — used for
+  // transaction categorization suggestions and natural-language query
+  // translation. See lib/groq/client.ts. Only transaction METADATA
+  // (amounts, memos, display names, dates) is ever sent to this API —
+  // never raw addresses, account numbers, or entity secrets. Get a key
+  // at https://console.groq.com.
+  GROQ_API_KEY: z.string().min(1, "GROQ_API_KEY is required"),
 });
 
 type Env = z.infer<typeof envSchema>;
