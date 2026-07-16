@@ -2,7 +2,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
 
 
 export default function Home() {
@@ -11,6 +12,9 @@ export default function Home() {
     delay: "1500",
     state: "in-reveal",
   });
+  const stickyRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -23,6 +27,78 @@ export default function Home() {
 
     return () => clearTimeout(timer);
   }, []);
+    // GSAP pinned horizontal scroll for the "grow" cards section
+    useEffect(() => {
+      let ctx: { revert: () => void } | undefined;
+
+      const init = async () => {
+        const { default: gsap } = await import("gsap");
+        const { ScrollTrigger } = await import("gsap/ScrollTrigger");
+        gsap.registerPlugin(ScrollTrigger);
+
+        const sticky = stickyRef.current;
+        const track = trackRef.current;
+        if (!sticky || !track) return;
+
+        ctx = gsap.context(() => {
+          gsap.to(track, {
+            x: () => -(track.scrollWidth - window.innerWidth),
+            y: () => {
+              // Distance needed to move from top (padding-top: 40px)
+              // down to vertically centered within the 100vh sticky viewport
+              const centeredOffset = (window.innerHeight - track.offsetHeight) / 2;
+              return Math.max(centeredOffset - 40, 0); // 40 = grow-sticky's padding-top
+            },
+            ease: "none",
+            scrollTrigger: {
+              trigger: sticky,
+              start: "top top",
+              end: () => `+=${track.scrollWidth - window.innerWidth}`,
+              scrub: 1,
+              pin: true,
+              anticipatePin: 1,
+              invalidateOnRefresh: true,
+            },
+          });
+        }, sticky);
+      };
+
+      init();
+      return () => ctx?.revert();
+    }, []);
+
+    const growCards = [
+      {
+        key: "savings",
+        variant: "grow-card--savings",
+        iconPath: "M5 12H19M19 12L13 6M19 12L13 18",
+        text: "Automate savings for your important goals, from simple milestones to big dreams.",
+      },
+      {
+        key: "funds",
+        variant: "grow-card--funds",
+        iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
+        text: "Smart returns without guesswork. Our mutual funds handle it, letting you focus on your goals.",
+      },
+      {
+        key: "stocks",
+        variant: "grow-card--stocks",
+        iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
+        text: "Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.",
+      },
+      {
+        key: "Bonds",
+        variant: "grow-card--stocks",
+        iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
+        text: "Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.",
+      },
+      {
+        key: "securities",
+        variant: "grow-card--stocks",
+        iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
+        text: "Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.",
+      },
+    ];
 
   return (
     <>
@@ -95,8 +171,8 @@ export default function Home() {
       <section className="relative overflow-hidden" >
        
 
-        <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 py-20 text-center sm:px-6 md:h-[70vh]">
-          <h1 className="text-[45px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[68px] md:text-[76px] lg:text-[80px] xl:text-[86px]">
+        <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 pt-20 pb-[78px] text-center sm:px-6 md:h-[65vh]">
+          <h1 className="text-[45px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px]">
             Move money like 
             <br />
             it's easy
@@ -139,84 +215,33 @@ export default function Home() {
           </a>
         </div>
       </section>
-      <section className="grow-section">
-        {/* <div className="grow-header">
-          <h1 className="grow-heading">
-            How would you
-            <br />
-            like to grow?
-          </h1>
-          <button className="grow-start-btn">Start now</button>
-        </div> */}
- 
-        <div className="grow-grid">
-          {/* Savings */}
-          <a href="#" className="grow-card grow-card--savings">
-            
-            <div className="grow-illustration" />
-            <div className="grow-info">
-              <div className="grow-info-icon">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M5 12H19M19 12L13 6M19 12L13 18"
-                    stroke="#0B1E4B"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-              <p className="grow-info-text">
-                Automate savings for your important goals, from simple milestones to big dreams.
-              </p>
+        <section className="grow-section " id="grow">
+          <div className="grow-sticky " ref={stickyRef}>
+          
+
+            <div className="grow-track" ref={trackRef}>
+              {growCards.map((card) => (
+                <a href="#" key={card.key} className={`grow-card ${card.variant}`}>
+                  <div className="grow-illustration" />
+                  <div className="grow-info">
+                    <div className="grow-info-icon">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path
+                          d={card.iconPath}
+                          stroke="#0B1E4B"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+                    <p className="grow-info-text">{card.text}</p>
+                  </div>
+                </a>
+              ))}
             </div>
-          </a>
- 
-          {/* Mutual Funds */}
-          <a href="#" className="grow-card grow-card--funds">
-            
-            <div className="grow-illustration" />
-            <div className="grow-info">
-              <div className="grow-info-icon">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M4 17L10 11L14 15L20 7M20 7H15M20 7V12"
-                    stroke="#0B1E4B"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-              <p className="grow-info-text">
-                Smart returns without guesswork. Our mutual funds handle it, letting you focus on your goals.
-              </p>
-            </div>
-          </a>
- 
-          {/* Stocks */}
-          <a href="#" className="grow-card grow-card--stocks">
-            
-            <div className="grow-illustration" />
-            <div className="grow-info">
-              <div className="grow-info-icon">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M4 17L10 11L14 15L20 7M20 7H15M20 7V12"
-                    stroke="#0B1E4B"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-              <p className="grow-info-text">
-                Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.
-              </p>
-            </div>
-          </a>
-        </div>
-      </section>
+          </div>
+        </section>
     </div>
     </>
   );
