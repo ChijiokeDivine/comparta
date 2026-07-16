@@ -35,6 +35,87 @@ body {
     height: 100px;
   }
 }
+
+/* ==========================================================
+   3D / Depth Button
+   ========================================================== */
+.btn-3d {
+  --btn-bg: #2A5CE6;
+  --btn-bg-hover: #2450d1;
+  --btn-edge: #1A3FA8;
+  --btn-edge-hover: #17358f;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 16px;
+  color: #ffffff;
+  text-decoration: none;
+
+  background: var(--btn-bg);
+  border: none;
+  border-radius: 10px;
+  padding: 14px 34px;
+  cursor: pointer;
+
+  box-shadow: 0 4px 0 0 var(--btn-edge);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
+  user-select: none;
+}
+
+.btn-3d:hover {
+  background: var(--btn-bg-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 0 0 var(--btn-edge-hover);
+}
+
+.btn-3d:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 0 var(--btn-edge-hover);
+}
+
+.btn-3d:focus-visible {
+  outline: 2px solid var(--btn-bg);
+  outline-offset: 3px;
+}
+
+.btn-3d:disabled,
+.btn-3d[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 4px 0 0 var(--btn-edge);
+}
+
+/* Size variant: smaller, e.g. for header "Sign up" button */
+.btn-3d--sm {
+  padding: 11px 22px;
+  font-size: 14px;
+  border-radius: 8px;
+  box-shadow: 0 3px 0 0 var(--btn-edge);
+}
+
+.btn-3d--sm:hover {
+  box-shadow: 0 4px 0 0 var(--btn-edge-hover);
+}
+
+.btn-3d--sm:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 var(--btn-edge-hover);
+}
+
+/* Outline/ghost variant with the same depth treatment, in navy */
+.btn-3d--dark {
+  --btn-bg: #0B1E4B;
+  --btn-bg-hover: #0e2560;
+  --btn-edge: #050f28;
+  --btn-edge-hover: #030a1a;
+}
+
   .grow-section {
     --navy: #0B1E4B;
     --navy-soft: #16295c;
@@ -134,7 +215,6 @@ body {
   .grow-illustration {
     position: absolute;
     inset: 0;
-    top: 90px;
     background-size: cover;
     background-position: center bottom;
     background-repeat: no-repeat;

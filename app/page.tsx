@@ -76,7 +76,7 @@ export default function Home() {
             </a>
             <a
               href="#"
-              className="rounded-sm bg-[#2A5CE6] px-7 py-3 text-[15px] font-semibold text-white  transition-transform hover:-translate-y-0.5 hover:bg-[#2450d1]"
+              className="btn-3d btn-3d--sm"
             >
               Sign up for free
             </a>
@@ -120,7 +120,7 @@ export default function Home() {
 
           <a
             href="#"
-            className="mt-10 inline-flex items-center gap-3 rounded-sm bg-[#2A5CE6] px-9 py-3 text-[16px] font-semibold text-white "
+            className="mt-10 btn-3d "
           >
             <span className="md:block hidden">Create your account</span><span className="md:hidden block">Get started</span>
             <svg
@@ -152,18 +152,7 @@ export default function Home() {
         <div className="grow-grid">
           {/* Savings */}
           <a href="#" className="grow-card grow-card--savings">
-            <div className="grow-card-title">
-              Savings
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M5 12H19M19 12L13 6M19 12L13 18"
-                  stroke="#0B1E4B"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
+            
             <div className="grow-illustration" />
             <div className="grow-info">
               <div className="grow-info-icon">
@@ -185,18 +174,7 @@ export default function Home() {
  
           {/* Mutual Funds */}
           <a href="#" className="grow-card grow-card--funds">
-            <div className="grow-card-title">
-              Mutual Funds
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M5 12H19M19 12L13 6M19 12L13 18"
-                  stroke="#0B1E4B"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
+            
             <div className="grow-illustration" />
             <div className="grow-info">
               <div className="grow-info-icon">
@@ -218,18 +196,7 @@ export default function Home() {
  
           {/* Stocks */}
           <a href="#" className="grow-card grow-card--stocks">
-            <div className="grow-card-title">
-              Stocks
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M5 12H19M19 12L13 6M19 12L13 18"
-                  stroke="#0B1E4B"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
+            
             <div className="grow-illustration" />
             <div className="grow-info">
               <div className="grow-info-icon">
