@@ -73,30 +73,35 @@ export default function Home() {
         variant: "grow-card--savings",
         iconPath: "M5 12H19M19 12L13 6M19 12L13 18",
         text: "Automate savings for your important goals, from simple milestones to big dreams.",
+        littleText: "Automate savings"
       },
       {
         key: "funds",
         variant: "grow-card--funds",
         iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
         text: "Smart returns without guesswork. Our mutual funds handle it, letting you focus on your goals.",
+        littleText: "Smart returns"
       },
       {
         key: "stocks",
         variant: "grow-card--stocks",
         iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
         text: "Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.",
+        littleText: "Co-own Nigerian stocks"
       },
       {
         key: "Bonds",
         variant: "grow-card--stocks",
         iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
         text: "Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.",
+        littleText: "Co-own Nigerian bonds"
       },
       {
         key: "securities",
         variant: "grow-card--stocks",
         iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
         text: "Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.",
+        littleText: "Co-own Nigerian securities"
       },
     ];
 
@@ -235,7 +240,8 @@ export default function Home() {
                         />
                       </svg>
                     </div>
-                    <p className="grow-info-text">{card.text}</p>
+                    <p className="grow-info-text hidden md:block">{card.text}</p>
+                    <p className="grow-info-text md:hidden">{card.littleText}</p>
                   </div>
                 </a>
               ))}

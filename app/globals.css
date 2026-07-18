@@ -287,6 +287,8 @@ body {
   padding-top: 4px;
 }
 
+
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .grow-header-pinned { padding: 0 24px; }
@@ -295,6 +297,24 @@ body {
   .grow-card { width: 300px; min-height: 440px; }
 }
 
+
+@media (max-width: 640px) {
+  .grow-info{
+    padding: 14px 24px;
+    border-radius: 12px;
+  }
+  .grow-info-text {
+    font-size: 10px;
+  }
+  .grow-info-icon{
+    width: 25px;
+    height: 25px;
+  }
+  .grow-info-icon svg {
+    width: 10px;
+    height: 10px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .grow-track {
     flex-wrap: wrap;
