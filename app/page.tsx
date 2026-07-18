@@ -12,6 +12,7 @@ export default function Home() {
     delay: "1500",
     state: "in-reveal",
   });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const stickyRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -164,12 +165,196 @@ export default function Home() {
           </div>
 
           {/* Mobile menu button */}
-          <button className="flex flex-col gap-1.5 md:hidden" aria-label="Open menu">
-            <span className="h-0.5 w-6 bg-[#0B1E3F]" />
-            <span className="h-0.5 w-6 bg-[#0B1E3F]" />
-            <span className="h-0.5 w-4 bg-[#0B1E3F]" />
+          <button
+            className="flex flex-col gap-1.5 md:hidden"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            <span
+              className={`h-0.5 w-6 bg-[#0B1E3F] transition-all duration-300 ${
+                mobileMenuOpen ? "translate-y-2 rotate-45" : ""
+              }`}
+            />
+            <span
+              className={`h-0.5 w-6 bg-[#0B1E3F] transition-all duration-300 ${
+                mobileMenuOpen ? "opacity-0" : ""
+              }`}
+            />
+            <span
+              className={`h-0.5 w-4 bg-[#0B1E3F] transition-all duration-300 ${
+                mobileMenuOpen ? "-translate-y-2 -rotate-45 w-6" : ""
+              }`}
+            />
           </button>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden fixed inset-0 bg-white z-50 overflow-y-auto">
+            <div className="max-w-[1920px] mx-auto px-4 py-6">
+              {/* Close button at the top */}
+              <div className="flex justify-end mb-4">
+                <button
+                  className="p-2 rounded-full hover:bg-[#F2F4F8]"
+                  aria-label="Close menu"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#0B1E3F"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Nav items with all sub-items visible by default, organized by section */}
+              <nav className="space-y-10">
+                {/* Personal Section */}
+                <div>
+                  <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
+                    Personal
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      "Grow & Invest",
+                      "Move Money",
+                      "Payments",
+                    ].map((item) => (
+                      <a
+                        key={item}
+                        href="#"
+                        className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
+                          <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#0B1E3F"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <path d="M12 17h.01" />
+                          </svg>
+                        </div>
+                        <span className="text-[12px] font-medium text-[#0B1E3F]">
+                          {item}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Business Section */}
+                <div>
+                  <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
+                    Business
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      "Account & Payments",
+                      "Spend & Invoices",
+                      "Payroll",
+                      
+                    
+                    ].map((item) => (
+                      <a
+                        key={item}
+                        href="#"
+                        className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-[#fffff] flex items-center justify-center flex-shrink-0">
+                          <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#0B1E3F"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <path d="M12 17h.01" />
+                          </svg>
+                        </div>
+                        <span className="text-[12px] font-medium text-[#0B1E3F]">
+                          {item}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Developer Section */}
+                <div>
+                  <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
+                    Developer
+                  </h3>
+                  <div className="space-y-3">
+                    <a
+                      href="#"
+                      className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#0B1E3F"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                          <path d="M12 17h.01" />
+                        </svg>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[12px] font-medium text-[#0B1E3F]">
+                          API 
+                        </span>
+                        <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
+                         Soon
+                        </span>
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              </nav>
+
+              {/* Bottom actions */}
+              <div className="mt-12 flex flex-col gap-4">
+                <a
+                  href="#"
+                  className="text-[16px] font-semibold text-[#2F6FF0] hover:opacity-80 text-center"
+                >
+                  Log in
+                </a>
+                <a
+                  href="#"
+                  className="btn-3d text-center "
+                >
+                  Sign up for free
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero section with background image */}
@@ -255,23 +440,217 @@ export default function Home() {
 }
 
 function NavDropdown({ label }: { label: string }) {
-  return (
-    <button className="flex items-center gap-1.5 text-[16px] font-medium text-[#4A5A78] hover:text-[#0B1E3F]">
-      {label}
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="m6 9 6 6 6-6" />
-      </svg>
-    </button>
+  const [isOpen, setIsOpen] = useState(false);
 
+  // Define dropdown items for each section
+  const dropdownData: Record<string, { items: { label: string; icon?: string; isComingSoon?: boolean }[]; columns: number }> = {
+    Personal: {
+      columns: 3,
+      items: [
+        { label: "Savings Account", icon: "savings" },
+        { label: "Fixed Deposits", icon: "deposit" },
+        { label: "Investments", icon: "invest" },
+        { label: "Transfers", icon: "transfer" },
+        { label: "Payments", icon: "bill" },
+      ],
+    },
+    Business: {
+      columns: 3,
+      items: [
+        { label: "Business Account", icon: "business" },
+        { label: "Invoicing", icon: "invoice" },
+        { label: "Payroll", icon: "payroll" },
+        { label: "Payments", icon: "payment" },
+
+
+      ],
+    },
+    Developer: {
+      columns: 1,
+      items: [
+        { label: "API Documentation", icon: "api", isComingSoon: true },
+      ],
+    },
+  };
+
+  const currentData = dropdownData[label] || { columns: 1, items: [] };
+
+  return (
+    <div
+      className="relative group"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button className="flex items-center gap-1.5 text-[16px] font-medium text-[#4A5A78] hover:text-[#0B1E3F]">
+        {label}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="transition-transform duration-300 group-hover:rotate-180"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="nav-dropdown-menu">
+          <div
+            className={`grid gap-6 ${
+              currentData.columns === 3
+                ? "grid-cols-1 sm:grid-cols-3"
+                : "grid-cols-1"
+            }`}
+          >
+            {currentData.items.map((item, idx) => (
+              <a
+                key={idx}
+                href="#"
+                className="nav-dropdown-item flex items-center gap-3 px-4 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+              >
+                {/* Icon placeholder (you can replace with actual images/icons) */}
+                <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#0B1E3F"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <path d="M12 17h.01" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12px] font-medium text-[#0B1E3F]">
+                      {item.label}
+                    </span>
+                    {item.isComingSoon && (
+                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
+                        Soon
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
-  
+}
+
+function MobileNavDropdown({ label }: { label: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Define dropdown items for each section
+  const dropdownData: Record<string, { items: { label: string; icon?: string; isComingSoon?: boolean }[]; columns: number }> = {
+    Personal: {
+      columns: 3,
+      items: [
+        { label: "Savings Account", icon: "savings" },
+        { label: "Fixed Deposits", icon: "deposit" },
+        { label: "Investments", icon: "invest" },
+        { label: "Transfers", icon: "transfer" },
+        { label: "Bill Payments", icon: "bill" },
+      ],
+    },
+    Business: {
+      columns: 3,
+      items: [
+        { label: "Business Account", icon: "business" },
+        { label: "Invoicing", icon: "invoice" },
+        { label: "Payroll", icon: "payroll" },
+        { label: "Payments", icon: "payment" },
+        { label: "Expense Management", icon: "expense" },
+
+      ],
+    },
+    Developer: {
+      columns: 1,
+      items: [
+        { label: "API Documentation", icon: "api", isComingSoon: true },
+      ],
+    },
+  };
+
+  const currentData = dropdownData[label] || { columns: 1, items: [] };
+
+  return (
+    <div>
+      <button
+        className="flex items-center justify-between w-full text-[16px] font-medium text-[#4A5A78] hover:text-[#0B1E3F]"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {label}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`transition-transform duration-300 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {/* Mobile Dropdown Menu */}
+      {isOpen && (
+        <div className="mt-3 pl-4 border-l-2 border-[#EEF1F8] flex flex-col gap-2">
+          {currentData.items.map((item, idx) => (
+            <a
+              key={idx}
+              href="#"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-[#EEF1F8] flex items-center justify-center flex-shrink-0">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#0B1E3F"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <path d="M12 17h.01" />
+                </svg>
+              </div>
+              <div className="flex-1 flex items-center gap-2">
+                <span className="text-[14px] font-medium text-[#0B1E3F]">
+                  {item.label}
+                </span>
+                {item.isComingSoon && (
+                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
+                    Soon
+                  </span>
+                )}
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

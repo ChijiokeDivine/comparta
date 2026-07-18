@@ -315,7 +315,79 @@ body {
     height: 10px;
   }
 }
+/* ==========================================================
+   NAVIGATION DROPDOWN
+   ========================================================== */
+.nav-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  margin-top: 8px;
+  padding: 24px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(11, 30, 63, 0.1);
+  min-width: 700px;
+  max-width: 850px;
+  z-index: 50;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  animation: dropdownFadeIn 0.3s ease forwards;
+}
+
+.group:hover .nav-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.nav-dropdown-item {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: itemSlideIn 0.3s ease forwards;
+}
+
+/* Stagger the animation for each dropdown item */
+.nav-dropdown-item:nth-child(1) { animation-delay: 0.05s; }
+.nav-dropdown-item:nth-child(2) { animation-delay: 0.1s; }
+.nav-dropdown-item:nth-child(3) { animation-delay: 0.15s; }
+.nav-dropdown-item:nth-child(4) { animation-delay: 0.2s; }
+.nav-dropdown-item:nth-child(5) { animation-delay: 0.25s; }
+.nav-dropdown-item:nth-child(6) { animation-delay: 0.3s; }
+.nav-dropdown-item:nth-child(7) { animation-delay: 0.35s; }
+.nav-dropdown-item:nth-child(8) { animation-delay: 0.4s; }
+
+@keyframes itemSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .nav-dropdown-menu,
+  .nav-dropdown-item {
+    animation: none;
+    transition: none;
+  }
+
   .grow-track {
     flex-wrap: wrap;
     transform: none !important;
