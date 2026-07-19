@@ -386,7 +386,7 @@ export default function Home() {
 
       {/* Hero section with background image */}
       <section className="relative overflow-hidden" >
-       
+       {/*style={{ backgroundImage: `url('/Hands_Reaching_Out-removebg-preview.png')`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}*/}
 
         <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 pt-20 pb-[78px] text-center sm:px-6 md:h-[65vh]">
           <h1 className="text-[40px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px]">
@@ -476,88 +476,75 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
+          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2">
             {/* Column 1: Send + Pay bills */}
             <div className="flex flex-col gap-8">
               <div className="flex min-h-[380px] md:min-h-[425px] flex-col rounded-2xl bg-sky-100 py-8 px-10 text-left">
                 <p className="text-lg text-neutral-800">
                   Send money instantly, wherever your team or clients are
                 </p>
-                <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl bg-sky-200/60">
+                <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl  flex items-center justify-center">
                   <img
-                    src="/images/send-money.jpg"
+                    src="/send.png"
                     alt="Sending money instantly"
-                    className="h-full w-full object-cover"
+                    className="h-3/4 w-3/4 object-contain"
                   />
                 </div>
               </div>
 
-              <div className="flex min-h-[380px] md:min-h-[340px] flex-col rounded-2xl bg-[#0142C2]/20 py-8 px-10 text-left">
-                <p className="text-lg text-neutral-800">
-                  Automate recurring bills so nothing ever slips through
-                </p>
-                <div className="relative mt-auto aspect-[4/3] md:aspect-[4/2] w-full overflow-hidden rounded-xl bg-[#0142C2]/40">
+              <div className="flex min-h-[380px] md:min-h-[340px] flex-col rounded-2xl bg-[#0142C2]/20 text-left">
+                <div className="relative mt-auto min-h-[380px] md:min-h-[340px] overflow-hidden rounded-xl bg-[#0142C2]/40">
                   <img
-                    src="/images/pay-bills.jpg"
+                    src="/image.webp"
                     alt="Automating recurring bills"
                     className="h-full w-full object-cover"
                   />
+                  <div className="absolute bottom-4 left-4 flex flex-col gap-1 p-4 rounded-lg ">
+                    {/* bg-black/40 backdrop-blur-sm */ }
+                    <p className="text-lg text-white">
+                      Automate recurring bills 
+                    </p>
+                    {/* <p className="text-sm text-white/80">
+                      Never miss a payment again
+                    </p> */}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Column 2: Receive (image) + Pay your team */}
             <div className="flex flex-col gap-8">
-              <div className="relative min-h-[380px] md:min-h-[340px] overflow-hidden rounded-2xl bg-neutral-100">
+              <div className="relative min-h-[380px] md:min-h-[340px] md:max-h-[347px] overflow-hidden rounded-2xl bg-neutral-100">
                 <img
-                  src="/images/receive-money.jpg"
+                  src="/smile.webp"
                   alt="Receiving a payment"
                   className="h-full w-full object-cover"
                 />
+                <div className="absolute bottom-4 right-4 flex flex-col gap-1 p-4 rounded-lg ">
+                  <p className="text-lg text-white ">
+                    Receive payments instantly
+                  </p>
+                  {/* <p className="text-sm text-white/80">
+                    Get settled in seconds, not days
+                  </p> */}
+                </div>
               </div>
 
               <div className="flex min-h-[380px] md:min-h-[425px] flex-col rounded-2xl bg-violet-100 py-8 px-10 text-left">
                 <p className="text-lg text-neutral-800">
-                  Pay your whole team in one click, from onboarding to payout
+                  Pay your whole team in one click
                 </p>
-                <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl bg-violet-200/60">
+                <div className="relative mt-auto aspect-[4/3] md:aspect-[5/4.5] w-full overflow-hidden rounded-xl flex items-center justify-center">
                   <img
-                    src="/images/pay-team.jpg"
+                    src="/pay1.png"
                     alt="Paying your team"
-                    className="h-full w-full object-cover"
+                    className="h-3/4 w-3/4 object-contain"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Column 3: Save + Spending insights */}
-            <div className="flex flex-col gap-8">
-              <div className="flex min-h-[380px] md:min-h-[310px] flex-col rounded-2xl bg-[#D1FFA4]/10 border border-[#D1FFA4]/30  py-8 px-10 text-left">
-                <p className="text-lg text-neutral-800">
-                  Save automatically 
-                </p>
-                <div className="relative mt-auto aspect-[4/3] md:aspect-[4/2] w-full overflow-hidden rounded-xl bg-[#D1FFA4]/30">
-                  <img
-                    src="/images/save-money.jpg"
-                    alt="Saving money automatically"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              </div>
 
-              <div className="flex min-h-[380px] md:min-h-[455px] flex-col rounded-2xl bg-[#bcff78]/20 py-8 px-10 text-left">
-                <p className="text-lg text-neutral-800">
-                  See exactly where your money goes, before it goes there
-                </p>
-                <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl bg-[#bcff78]/30">
-                  <img
-                    src="/images/spending-insights.jpg"
-                    alt="Spending insights dashboard"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
