@@ -573,6 +573,65 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <section className="relative w-full min-h-[500px] md:min-h-[650px] overflow-hidden bg-[#2a5ce6]">
+        {/* Decorative textured shape - left */}
+
+
+
+       
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-between h-full min-h-[500px] md:min-h-[650px] px-6 sm:px-10 md:px-16 py-10 sm:py-14 md:py-20">
+          {/* Heading */}
+          <div>
+            <h1 className="text-white font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
+              Be more than a consumer.
+            </h1>
+            <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
+              <h1 className="text-emerald-300 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
+                Be a co-owner
+              </h1>
+            
+            </div>
+          </div>
+
+          {/* Footer text */}
+          <p className="max-w-md sm:max-w-lg text-sm sm:text-base text-white/70 leading-relaxed mt-10 md:mt-0">
+            <span className="text-white font-medium">
+              More Nigerians need to own Nigeria.
+            </span>{" "}
+            Less than 3% of Nigerians are in the capital market. That&apos;s too
+            low. We&apos;re opening the door, so everyone can grow with
+            Nigeria&apos;s top companies.
+          </p>
+        </div>
+      </section>
+      <section className="relative w-full h-[70vh] min-h-[400px] md:h-[85vh] overflow-hidden">
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage:
+              "url('/mountain-hero.jpg')",
+          }}
+        />
+
+        {/* Dark overlay for text contrast */}
+        <div className="absolute inset-0 bg-black/30" />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center justify-center text-center h-full px-4 sm:px-6">
+          <h1 className="text-white font-normal text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight">
+            Live healthier for longer
+          </h1>
+
+          <p className="mt-4 md:mt-6 text-white/80 text-base sm:text-lg md:text-xl max-w-md sm:max-w-lg md:max-w-xl">
+            A proactive approach to long-term health, designed around you.
+          </p>
+
+        </div>
+      </section>
+
 
     </div>
     </>
