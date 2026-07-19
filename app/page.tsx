@@ -463,8 +463,16 @@ export default function Home() {
       </section>
       <section className="w-full bg-white py-20 px-6 md:py-28">
         <div className="mx-auto max-w-7xl text-center">
-          <h2 className="text-3xl md:text-6xl font-normal text-neutral-900 tracking-tight">
-            One platform. Every way you move money
+          <h2 className="text-3xl md:text-6xl font-normal text-neutral-900 tracking-tight text-center">
+            One platform. Every way you{" "}
+            <span className="inline-flex items-center gap-2 whitespace-nowrap align-middle">
+              move money
+              <img
+                src="/3d.webp"
+                alt="3D icon"
+                className="inline-block h-8 md:h-16 w-auto align-middle"
+              />
+            </span>
           </h2>
           <p className="mx-auto mt-6 max-w-2xl text-sm md:text-lg text-neutral-500 leading-relaxed">
             Send, receive, save, pay bills, pay your team and get spending insights -
@@ -495,7 +503,7 @@ export default function Home() {
               <div className="flex min-h-[380px] md:min-h-[340px] flex-col rounded-2xl bg-[#0142C2]/20 text-left">
                 <div className="relative mt-auto min-h-[380px] md:min-h-[340px] overflow-hidden rounded-xl bg-[#0142C2]/40">
                   <img
-                    src="/image.webp"
+                    src="/image2.webp"
                     alt="Automating recurring bills"
                     className="h-full w-full object-cover"
                   />
@@ -504,9 +512,9 @@ export default function Home() {
                     <p className="text-lg text-white">
                       Automate recurring bills 
                     </p>
-                    {/* <p className="text-sm text-white/80">
+                    <p className="text-sm text-white/80">
                       Never miss a payment again
-                    </p> */}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -516,7 +524,7 @@ export default function Home() {
             <div className="flex flex-col gap-8">
               <div className="relative min-h-[380px] md:min-h-[340px] md:max-h-[347px] overflow-hidden rounded-2xl bg-neutral-100">
                 <img
-                  src="/smile.webp"
+                  src="/smile3.webp"
                   alt="Receiving a payment"
                   className="h-full w-full object-cover"
                 />
@@ -524,9 +532,9 @@ export default function Home() {
                   <p className="text-lg text-white ">
                     Receive payments instantly
                   </p>
-                  {/* <p className="text-sm text-white/80">
+                  <p className="text-sm text-white/80">
                     Get settled in seconds, not days
-                  </p> */}
+                  </p>
                 </div>
               </div>
 
