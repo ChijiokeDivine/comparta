@@ -165,21 +165,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-[1920px] items-center justify-between px-4 py-6 sm:px-6 md:px-8">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 36 36"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect x="1" y="1" width="34" height="34" stroke="#2F6FF0" strokeWidth="1.6" />
-              <rect x="5.8" y="5.8" width="24.4" height="24.4" stroke="#2F6FF0" strokeWidth="1.6" />
-              <rect x="10.6" y="10.6" width="14.8" height="14.8" stroke="#2F6FF0" strokeWidth="1.6" />
-              <rect x="15.2" y="15.2" width="5.6" height="5.6" fill="#2F6FF0" />
-            </svg>
-            <span className="text-[22px] font-semibold tracking-tight text-[#2F6FF0]">
-              Comparta
-            </span>
+            <img src="logo.png" alt="Comparta" height={42} width={135} />
           </a>
 
           {/* Nav */}
