@@ -538,7 +538,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex min-h-[380px] md:min-h-[425px] flex-col rounded-2xl bg-violet-100 py-8 px-10 text-left">
+              <div className="flex min-h-[380px] md:min-h-[425px] flex-col rounded-2xl bg-violet-100 py-8 px-10 text-left hidden md:block">
                 <p className="text-lg text-neutral-800">
                   Pay your whole team in one click
                 </p>
@@ -550,6 +550,23 @@ export default function Home() {
                   />
                 </div>
               </div>
+
+              <div className="relative min-h-[380px] md:min-h-[425px] overflow-hidden rounded-2xl bg-violet-100 md:hidden block">
+                <img
+                  src="/man.webp"
+                  alt="Grow your idle cash"
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute bottom-4 left-4 flex flex-col gap-1 p-4 rounded-lg">
+                  <p className="text-lg text-white text-left">
+                    Grow your idle cash
+                  </p>
+                  <p className="text-sm text-white text-left">
+                    Grow your idle cash
+                  </p>
+                </div>
+              </div>
+              
             </div>
 
 
