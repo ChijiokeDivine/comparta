@@ -389,9 +389,10 @@ export default function Home() {
        
 
         <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 pt-20 pb-[78px] text-center sm:px-6 md:h-[65vh]">
-          <h1 className="text-[45px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px]">
-            Move money like 
-            <br />
+          <h1 className="text-[40px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px]">
+            Move money like
+            <span className="inline max-[349px]:inline">&nbsp;</span>
+            <br className="block max-[349px]:hidden" />
             it's easy
             <span className="hero-inline-icon">
       
@@ -466,7 +467,7 @@ export default function Home() {
             One platform. Every way you move money
           </h2>
           <p className="mx-auto mt-6 max-w-2xl text-sm md:text-lg text-neutral-500 leading-relaxed">
-            Send, receive, save, pay bills, pay your team and get spending insights —
+            Send, receive, save, pay bills, pay your team and get spending insights -
             without ever leaving the platform.
           </p>
           <div className="mt-8">
@@ -491,11 +492,11 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex min-h-[380px] md:min-h-[340px] flex-col rounded-2xl bg-stone-50 py-8 px-10 text-left">
+              <div className="flex min-h-[380px] md:min-h-[340px] flex-col rounded-2xl bg-[#0142C2]/20 py-8 px-10 text-left">
                 <p className="text-lg text-neutral-800">
                   Automate recurring bills so nothing ever slips through
                 </p>
-                <div className="relative mt-auto aspect-[4/3] md:aspect-[4/2] w-full overflow-hidden rounded-xl bg-stone-200/60">
+                <div className="relative mt-auto aspect-[4/3] md:aspect-[4/2] w-full overflow-hidden rounded-xl bg-[#0142C2]/40">
                   <img
                     src="/images/pay-bills.jpg"
                     alt="Automating recurring bills"
@@ -531,11 +532,11 @@ export default function Home() {
 
             {/* Column 3: Save + Spending insights */}
             <div className="flex flex-col gap-8">
-              <div className="flex min-h-[380px] md:min-h-[310px] flex-col rounded-2xl bg-stone-50 py-8 px-10 text-left">
+              <div className="flex min-h-[380px] md:min-h-[310px] flex-col rounded-2xl bg-[#D1FFA4]/10 border border-[#D1FFA4]/30  py-8 px-10 text-left">
                 <p className="text-lg text-neutral-800">
                   Save automatically 
                 </p>
-                <div className="relative mt-auto aspect-[4/3] md:aspect-[4/2] w-full overflow-hidden rounded-xl bg-stone-200/60">
+                <div className="relative mt-auto aspect-[4/3] md:aspect-[4/2] w-full overflow-hidden rounded-xl bg-[#D1FFA4]/30">
                   <img
                     src="/images/save-money.jpg"
                     alt="Saving money automatically"
@@ -544,11 +545,11 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex min-h-[380px] md:min-h-[455px] flex-col rounded-2xl bg-stone-50 py-8 px-10 text-left">
+              <div className="flex min-h-[380px] md:min-h-[455px] flex-col rounded-2xl bg-[#bcff78]/20 py-8 px-10 text-left">
                 <p className="text-lg text-neutral-800">
                   See exactly where your money goes, before it goes there
                 </p>
-                <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl bg-stone-200/60">
+                <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl bg-[#bcff78]/30">
                   <img
                     src="/images/spending-insights.jpg"
                     alt="Spending insights dashboard"
