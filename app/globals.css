@@ -114,6 +114,18 @@ body {
   --btn-edge-hover: #030a1a;
 }
 
+.btn-3d--neutral {
+  --btn-bg: #f3f4f6;
+  --btn-bg-hover: #e8eaec;
+  --btn-edge: #dadbdc;
+  --btn-edge-hover: #c6c7c9;
+  color: #111827;
+}
+.small-btn {
+  padding: 12px 24px;
+  font-size: 13px;
+}
+
 /* ==========================================================
    GROW — pinned horizontal scroll section (GSAP-driven)
    ========================================================== */

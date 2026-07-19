@@ -3,10 +3,25 @@
 
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
+import { NavDropdown, MobileNavDropdown } from "./components/NavDropdown";
+
 
 
 
 export default function Home() {
+  interface FloatingTile {
+    image: string;
+    alt: string;
+    rotate: string;
+  }
+
+  interface TestItem {
+    image: string;
+    title: string;
+    description: string;
+  }
+
+
   const [lordIconProps, setLordIconProps] = useState({
     trigger: "in",
     delay: "1500",
@@ -67,6 +82,32 @@ export default function Home() {
       init();
       return () => ctx?.revert();
     }, []);
+
+
+    const floatingTiles: FloatingTile[] = [
+      { image: "/images/tests/xray-legs.jpg", alt: "X-ray of legs", rotate: "-rotate-[8deg]" },
+      { image: "/images/tests/dexa-scan.jpg", alt: "DEXA scan", rotate: "rotate-[6deg]" },
+      { image: "/images/tests/mri-vascular.jpg", alt: "MRI vascular scan", rotate: "-rotate-[5deg]" },
+      { image: "/images/tests/lung-scan.jpg", alt: "Lung scan", rotate: "rotate-[4deg]" },
+      { image: "/images/tests/cardiac-vessels.jpg", alt: "Cardiac blood vessels", rotate: "-rotate-[6deg]" },
+      { image: "/images/tests/spine-xray.jpg", alt: "Spine X-ray", rotate: "rotate-[10deg]" },
+      { image: "/images/tests/vo2-mask.jpg", alt: "VO2 max testing mask", rotate: "rotate-[9deg]" },
+    ];
+
+    // duplicated once for a seamless loop
+    const tickerTiles: FloatingTile[] = [...floatingTiles, ...floatingTiles];
+
+    const tests: TestItem[] = [
+      { image: "/images/tests/whole-body-mri.jpg", title: "Whole Body MRI", description: "Detects abnormalities across the body." },
+      { image: "/images/tests/blood-panel.jpg", title: "Advanced Blood Panel", description: "In-depth blood analysis." },
+      { image: "/images/tests/vo2-max.jpg", title: "VO2 Max Testing", description: "Measures oxygen uptake and endurance." },
+      { image: "/images/tests/dexa.jpg", title: "DEXA Body Composition Testing", description: "Analyzes body fat, muscle, and bone density." },
+      { image: "/images/tests/ct-angiography.jpg", title: "CT Coronary Angiography", description: "Assesses coronary blockages and heart risk." },
+      { image: "/images/tests/plaque.jpg", title: "AI Coronary Plaque Characterization", description: "Identifies high-risk plaque features." },
+      { image: "/images/tests/hereditary.jpg", title: "Hereditary Diseases Screening", description: "Screens genetic disease risk." },
+      { image: "/images/tests/cgm.jpg", title: "Continuous Glucose Monitoring", description: "Tracks blood sugar continuously." },
+      { image: "/images/tests/lung-ct.jpg", title: "Low Dose Lung CT Scan", description: "Detects early lung cancer signs." },
+    ];
 
     const growCards = [
       {
@@ -248,7 +289,7 @@ export default function Home() {
                             <path d="M12 17h.01" />
                           </svg>
                         </div>
-                        <span className="text-[12px] font-medium text-[#0B1E3F]">
+                        <span className="text-[14px] font-medium text-[#0B1E3F]">
                           {item}
                         </span>
                       </a>
@@ -290,7 +331,7 @@ export default function Home() {
                             <path d="M12 17h.01" />
                           </svg>
                         </div>
-                        <span className="text-[12px] font-medium text-[#0B1E3F]">
+                        <span className="text-[14px] font-medium text-[#0B1E3F]">
                           {item}
                         </span>
                       </a>
@@ -325,7 +366,7 @@ export default function Home() {
                         </svg>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[12px] font-medium text-[#0B1E3F]">
+                        <span className="text-[14px] font-medium text-[#0B1E3F]">
                           API 
                         </span>
                         <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
@@ -405,252 +446,137 @@ export default function Home() {
           </a>
         </div>
       </section>
-        <section className="grow-section " id="grow">
-          <div className="grow-sticky " ref={stickyRef}>
-          
+      <section className="grow-section " id="grow">
+        <div className="grow-sticky " ref={stickyRef}>
+        
 
-            <div className="grow-track" ref={trackRef}>
-              {growCards.map((card) => (
-                <a href="#" key={card.key} className={`grow-card ${card.variant}`}>
-                  <div className="grow-illustration" />
-                  <div className="grow-info">
-                    <div className="grow-info-icon">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <path
-                          d={card.iconPath}
-                          stroke="#0B1E4B"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </div>
-                    <p className="grow-info-text hidden md:block">{card.text}</p>
-                    <p className="grow-info-text md:hidden">{card.littleText}</p>
+          <div className="grow-track" ref={trackRef}>
+            {growCards.map((card) => (
+              <a href="#" key={card.key} className={`grow-card ${card.variant}`}>
+                <div className="grow-illustration" />
+                <div className="grow-info">
+                  <div className="grow-info-icon">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path
+                        d={card.iconPath}
+                        stroke="#0B1E4B"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </div>
-                </a>
-              ))}
-            </div>
-          </div>
-        </section>
-    </div>
-    </>
-  );
-
-}
-
-function NavDropdown({ label }: { label: string }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  // Define dropdown items for each section
-  const dropdownData: Record<string, { items: { label: string; icon?: string; isComingSoon?: boolean }[]; columns: number }> = {
-    Personal: {
-      columns: 3,
-      items: [
-        { label: "Savings Account", icon: "savings" },
-        { label: "Fixed Deposits", icon: "deposit" },
-        { label: "Investments", icon: "invest" },
-        { label: "Transfers", icon: "transfer" },
-        { label: "Payments", icon: "bill" },
-      ],
-    },
-    Business: {
-      columns: 3,
-      items: [
-        { label: "Business Account", icon: "business" },
-        { label: "Invoicing", icon: "invoice" },
-        { label: "Payroll", icon: "payroll" },
-        { label: "Payments", icon: "payment" },
-
-
-      ],
-    },
-    Developer: {
-      columns: 1,
-      items: [
-        { label: "API Documentation", icon: "api", isComingSoon: true },
-      ],
-    },
-  };
-
-  const currentData = dropdownData[label] || { columns: 1, items: [] };
-
-  return (
-    <div
-      className="relative group"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-    >
-      <button className="flex items-center gap-1.5 text-[16px] font-medium text-[#4A5A78] hover:text-[#0B1E3F]">
-        {label}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="transition-transform duration-300 group-hover:rotate-180"
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div className="nav-dropdown-menu">
-          <div
-            className={`grid gap-6 ${
-              currentData.columns === 3
-                ? "grid-cols-1 sm:grid-cols-3"
-                : "grid-cols-1"
-            }`}
-          >
-            {currentData.items.map((item, idx) => (
-              <a
-                key={idx}
-                href="#"
-                className="nav-dropdown-item flex items-center gap-3 px-4 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
-              >
-                {/* Icon placeholder (you can replace with actual images/icons) */}
-                <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#0B1E3F"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <path d="M12 17h.01" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12px] font-medium text-[#0B1E3F]">
-                      {item.label}
-                    </span>
-                    {item.isComingSoon && (
-                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
-                        Soon
-                      </span>
-                    )}
-                  </div>
+                  <p className="grow-info-text hidden md:block">{card.text}</p>
+                  <p className="grow-info-text md:hidden">{card.littleText}</p>
                 </div>
               </a>
             ))}
           </div>
         </div>
-      )}
-    </div>
-  );
-}
+      </section>
+      <section className="w-full bg-white py-20 px-6 md:py-28">
+        <div className="mx-auto max-w-7xl text-center">
+          <h2 className="text-3xl md:text-6xl font-normal text-neutral-900 tracking-tight">
+            One platform. Every way you move money
+          </h2>
+          <p className="mx-auto mt-6 max-w-2xl text-sm md:text-lg text-neutral-500 leading-relaxed">
+            Send, receive, save, pay bills, pay your team and get spending insights —
+            without ever leaving the platform.
+          </p>
+          <div className="mt-8">
+            <button className="rounded-lg bg-neutral-100 px-6 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-200 transition-colors cursor-pointer">
+              Start now
+            </button>
+          </div>
 
-function MobileNavDropdown({ label }: { label: string }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  // Define dropdown items for each section
-  const dropdownData: Record<string, { items: { label: string; icon?: string; isComingSoon?: boolean }[]; columns: number }> = {
-    Personal: {
-      columns: 3,
-      items: [
-        { label: "Savings Account", icon: "savings" },
-        { label: "Fixed Deposits", icon: "deposit" },
-        { label: "Investments", icon: "invest" },
-        { label: "Transfers", icon: "transfer" },
-        { label: "Bill Payments", icon: "bill" },
-      ],
-    },
-    Business: {
-      columns: 3,
-      items: [
-        { label: "Business Account", icon: "business" },
-        { label: "Invoicing", icon: "invoice" },
-        { label: "Payroll", icon: "payroll" },
-        { label: "Payments", icon: "payment" },
-        { label: "Expense Management", icon: "expense" },
-
-      ],
-    },
-    Developer: {
-      columns: 1,
-      items: [
-        { label: "API Documentation", icon: "api", isComingSoon: true },
-      ],
-    },
-  };
-
-  const currentData = dropdownData[label] || { columns: 1, items: [] };
-
-  return (
-    <div>
-      <button
-        className="flex items-center justify-between w-full text-[16px] font-medium text-[#4A5A78] hover:text-[#0B1E3F]"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {label}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={`transition-transform duration-300 ${
-            isOpen ? "rotate-180" : ""
-          }`}
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-
-      {/* Mobile Dropdown Menu */}
-      {isOpen && (
-        <div className="mt-3 pl-4 border-l-2 border-[#EEF1F8] flex flex-col gap-2">
-          {currentData.items.map((item, idx) => (
-            <a
-              key={idx}
-              href="#"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#F2F4F8] transition-colors"
-            >
-              <div className="w-8 h-8 rounded-full bg-[#EEF1F8] flex items-center justify-center flex-shrink-0">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#0B1E3F"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <path d="M12 17h.01" />
-                </svg>
+          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
+            {/* Column 1: Send + Pay bills */}
+            <div className="flex flex-col gap-8">
+              <div className="flex min-h-[380px] md:min-h-[425px] flex-col rounded-2xl bg-sky-100 py-8 px-10 text-left">
+                <p className="text-lg text-neutral-800">
+                  Send money instantly, wherever your team or clients are
+                </p>
+                <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl bg-sky-200/60">
+                  <img
+                    src="/images/send-money.jpg"
+                    alt="Sending money instantly"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
               </div>
-              <div className="flex-1 flex items-center gap-2">
-                <span className="text-[14px] font-medium text-[#0B1E3F]">
-                  {item.label}
-                </span>
-                {item.isComingSoon && (
-                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
-                    Soon
-                  </span>
-                )}
+
+              <div className="flex min-h-[380px] md:min-h-[340px] flex-col rounded-2xl bg-stone-50 py-8 px-10 text-left">
+                <p className="text-lg text-neutral-800">
+                  Automate recurring bills so nothing ever slips through
+                </p>
+                <div className="relative mt-auto aspect-[4/3] md:aspect-[4/2] w-full overflow-hidden rounded-xl bg-stone-200/60">
+                  <img
+                    src="/images/pay-bills.jpg"
+                    alt="Automating recurring bills"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
               </div>
-            </a>
-          ))}
+            </div>
+
+            {/* Column 2: Receive (image) + Pay your team */}
+            <div className="flex flex-col gap-8">
+              <div className="relative min-h-[380px] md:min-h-[340px] overflow-hidden rounded-2xl bg-neutral-100">
+                <img
+                  src="/images/receive-money.jpg"
+                  alt="Receiving a payment"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+
+              <div className="flex min-h-[380px] md:min-h-[425px] flex-col rounded-2xl bg-violet-100 py-8 px-10 text-left">
+                <p className="text-lg text-neutral-800">
+                  Pay your whole team in one click, from onboarding to payout
+                </p>
+                <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl bg-violet-200/60">
+                  <img
+                    src="/images/pay-team.jpg"
+                    alt="Paying your team"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Column 3: Save + Spending insights */}
+            <div className="flex flex-col gap-8">
+              <div className="flex min-h-[380px] md:min-h-[310px] flex-col rounded-2xl bg-stone-50 py-8 px-10 text-left">
+                <p className="text-lg text-neutral-800">
+                  Save automatically 
+                </p>
+                <div className="relative mt-auto aspect-[4/3] md:aspect-[4/2] w-full overflow-hidden rounded-xl bg-stone-200/60">
+                  <img
+                    src="/images/save-money.jpg"
+                    alt="Saving money automatically"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              </div>
+
+              <div className="flex min-h-[380px] md:min-h-[455px] flex-col rounded-2xl bg-stone-50 py-8 px-10 text-left">
+                <p className="text-lg text-neutral-800">
+                  See exactly where your money goes, before it goes there
+                </p>
+                <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl bg-stone-200/60">
+                  <img
+                    src="/images/spending-insights.jpg"
+                    alt="Spending insights dashboard"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+      </section>
+
     </div>
+    </>
   );
+
 }
