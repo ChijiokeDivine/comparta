@@ -28,8 +28,26 @@ export default function Home() {
     state: "in-reveal",
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const [secondTooltipOpen, setSecondTooltipOpen] = useState(false);
   const stickyRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const secondTooltipRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: "left" | "right") => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const cardWidth = container.querySelector("div")?.clientWidth || 400;
+    const gap = 24; // matches gap-6
+    const scrollAmount = cardWidth + gap;
+
+    container.scrollBy({
+      left: direction === "left" ? -scrollAmount : scrollAmount,
+      behavior: "smooth",
+    });
+  };
 
 
   useEffect(() => {
@@ -82,6 +100,26 @@ export default function Home() {
       init();
       return () => ctx?.revert();
     }, []);
+
+    // Close tooltips when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
+          setTooltipOpen(false);
+        }
+        if (secondTooltipRef.current && !secondTooltipRef.current.contains(event.target as Node)) {
+          setSecondTooltipOpen(false);
+        }
+      };
+
+      if (tooltipOpen || secondTooltipOpen) {
+        document.addEventListener('mousedown', handleClickOutside);
+      }
+
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, [tooltipOpen, secondTooltipOpen]);
 
 
     const floatingTiles: FloatingTile[] = [
@@ -389,7 +427,7 @@ export default function Home() {
        {/*style={{ backgroundImage: `url('/Hands_Reaching_Out-removebg-preview.png')`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}*/}
 
         <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 pt-20 pb-[78px] text-center sm:px-6 md:h-[65vh]">
-          <h1 className="text-[40px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px]">
+          <h1 className="text-[40px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px] pt-12 sm:pt-16 md:pt-20">
             Move money like
             <span className="inline max-[349px]:inline">&nbsp;</span>
             <br className="block max-[349px]:hidden" />
@@ -459,6 +497,39 @@ export default function Home() {
               </a>
             ))}
           </div>
+        </div>
+      </section>
+      <section className="relative w-full min-h-[500px] md:min-h-[650px] overflow-hidden bg-[#2a5ce6]">
+        {/* Decorative textured shape - left */}
+
+
+
+       
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-between h-full min-h-[500px] md:min-h-[650px] px-6 sm:px-10 md:px-16 py-20 md:py-20">
+          {/* Heading */}
+          <div>
+            <h1 className="text-white pt-12 sm:pt-16 md:pt-20 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
+              Be more than a consumer.
+            </h1>
+            <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
+              <h1 className="text-emerald-300 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
+                Be a co-owner
+              </h1>
+            
+            </div>
+          </div>
+
+          {/* Footer text */}
+          <p className="max-w-md sm:max-w-lg text-sm sm:text-base text-white/70 leading-relaxed mt-10 md:mt-0">
+            <span className="text-white font-medium">
+              More Nigerians need to own Nigeria.
+            </span>{" "}
+            Less than 3% of Nigerians are in the capital market. That&apos;s too
+            low. We&apos;re opening the door, so everyone can grow with
+            Nigeria&apos;s top companies.
+          </p>
         </div>
       </section>
       <section className="w-full bg-white py-20 px-6 md:py-28">
@@ -573,37 +644,85 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="relative w-full min-h-[500px] md:min-h-[650px] overflow-hidden bg-[#2a5ce6]">
-        {/* Decorative textured shape - left */}
-
-
-
-       
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-between h-full min-h-[500px] md:min-h-[650px] px-6 sm:px-10 md:px-16 py-10 sm:py-14 md:py-20">
+      <section className="w-full bg-black py-20 sm:py-20 lg:py-28 px-4 sm:px-6 lg:px-8 mt-[50px] ">
+        <div className="mx-auto max-w-6xl">
           {/* Heading */}
-          <div>
-            <h1 className="text-white font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
-              Be more than a consumer.
-            </h1>
-            <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
-              <h1 className="text-emerald-300 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
-                Be a co-owner
-              </h1>
+          <div className="text-center mb-10 sm:mb-14 lg:mb-16 pt-12 sm:pt-16 md:pt-20">
+            <h2 className="text-white font-normal tracking-tight text-3xl md:text-6xl leading-[1.1]">
+              Two sides of running a business. 
             
-            </div>
+            </h2>
+            <p className="mt-6 text-gray-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
+              Getting paid and paying people out used to mean two different headaches. Comparta handles that.
+            </p>
           </div>
 
-          {/* Footer text */}
-          <p className="max-w-md sm:max-w-lg text-sm sm:text-base text-white/70 leading-relaxed mt-10 md:mt-0">
-            <span className="text-white font-medium">
-              More Nigerians need to own Nigeria.
-            </span>{" "}
-            Less than 3% of Nigerians are in the capital market. That&apos;s too
-            low. We&apos;re opening the door, so everyone can grow with
-            Nigeria&apos;s top companies.
-          </p>
+          {/* Image cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            {/* Get paid, without the chase */}
+            <div className="relative rounded-2xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
+              <img
+                src="/images/nyc-retreat.jpg"
+                alt="Get paid, without the chase"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+              <div className="absolute bottom-0 left-0 p-5 sm:p-6 lg:p-8">
+                <h3 className="text-white text-xl sm:text-2xl font-medium">
+                  Get paid, without the chase
+                </h3>
+                <div ref={secondTooltipRef} className="relative inline-block">
+                  <button 
+                    className="mt-1 text-gray-300 text-sm sm:text-base underline underline-offset-4 decoration-gray-500 hover:text-white transition-colors relative"
+                    onClick={() => setSecondTooltipOpen(!secondTooltipOpen)}
+                  >
+                    Learn more
+                  </button>
+                  {/* Tooltip */}
+                  {secondTooltipOpen && (
+                    <div className="absolute bottom-full left-0 mb-3 w-72 sm:w-80 bg-white rounded-xl shadow-2xl p-5 z-20">
+                      <div className="absolute -bottom-2 left-4 w-4 h-4 bg-white rotate-45" />
+                      <p className="text-gray-800 text-sm leading-relaxed">
+                        Send an invoice or a payment link and watch it get paid in seconds, not days. No wondering if the wire went through. Your client pays with a transfer, or a wallet - you just see the money land.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Pay out, without the stress */}
+            <div className="relative rounded-2xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
+              <img
+                src="/images/sf-retreat.jpg"
+                alt="Pay out, without the stress"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+              <div className="absolute bottom-0 left-0 p-5 sm:p-6 lg:p-8">
+                <h3 className="text-white text-xl sm:text-2xl font-medium">
+                 Pay out, without the stress
+                </h3>
+                <div ref={tooltipRef} className="relative inline-block">
+                  <button 
+                    className="mt-1 text-gray-300 text-sm sm:text-base underline underline-offset-4 decoration-gray-500 hover:text-white transition-colors relative"
+                    onClick={() => setTooltipOpen(!tooltipOpen)}
+                  >
+                    Learn more
+                  </button>
+                  {/* Tooltip */}
+                  {tooltipOpen && (
+                    <div className="absolute bottom-full left-0 mb-3 w-72 sm:w-80 bg-white rounded-xl shadow-2xl p-5 z-20">
+                      <div className="absolute -bottom-2 left-4 w-4 h-4 bg-white rotate-45" />
+                      <p className="text-gray-800 text-sm leading-relaxed">
+                        Payroll, contractors, savings, recurring transfers — set it up once, approve it with one click, and let Comparta handle the rest. Every payment tracked, every balance separated, nothing lost in a spreadsheet.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
       <section className="relative w-full h-[70vh] min-h-[400px] md:h-[85vh] overflow-hidden">
@@ -629,6 +748,145 @@ export default function Home() {
             A proactive approach to long-term health, designed around you.
           </p>
 
+        </div>
+      </section>
+      <section className="relative w-full bg-[#FBFBFD] py-16 sm:py-20 md:py-28 overflow-hidden">
+        {/* Heading */}
+        <div className="text-center px-4 sm:px-6 pt-12 sm:pt-16 md:pt-20 mb-12 sm:mb-16 md:mb-20">
+          <h2 className="text-black font-normal text-3xl md:text-6xl tracking-tight">
+            Built for your business
+          </h2>
+          <p className="mt-4 sm:mt-6 text-gray-400 text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
+            Different businesses move money differently. Here's what Comparta looks like for yours.
+          </p>
+        </div>
+
+        {/* Carousel */}
+        <div className="relative">
+          {/* Left arrow */}
+          <button
+            onClick={() => scroll("left")}
+            className="hidden sm:flex absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-md items-center justify-center transition-colors"
+            aria-label="Previous"
+          >
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          {/* Right arrow */}
+          <button
+            onClick={() => scroll("right")}
+            className="hidden sm:flex absolute right-2 sm:right-4 md:right-6 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-md items-center justify-center transition-colors"
+            aria-label="Next"
+          >
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {/* Scrollable cards */}
+          <div
+            ref={scrollRef}
+            className="flex gap-4 sm:gap-5 md:gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth px-4 sm:px-8 md:px-16 lg:px-24 scrollbar-hide"
+          >
+            {/* Card 1 */}
+            <div className="relative snap-center shrink-0 w-[85%] sm:w-[70%] md:w-[55%] lg:w-[45%] h-[480px] sm:h-[560px] md:h-[640px] rounded-2xl md:rounded-3xl border border-black/10 bg-black overflow-hidden">
+              <button className="absolute top-5 left-5 sm:top-6 sm:left-6 w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center text-white/70 hover:text-white transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              </button>
+
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-purple-700 via-purple-500 to-fuchsia-300 shadow-[0_0_80px_rgba(168,85,247,0.4)]" />
+              </div>
+
+              <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
+                <h3 className="text-white font-semibold text-lg sm:text-xl mb-2 sm:mb-3">
+                  Freelancers & Consultants
+                </h3>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
+                 Sending an invoice from your phone between meetings and payment landing before you've even closed the laptop.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2 */}
+            <div className="relative snap-center shrink-0 w-[85%] sm:w-[70%] md:w-[55%] lg:w-[45%] h-[480px] sm:h-[560px] md:h-[640px] rounded-2xl md:rounded-3xl border border-black/10 bg-black overflow-hidden">
+              <button className="absolute top-5 left-5 sm:top-6 sm:left-6 w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center text-white/70 hover:text-white transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              </button>
+
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-orange-600 via-amber-500 to-yellow-200 shadow-[0_0_80px_rgba(251,146,60,0.4)]" />
+              </div>
+
+              <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
+                <h3 className="text-white font-semibold text-lg sm:text-xl mb-2 sm:mb-3">
+                  Agencies & Studios
+                </h3>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
+                  Multiple client invoices tracked in one view and revenue automatically split into tax and payroll buckets.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 3 */}
+            <div className="relative snap-center shrink-0 w-[85%] sm:w-[70%] md:w-[55%] lg:w-[45%] h-[480px] sm:h-[560px] md:h-[640px] rounded-2xl md:rounded-3xl border border-black/10 bg-black overflow-hidden">
+              <button className="absolute top-5 left-5 sm:top-6 sm:left-6 w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center text-white/70 hover:text-white transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              </button>
+
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-blue-700 via-cyan-500 to-teal-200 shadow-[0_0_80px_rgba(34,211,238,0.4)]" />
+              </div>
+
+              <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
+                <h3 className="text-white font-semibold text-lg sm:text-xl mb-2 sm:mb-3">
+                  Startups & Remote Teams
+                </h3>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
+                  Payroll run across time zones, a teammate paid via username or address, no bank details exchanged.
+                </p>
+              </div>
+            </div>
+
+
+             {/* Card 4 */}
+            <div className="relative snap-center shrink-0 w-[85%] sm:w-[70%] md:w-[55%] lg:w-[45%] h-[480px] sm:h-[560px] md:h-[640px] rounded-2xl md:rounded-3xl border border-black/10 bg-black overflow-hidden">
+              <button className="absolute top-5 left-5 sm:top-6 sm:left-6 w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center text-white/70 hover:text-white transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              </button>
+
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-indigo-700 via-violet-500 to-purple-200 shadow-[0_0_80px_rgba(139,92,246,0.4)]" />
+              </div>
+
+              <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
+                <h3 className="text-white font-semibold text-lg sm:text-xl mb-2 sm:mb-3">
+                  Digital & Ecommerce Businesses
+                </h3>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
+                 Payment links and instant settlements, your idle revenue quietly earning yield.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
