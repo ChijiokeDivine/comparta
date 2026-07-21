@@ -531,13 +531,13 @@ export default function Home() {
           </div>
 
           {/* Right: Image */}
-          <div className="mt-12 md:mt-0 md:w-1/2 flex items-center justify-center">
+          <div className="mt-12 md:mt-0 md:w-1/2  flex items-center justify-center">
             <Image
-              src="/image.webp"
+              src="/money.png"
               alt="Illustration"
               width={600}
               height={600}
-              className="w-full max-w-md md:max-w-lg h-auto"
+              className="w-3/4 sm:w-1/2 md:w-full max-w-[200px] sm:max-w-[250px] md:max-w-md h-auto"
             />
           </div>
         </div>
