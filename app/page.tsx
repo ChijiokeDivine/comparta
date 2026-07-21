@@ -29,6 +29,7 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [secondTooltipOpen, setSecondTooltipOpen] = useState(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -183,6 +184,27 @@ export default function Home() {
       littleText: "Savings that earn yield"
     }
   ];
+
+  const faqData = {
+    title: "All your questions answered",
+    content: [
+      { question: "What exactly is Comparta?", answer: "Comparta is a financial platform for sending, receiving, and managing money in USDC — a digital dollar. You get invoicing, payment links, payroll, multiple balances, and savings, all settling instantly, without needing any crypto experience." },
+      { question: "Do I need to understand crypto to use this?", answer: "No. You can send an invoice, share a payment link, or pay your team the same way you would with any banking app. USDC works quietly in the background — your clients can even pay you with a regular card or bank transfer." },
+      { question: "What is USDC, and why does Comparta use it?", answer: "USDC is a stablecoin — a digital dollar backed 1:1 by real US dollar reserves. It doesn't fluctuate like Bitcoin or other cryptocurrencies. We use it because it settles in seconds, moves internationally without banking delays, and holds its value." },
+      { question: "How fast do payments actually settle?", answer: "Instantly. Once a payment is sent, it lands in seconds — not the 1-3 business days typical of bank transfers or the T+2 settlement common with cards." },
+      { question: "Is my money safe with Comparta?", answer: "Your funds are held through regulated custody infrastructure with bank-level security standards. Every transaction is recorded and reconcilable, and your balances are never commingled with other users' funds." },
+      { question: "Can I get paid from anywhere in the world?", answer: "Yes. Clients can pay you from a wallet on nearly any major network, or with a card or bank transfer if they don't use crypto at all — it all lands as one unified USDC balance in your account, regardless of where it came from." },
+      { question: "How do multiple balances work?", answer: "You can split your incoming revenue into separate buckets — Operating, Tax, Payroll, Savings, or custom ones you name yourself — without opening multiple accounts. Set rules to auto-allocate a percentage of every payment, or move funds between buckets manually." },
+      { question: "Can I run payroll for my team through Comparta?", answer: "Yes. Add your team as payees, set a pay schedule, and approve each run with one click. Every payment is tracked individually, so you always know who's been paid and when." },
+      { question: "What happens to money I'm not using right away?", answer: "Idle cash in a savings bucket can automatically earn yield in the background, instead of sitting flat. You can redeem back to spendable USDC at any time." },
+      { question: "Do I need a business to sign up, or can individuals use Comparta too?", answer: "Both. Freelancers and individuals can send, receive, and save. Registered businesses get additional tools like payroll, team permissions, and multi-user access after a quick verification step." },
+      { question: "What's the verification process like?", answer: "For individuals, it's a simple identity check. For businesses, we verify your registration details before enabling money-movement features — this typically takes a few business days and is a one-time step." },
+      { question: "What does it cost to use Comparta?", answer: "There's no cost to create an account, send invoices, or generate payment links. Fees apply only where value is created — for card/bank payment processing and select premium features — and are always shown upfront before you confirm." },
+      { question: "Can I convert my USDC back to regular cash?", answer: "Yes. You can move funds out to your bank account whenever you need to — USDC is always redeemable 1:1 for US dollars." },
+      { question: "What if a payment fails or goes to the wrong place?", answer: "Every transfer requires you to confirm the recipient's name and address before sending, to prevent mistakes. If something does go wrong on our end, our support team can trace and resolve it — every transaction is fully logged and auditable." },
+      { question: "Is Comparta available on mobile?", answer: "Yes, Comparta is available on iOS and Android, with full feature parity to the web platform — you can send, invoice, and manage payroll from your phone." }
+    ]
+  };
 
   return (
     <>
@@ -622,7 +644,7 @@ export default function Home() {
           {/* Image cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Get paid, without the chase */}
-            <div className="relative rounded-2xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
+            <div className="relative rounded-xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
               <img
                 src="/fuhgru.webp"
                 alt="Get paid, without the chase"
@@ -654,7 +676,7 @@ export default function Home() {
             </div>
 
             {/* Pay out, without the stress */}
-            <div className="relative rounded-2xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
+            <div className="relative rounded-xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
               <img
                 src="/ejh.webp"
                 alt="Pay out, without the stress"
@@ -862,7 +884,69 @@ export default function Home() {
         </div>
       </section>
 
+    
+      <section className="w-full bg-white py-20 sm:py-28 px-4 sm:px-6 md:px-16">
+        <div className="mx-auto max-w-4xl md:max-w-6xl">
+          {/* Heading + Button */}
+          <div className="flex items-center md:justify-between  mb-12 md:mb-16 gap-4">
+            <h2 className="text-[#0B1E3F] font-normal text-3xl md:text-5xl tracking-tight text-center md:text-left">
+              {faqData.title}
+            </h2>
+            <div className="hidden md:block">
+              <a
+                href="#"
+                className="btn-3d btn-3d--sm "
+              >
+                Contact support
+              </a>
+            </div>
+        </div>
 
+          {/* Accordion Items */}
+          <div className="space-y-4">
+            {faqData.content.map((item, index) => {
+              const isOpen = openFaqIndex === index;
+              return (
+                <div key={index} className="border-b border-gray-200 pb-4">
+                  <button
+                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                    className="w-full flex items-center justify-between text-left py-3 focus:outline-none"
+                  >
+                    <span className="text-[#0B1E3F] font-medium text-base md:text-lg">
+                      {item.question}
+                    </span>
+                    <svg
+                      className={`w-5 h-5 text-[#0B1E3F] transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <div
+                    className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+                      isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      <p
+                        className={`text-[#7C8CA6] text-sm md:text-base leading-relaxed pt-1 pb-1 transition-all duration-300 ${
+                          isOpen ? 'opacity-100 translate-y-0 delay-75' : 'opacity-0 -translate-y-1'
+                        }`}
+                      >
+                        {item.answer}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
     </div>
     </>
