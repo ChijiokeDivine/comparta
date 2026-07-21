@@ -186,35 +186,35 @@ export default function Home() {
     {
       key: "send-receive",
       variant: "hero-card--send",
-      iconPath: "M5 12H19M19 12L13 6M19 12L13 18",
+      lordIconSrc: "https://cdn.lordicon.com/rhmhivzj.json",
       text: "Send and receive USDC instantly with just a username, no wallet address needed.",
       littleText: "Send by username"
     },
     {
       key: "invoices",
       variant: "hero-card--invoice",
-      iconPath: "M7 3H17C18.1 3 19 3.9 19 5V21L12 18L5 21V5C5 3.9 5.9 3 7 3Z",
+      lordIconSrc: "https://cdn.lordicon.com/unsfxkxg.json",
       text: "Send invoices that get paid in seconds, not weeks. Auto-marked paid on settlement.",
       littleText: "Invoices that get paid"
     },
     {
       key: "payment-links",
       variant: "hero-card--links",
-      iconPath: "M9 12H15M10 7H8C5.8 7 4 8.8 4 11V13C4 15.2 5.8 17 8 17H10M14 7H16C18.2 7 20 8.8 20 11V13C20 15.2 18.2 17 16 17H14",
+      lordIconSrc: "https://cdn.lordicon.com/ymgusxed.json",
       text: "Share one link and get paid by wallet or card, no crypto experience required.",
       littleText: "Get paid by link"
     },
     {
       key: "balances",
       variant: "hero-card--balances",
-      iconPath: "M4 6H20M4 12H20M4 18H14",
+      lordIconSrc: "https://cdn.lordicon.com/jeznmujs.json",
       text: "Split revenue into Operating, Tax, Payroll, and Savings automatically as it comes in.",
       littleText: "Auto-split your revenue"
     },
     {
       key: "savings",
       variant: "hero-card--savings",
-      iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
+      lordIconSrc: "https://cdn.lordicon.com/tzovitfd.json",
       text: "Put idle cash to work with savings that earn yield quietly in the background.",
       littleText: "Savings that earn yield"
     }
@@ -254,102 +254,184 @@ export default function Home() {
         }
       `}</style>
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="relative z-20 w-full">
-        <div className="mx-auto flex max-w-[1920px] items-center justify-between px-4 py-6 sm:px-6 md:px-8">
-          {/* Logo */}
-          <a href="/" className="flex items-center gap-2">
-            <img src="logo.png" alt="Comparta" height={42} width={135} />
-          </a>
+      {/* Header + Hero shared background wrapper */}
+      <div className="relative overflow-hidden">
+        {/* Shared background image */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url('/ChrisOzer_SCE_39.webp')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
 
-          {/* Nav */}
-          <nav className="hidden items-center gap-10 md:flex">
-            <NavDropdown label="Personal" />
-            <NavDropdown label="Business" />
-            <NavDropdown label="Developer" />
-          </nav>
+        {/* Header */}
+        <header className="relative z-20 w-full">
+          <div className="mx-auto flex max-w-[1920px] items-center justify-between px-4 py-6 sm:px-6 md:px-8">
+            {/* Logo */}
+            <a href="/" className="flex items-center gap-2">
+              <img src="logo.png" alt="Comparta" height={42} width={135} />
+            </a>
 
-          {/* Actions */}
-          <div className="hidden items-center gap-8 md:flex">
-            <a
-              href="#"
-              className="text-[16px] font-semibold text-[#2F6FF0] hover:opacity-80"
+            {/* Nav */}
+            <nav className="hidden items-center gap-10 md:flex">
+              <NavDropdown label="Personal" />
+              <NavDropdown label="Business" />
+              <NavDropdown label="Developer" />
+            </nav>
+
+            {/* Actions */}
+            <div className="hidden items-center gap-8 md:flex">
+              <a
+                href="#"
+                className="text-[16px] font-semibold text-[#FFFFFF] hover:opacity-80"
+              >
+                Log in
+              </a>
+              <a
+                href="#"
+                className="btn-3d btn-3d--sm"
+              >
+                Sign up for free
+              </a>
+            </div>
+
+            {/* Mobile menu button */}
+            <button
+              className="flex flex-col gap-1.5 md:hidden"
+              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              Log in
-            </a>
-            <a
-              href="#"
-              className="btn-3d btn-3d--sm"
-            >
-              Sign up for free
-            </a>
+              <span
+                className={`h-0.5 w-6 bg-[#FFFFFF] transition-all duration-300 ${
+                  mobileMenuOpen ? "translate-y-2 rotate-45" : ""
+                }`}
+              />
+              <span
+                className={`h-0.5 w-6 bg-[#FFFFFF] transition-all duration-300 ${
+                  mobileMenuOpen ? "-translate-y-2 -rotate-45 " : ""
+                }`}
+              />
+            </button>
           </div>
 
-          {/* Mobile menu button */}
-          <button
-            className="flex flex-col gap-1.5 md:hidden"
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            <span
-              className={`h-0.5 w-6 bg-[#0B1E3F] transition-all duration-300 ${
-                mobileMenuOpen ? "translate-y-2 rotate-45" : ""
-              }`}
-            />
-            {/* <span
-              className={`h-0.5 w-6 bg-[#0B1E3F] transition-all duration-300 ${
-                mobileMenuOpen ? "opacity-0" : ""
-              }`}
-            /> */}
-            <span
-              className={`h-0.5 w-6 bg-[#0B1E3F] transition-all duration-300 ${
-                mobileMenuOpen ? "-translate-y-2 -rotate-45 " : ""
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 bg-white z-50 overflow-y-auto">
-            <div className="max-w-[1920px] mx-auto px-4 py-6">
-              {/* Close button at the top */}
-              <div className="flex justify-end mb-4">
-                <button
-                  className="p-2 rounded-full hover:bg-[#F2F4F8]"
-                  aria-label="Close menu"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <svg
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#0B1E3F"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden fixed inset-0 bg-white z-50 overflow-y-auto">
+              <div className="max-w-[1920px] mx-auto px-4 py-6">
+                {/* Close button at the top */}
+                <div className="flex justify-end mb-4">
+                  <button
+                    className="p-2 rounded-full hover:bg-[#F2F4F8]"
+                    aria-label="Close menu"
+                    onClick={() => setMobileMenuOpen(false)}
                   >
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#0B1E3F"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
 
-              {/* Nav items with all sub-items visible by default, organized by section */}
-              <nav className="space-y-10">
-                {/* Personal Section */}
-                <div>
-                  <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
-                    Personal
-                  </h3>
-                  <div className="space-y-3">
-                    {[
-                      "Grow & Invest",
-                      "Move Money",
-                      "Payments",
-                    ].map((item) => (
+                {/* Nav items with all sub-items visible by default, organized by section */}
+                <nav className="space-y-10">
+                  {/* Personal Section */}
+                  <div>
+                    <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
+                      Personal
+                    </h3>
+                    <div className="space-y-3">
+                      {[
+                        "Grow & Invest",
+                        "Move Money",
+                        "Payments",
+                      ].map((item) => (
+                        <a
+                          key={item}
+                          href="#"
+                          className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
+                            <svg
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#0B1E3F"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <circle cx="12" cy="12" r="10" />
+                              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                              <path d="M12 17h.01" />
+                            </svg>
+                          </div>
+                          <span className="text-[14px] font-medium text-[#0B1E3F]">
+                            {item}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Business Section */}
+                  <div>
+                    <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
+                      Business
+                    </h3>
+                    <div className="space-y-3">
+                      {[
+                        "Account & Payments",
+                        "Spend & Invoices",
+                        "Payroll",
+                      ].map((item) => (
+                        <a
+                          key={item}
+                          href="#"
+                          className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-[#fffff] flex items-center justify-center flex-shrink-0">
+                            <svg
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#0B1E3F"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <circle cx="12" cy="12" r="10" />
+                              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                              <path d="M12 17h.01" />
+                            </svg>
+                          </div>
+                          <span className="text-[14px] font-medium text-[#0B1E3F]">
+                            {item}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Developer Section */}
+                  <div>
+                    <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
+                      Developer
+                    </h3>
+                    <div className="space-y-3">
                       <a
-                        key={item}
                         href="#"
                         className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
                       >
@@ -369,165 +451,80 @@ export default function Home() {
                             <path d="M12 17h.01" />
                           </svg>
                         </div>
-                        <span className="text-[14px] font-medium text-[#0B1E3F]">
-                          {item}
-                        </span>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Business Section */}
-                <div>
-                  <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
-                    Business
-                  </h3>
-                  <div className="space-y-3">
-                    {[
-                      "Account & Payments",
-                      "Spend & Invoices",
-                      "Payroll",
-                      
-                    
-                    ].map((item) => (
-                      <a
-                        key={item}
-                        href="#"
-                        className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
-                      >
-                        <div className="w-9 h-9 rounded-full bg-[#fffff] flex items-center justify-center flex-shrink-0">
-                          <svg
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="#0B1E3F"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                            <path d="M12 17h.01" />
-                          </svg>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[14px] font-medium text-[#0B1E3F]">
+                            API 
+                          </span>
+                          <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
+                           Soon
+                          </span>
                         </div>
-                        <span className="text-[14px] font-medium text-[#0B1E3F]">
-                          {item}
-                        </span>
                       </a>
-                    ))}
+                    </div>
                   </div>
-                </div>
+                </nav>
 
-                {/* Developer Section */}
-                <div>
-                  <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
-                    Developer
-                  </h3>
-                  <div className="space-y-3">
-                    <a
-                      href="#"
-                      className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
-                    >
-                      <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
-                        <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#0B1E3F"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                          <path d="M12 17h.01" />
-                        </svg>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[14px] font-medium text-[#0B1E3F]">
-                          API 
-                        </span>
-                        <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
-                         Soon
-                        </span>
-                      </div>
-                    </a>
-                  </div>
+                {/* Bottom actions */}
+                <div className="mt-12 flex flex-col gap-4">
+                  <a
+                    href="#"
+                    className="text-[16px] font-semibold text-[#2F6FF0] hover:opacity-80 text-center"
+                  >
+                    Log in
+                  </a>
+                  <a
+                    href="#"
+                    className="btn-3d text-center "
+                  >
+                    Sign up for free
+                  </a>
                 </div>
-              </nav>
-
-              {/* Bottom actions */}
-              <div className="mt-12 flex flex-col gap-4">
-                <a
-                  href="#"
-                  className="text-[16px] font-semibold text-[#2F6FF0] hover:opacity-80 text-center"
-                >
-                  Log in
-                </a>
-                <a
-                  href="#"
-                  className="btn-3d text-center "
-                >
-                  Sign up for free
-                </a>
               </div>
             </div>
-          </div>
-        )}
-      </header>
+          )}
+        </header>
 
-      {/* Hero section with background image */}
-      <section className="relative overflow-hidden" >
-       {/*style={{ backgroundImage: `url('/Hands_Reaching_Out-removebg-preview.png')`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}*/}
+        {/* Hero section with background image */}
+        <section className="relative"  >
 
-        <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 pt-20 pb-[78px] text-center sm:px-6 md:h-[65vh]">
-          <h1 className="text-[40px] font-normal leading-[1.05] text-[#0B1E3F] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px] pt-12 sm:pt-16 md:pt-20">
-            Move money like
-            <span className="inline max-[349px]:inline">&nbsp;</span>
-            <br className="block max-[349px]:hidden" />
-            it's easy
-            <span className="hero-inline-icon">
-      
-              <lord-icon
-                  src="https://cdn.lordicon.com/rhmhivzj.json"
-                  trigger={lordIconProps.trigger}
-                  {...(lordIconProps.delay ? { delay: lordIconProps.delay } : {})}
-                  {...(lordIconProps.state ? { state: lordIconProps.state } : {})}
-                  >
-              </lord-icon>
-            </span>
-           
-          </h1>
-          
+          <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 pt-20 pb-[78px] text-center sm:px-6 md:h-[88vh]">
+            <h1 className="text-[40px] font-normal leading-[1.05] text-[#FFFFFF] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px] pt-12 sm:pt-16 md:pt-20">
+              Move money like
+              <span className="inline max-[349px]:inline">&nbsp;</span>
+              <br className="block max-[349px]:hidden" />
+              it's easy
 
-          <p className="mt-9 max-w-[600px] text-[16px] text-[#7C8CA6] md:text-[21px]">
-            Comparta unifies invoicing, payments, payroll, and savings. instant settlement, all from one account. 
-          </p>
-          <a
-            href="#"
-            className="mt-10 btn-3d "
-          >
-            <span className="md:block hidden">Create your account</span><span className="md:hidden block">Get started</span>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+             
+            </h1>
+            
+
+            <p className="mt-9 max-w-[600px] text-[16px] text-[#FFFFFF] md:text-[21px]">
+              Comparta unifies invoicing, payments, payroll, and savings. instant settlement, all from one account. 
+            </p>
+            <a
+              href="#"
+              className="mt-10 btn-3d "
             >
-              <path d="M7 7v10h10" />
-              <path d="M7 17 21 3" />
-            </svg>
-          </a>
-        </div>
-      </section>
+              <span className="md:block hidden">Create your account</span><span className="md:hidden block">Get started</span>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M7 7v10h10" />
+                <path d="M7 17 21 3" />
+              </svg>
+            </a>
+          </div>
+        </section>
+      </div>
       <section className="grow-section " id="grow">
-        <h2 className="text-[#0B1E3F] px-6 md:px-16 font-normal text-2xl md:text-5xl tracking-tight text-center py-8 md:py-12 text-left">
+        <h2 className="text-[#0B1E3F] px-6 md:px-16 font-normal text-2xl md:text-5xl tracking-tight text-center py-8 md:pb-8 md:pt-24 md:mt-16 text-left">
           Built around your <br className="md:hidden block" />business
         </h2>
         <div className="grow-sticky " ref={stickyRef}>
@@ -539,15 +536,12 @@ export default function Home() {
                 <div className="grow-illustration" />
                 <div className="grow-info">
                   <div className="grow-info-icon">
-                    <svg viewBox="0 0 24 24" fill="none">
-                      <path
-                        d={card.iconPath}
-                        stroke="#0B1E4B"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+                    <lord-icon
+                      src={card.lordIconSrc}
+                      trigger={lordIconProps.trigger}
+                      {...(lordIconProps.delay ? { delay: lordIconProps.delay } : {})}
+                      {...(lordIconProps.state ? { state: lordIconProps.state } : {})}
+                    />
                   </div>
                   <p className="grow-info-text hidden md:block">{card.text}</p>
                   <p className="grow-info-text md:hidden">{card.littleText}</p>
