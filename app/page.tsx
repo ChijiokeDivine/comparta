@@ -471,8 +471,11 @@ export default function Home() {
         </div>
       </section>
       <section className="grow-section " id="grow">
+        <h2 className="text-[#0B1E3F] px-6 md:px-16 font-normal text-2xl md:text-5xl tracking-tight text-center py-8 md:py-12 text-left">
+          Built around your business
+        </h2>
         <div className="grow-sticky " ref={stickyRef}>
-        
+
 
           <div className="grow-track" ref={trackRef}>
             {growCards.map((card) => (
@@ -498,33 +501,48 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="relative w-full min-h-[500px] md:min-h-[650px] overflow-hidden bg-[#2a5ce6]">
+      <section className="relative w-full min-h-[70vh] md:min-h-[85vh] overflow-hidden bg-[#2a5ce6]">
       
 
         {/* Content */}
-        <div className="relative z-10 flex flex-col justify-between h-full min-h-[500px] md:min-h-[650px] px-6 sm:px-10 md:px-16 py-20 md:py-20">
-          {/* Heading */}
-          <div>
-            <h1 className="text-white pt-12 sm:pt-16 md:pt-20 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
-              Banks make you wait.
-            </h1>
-            <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
-              <h1 className="text-emerald-300 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
-                We don't.
+        <div className="relative z-10 flex flex-col md:flex-row justify-between h-full min-h-[500px] md:min-h-[650px] px-6 sm:px-10 md:px-16 py-20 md:py-20">
+          {/* Left: Text */}
+          <div className="flex flex-col justify-between md:w-1/2">
+            {/* Heading */}
+            <div>
+              <h1 className="text-white pt-12 sm:pt-16 md:pt-20 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
+                Banks make you wait.
               </h1>
-            
+              <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
+                <h1 className="text-emerald-300 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
+                  We don't.
+                </h1>
+              
+              </div>
             </div>
+
+            {/* Footer text */}
+            <p className="max-w-md sm:max-w-lg text-sm sm:text-base text-white/70 leading-relaxed mt-10 md:mt-0">
+              <span className="text-white font-medium">
+                No holding periods. No "3-5 business days."
+              </span>{" "}
+              Comparta moves money around the clock - nights, weekends, holidays, all the same.
+            </p>
           </div>
 
-          {/* Footer text */}
-          <p className="max-w-md sm:max-w-lg text-sm sm:text-base text-white/70 leading-relaxed mt-10 md:mt-0">
-            <span className="text-white font-medium">
-              No holding periods. No "3-5 business days."
-            </span>{" "}
-            Send USDC and it lands instantly, every time - because your money
-            shouldn't need permission to move.
-          </p>
+          {/* Right: Image */}
+          <div className="mt-12 md:mt-0 md:w-1/2 flex items-center justify-center">
+            <Image
+              src="/image.webp"
+              alt="Illustration"
+              width={600}
+              height={600}
+              className="w-full max-w-md md:max-w-lg h-auto"
+            />
+          </div>
         </div>
+
+        
       </section>
       <section className="w-full bg-white py-28 px-6 md:py-[180px] ">
         <div className="mx-auto max-w-7xl text-center">
@@ -533,104 +551,54 @@ export default function Home() {
             <span className="inline-flex items-center gap-2 whitespace-nowrap align-middle">
               move money
               <img
-                src="/3d.webp"
+                src="/send.png"
                 alt="3D icon"
                 className="inline-block h-8 md:h-16 w-auto align-middle"
               />
             </span>
           </h2>
           <p className="mx-auto mt-6 max-w-2xl text-sm md:text-lg text-neutral-500 leading-relaxed">
-            Send, receive, save, pay bills, pay your team and get spending insights -
-            without ever leaving the platform.
+            Everything you need to control spend and optimize finance operations, all on a single platform.
           </p>
-          <div className="mt-8">
-            <button className="rounded-lg bg-neutral-100 px-6 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-200 transition-colors cursor-pointer">
-              Start now
-            </button>
-          </div>
+    
 
           <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2">
             {/* Column 1: Send + Pay bills */}
             <div className="flex flex-col gap-8">
               <div className="flex min-h-[380px] md:min-h-[425px] flex-col rounded-2xl bg-sky-100 py-8 px-10 text-left">
-                <p className="text-lg text-neutral-800">
-                  Send money instantly, wherever your team or clients are
+                <p className="text-xl text-neutral-800">
+                  Instant payments, anywhere
                 </p>
                 <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl  flex items-center justify-center">
                   <img
-                    src="/send.png"
+                    src="/pay1.png"
                     alt="Sending money instantly"
                     className="h-3/4 w-3/4 object-contain"
                   />
                 </div>
               </div>
 
-              <div className="flex min-h-[380px] md:min-h-[340px] flex-col rounded-2xl bg-[#0142C2]/20 text-left">
-                <div className="relative mt-auto min-h-[380px] md:min-h-[340px] overflow-hidden rounded-xl bg-[#0142C2]/40">
-                  <img
-                    src="/image2.webp"
-                    alt="Automating recurring bills"
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute bottom-4 left-4 flex flex-col gap-1 p-4 rounded-lg ">
-                    {/* bg-black/40 backdrop-blur-sm */ }
-                    <p className="text-lg text-white">
-                      Automate recurring bills 
-                    </p>
-                    <p className="text-sm text-white/80">
-                      Never miss a payment again
-                    </p>
-                  </div>
-                </div>
-              </div>
+
             </div>
 
             {/* Column 2: Receive (image) + Pay your team */}
             <div className="flex flex-col gap-8">
-              <div className="relative min-h-[380px] md:min-h-[340px] md:max-h-[347px] overflow-hidden rounded-2xl bg-neutral-100">
-                <img
-                  src="/smile3.webp"
-                  alt="Receiving a payment"
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute bottom-4 right-4 flex flex-col gap-1 p-4 rounded-lg ">
-                  <p className="text-lg text-white ">
-                    Receive payments instantly
-                  </p>
-                  <p className="text-sm text-white/80">
-                    Get settled in seconds, not days
-                  </p>
-                </div>
-              </div>
+        
 
-              <div className="flex min-h-[380px] md:min-h-[425px] flex-col rounded-2xl bg-violet-100 py-8 px-10 text-left hidden md:block">
-                <p className="text-lg text-neutral-800">
-                  Pay your whole team in one click
+              <div className="flex min-h-[380px] md:min-h-[425px] flex-col rounded-2xl bg-violet-100 py-8 px-10 text-left">
+                <p className="text-xl text-neutral-800">
+                  Send money globally for less
                 </p>
-                <div className="relative mt-auto aspect-[4/3] md:aspect-[5/4.5] w-full overflow-hidden rounded-xl flex items-center justify-center">
+                <div className="relative mt-auto aspect-[4/3]  w-full overflow-hidden rounded-xl flex items-center justify-center">
                   <img
-                    src="/pay1.png"
+                    src="/3d.webp"
                     alt="Paying your team"
                     className="h-3/4 w-3/4 object-contain"
                   />
                 </div>
               </div>
 
-              <div className="relative min-h-[380px] md:min-h-[425px] overflow-hidden rounded-2xl bg-violet-100 md:hidden block">
-                <img
-                  src="/man.webp"
-                  alt="Grow your idle cash"
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute bottom-4 left-4 flex flex-col gap-1 p-4 rounded-lg">
-                  <p className="text-lg text-white text-left">
-                    Grow your idle cash
-                  </p>
-                  <p className="text-sm text-white text-left">
-                    It earns yield automatically, no spreadsheets required
-                  </p>
-                </div>
-              </div>
+
               
             </div>
 
@@ -656,7 +624,7 @@ export default function Home() {
             {/* Get paid, without the chase */}
             <div className="relative rounded-2xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
               <img
-                src="/images/nyc-retreat.jpg"
+                src="/fuhgru.webp"
                 alt="Get paid, without the chase"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
               />
@@ -688,7 +656,7 @@ export default function Home() {
             {/* Pay out, without the stress */}
             <div className="relative rounded-2xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
               <img
-                src="/images/sf-retreat.jpg"
+                src="/ejh.webp"
                 alt="Pay out, without the stress"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
               />
@@ -719,29 +687,31 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="relative w-full h-[70vh] min-h-[400px] md:h-[85vh] overflow-hidden">
-        {/* Background image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage:
-              "url('/mountain-hero.jpg')",
-          }}
-        />
+      <section className="relative w-full min-h-[70vh] md:min-h-[85vh] overflow-visible py-16 sm:py-20 md:py-24">
+      
 
-        {/* Dark overlay for text contrast */}
-        <div className="absolute inset-0 bg-black/30" />
-
+  
         {/* Content */}
-        <div className="relative z-10 flex flex-col items-center justify-center text-center h-full px-4 sm:px-6">
-          <h1 className="text-white font-normal text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight">
+        <div className="relative z-10 flex flex-col items-center justify-center text-center h-full px-4 sm:px-6 pt-12 sm:pt-16 md:pt-20" >
+          <h1 className="text-black font-normal text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight">
             Freedom to move, instantly
           </h1>
 
-          <p className="mt-4 md:mt-6 text-white/80 text-base sm:text-lg md:text-xl max-w-md sm:max-w-lg md:max-w-xl">
+          <p className="mt-5 md:mt-6 text-black/80 text-sm  md:text-xl max-w-md sm:max-w-lg md:max-w-xl">
             No queues. No waiting on a bank. Just money that moves the moment you need it to.
           </p>
 
+          <div className="mt-9 sm:mt-12 md:mt-16 w-full max-w-5xl lg:max-w-6xl mx-auto px-4">
+            <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden">
+              <Image
+                src="/milad-fakurian-GJKx5lhwU3M-unsplash.jpg"
+                alt="Pay team"
+                fill
+                className="object-cover"
+                priority
+              />
+            </div>
+          </div>
         </div>
       </section>
       <section className="relative w-full bg-[#FBFBFD] py-16 sm:py-20 md:py-28 overflow-hidden">
@@ -891,6 +861,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+
 
 
     </div>
