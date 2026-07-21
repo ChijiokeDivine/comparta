@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
+import Lenis from "lenis";
 import { NavDropdown, MobileNavDropdown } from "./components/NavDropdown";
 
 
@@ -61,6 +62,40 @@ export default function Home() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Smooth scroll (Lenis), synced with GSAP ScrollTrigger
+  useEffect(() => {
+    let lenis: Lenis | undefined;
+
+    const init = async () => {
+      const { default: gsap } = await import("gsap");
+      const { ScrollTrigger } = await import("gsap/ScrollTrigger");
+      gsap.registerPlugin(ScrollTrigger);
+
+      lenis = new Lenis({
+        duration: 1.2,           // higher = smoother/slower, try 1.0-1.6
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        smoothWheel: true,
+        touchMultiplier: 1.5,
+      });
+
+      // Keep ScrollTrigger in sync with Lenis's virtual scroll position
+      lenis.on("scroll", ScrollTrigger.update);
+
+      // Drive both Lenis and GSAP off the same ticker instead of each other's rAF
+      gsap.ticker.add((time) => {
+        lenis?.raf(time * 1000);
+      });
+      gsap.ticker.lagSmoothing(0);
+    };
+
+    init();
+
+    return () => {
+      lenis?.destroy();
+    };
+  }, []);
+
     // GSAP pinned horizontal scroll for the "grow" cards section
     useEffect(() => {
       let ctx: { revert: () => void } | undefined;
@@ -470,7 +505,6 @@ export default function Home() {
           <p className="mt-9 max-w-[600px] text-[16px] text-[#7C8CA6] md:text-[21px]">
             Comparta unifies invoicing, payments, payroll, and savings. instant settlement, all from one account. 
           </p>
-
           <a
             href="#"
             className="mt-10 btn-3d "
@@ -646,7 +680,7 @@ export default function Home() {
             {/* Get paid, without the chase */}
             <div className="relative rounded-xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
               <img
-                src="/fuhgru.webp"
+                src="/image24.webp"
                 alt="Get paid, without the chase"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
               />
@@ -726,7 +760,7 @@ export default function Home() {
           <div className="mt-9 sm:mt-12 md:mt-16 w-full max-w-5xl lg:max-w-6xl mx-auto px-4">
             <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden">
               <Image
-                src="/milad-fakurian-GJKx5lhwU3M-unsplash.jpg"
+                src="/joy.webp"
                 alt="Pay team"
                 fill
                 className="object-cover"
@@ -947,9 +981,104 @@ export default function Home() {
           </div>
         </div>
       </section>
+      {/* Footer */}
+      <footer className="relative w-full bg-[#000000] overflow-hidden">
+
+        <div className="relative z-10 mx-auto max-w-7xl px-6 sm:px-10 md:px-16">
+          {/* CTA row */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 py-16 sm:py-20 border-b border-white/10">
+            <h2 className="text-white font-normal text-3xl sm:text-4xl md:text-5xl tracking-tight max-w-xl">
+              Ready to move money like it&apos;s easy?
+            </h2>
+            <a
+              href="#"
+              className="group shrink-0 md:inline-flex items-center gap-2 bg-white text-[#0B1E3F] font-semibold rounded-full px-6 py-3.5 text-sm sm:text-base hover:bg-white/90 transition-colors w-fit hidden "
+            >
+              Create your account
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              >
+                <path d="M7 7v10h10" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M7 17 21 3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </a>
+          </div>
+
+          {/* Links grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-10 lg:gap-8 py-14 sm:py-16">
+            {/* Brand column */}
+            <div className="col-span-2 sm:col-span-3 lg:col-span-1 flex flex-col gap-4">
+              <a href="/" className="flex items-center gap-2 w-fit">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}>
+                  <path d="M6 4l6 8-6 8M12 4l6 8-6 8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="text-white font-semibold text-lg">Comparta</span>
+              </a>
+           
+
+            </div>
+
+            <FooterColumn
+              title="Product"
+              links={["Invoicing", "Payment Links", "Payroll", "Smart Savings", "Send & Receive"]}
+            />
+            <FooterColumn title="Company" links={["About", "Careers", "Blog", "Contact"]} />
+            <FooterColumn
+              title="Resources"
+              links={["Help Center", "Developer API", "Security", "Status"]}
+            />
+            <FooterColumn
+              title="Legal"
+              links={["Terms of Service", "Privacy Policy", "Compliance", "Cookie Policy"]}
+            />
+          </div>
+
+          {/* Bottom bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-8 border-t border-white/10">
+            <p className="text-white/40 text-sm">
+              © {new Date().getFullYear()} Comparta. All rights reserved.
+            </p>
+
+        
+          </div>
+        </div>
+
+        {/* Giant watermark wordmark */}
+        <div className="relative select-none pointer-events-none overflow-hidden">
+          <p className="text-center font-bold text-white/[0.18] leading-none text-[20vw] sm:text-[16vw] tracking-tight -mb-[4vw] sm:-mb-[3vw] pb-12">
+            Comparta
+          </p>
+        </div>
+      </footer>
 
     </div>
     </>
   );
 
+}
+
+function FooterColumn({ title, links }: { title: string; links: string[] }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <h3 className="text-white text-sm font-semibold">{title}</h3>
+      <ul className="flex flex-col gap-3">
+        {links.map((link) => (
+          <li key={link}>
+            <a
+              href="#"
+              className="text-white/50 text-sm hover:text-white transition-colors"
+            >
+              {link}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
