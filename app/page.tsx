@@ -603,7 +603,7 @@ export default function Home() {
       <section className="w-full bg-white py-28 px-6 md:py-[180px] ">
         <div className="mx-auto max-w-7xl text-center">
           <h2 className="text-3xl md:text-6xl font-normal text-neutral-900 tracking-tight text-center ">
-            One platform. Every way you{" "}
+            <span className="max-[362px]:hidden">One platform.</span> Every way you{" "}
             <span className="inline-flex items-center gap-2 whitespace-nowrap align-middle">
               move money
               <img
@@ -758,7 +758,7 @@ export default function Home() {
           </p>
 
           <div className="mt-9 sm:mt-12 md:mt-16 w-full max-w-5xl lg:max-w-6xl mx-auto px-4">
-            <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden">
+            <div className="relative w-full md:aspect-[16/9] aspect-[5/4]  rounded-2xl overflow-hidden">
               <Image
                 src="/joy.webp"
                 alt="Pay team"
