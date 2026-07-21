@@ -296,14 +296,14 @@ export default function Home() {
                 mobileMenuOpen ? "translate-y-2 rotate-45" : ""
               }`}
             />
-            <span
+            {/* <span
               className={`h-0.5 w-6 bg-[#0B1E3F] transition-all duration-300 ${
                 mobileMenuOpen ? "opacity-0" : ""
               }`}
-            />
+            /> */}
             <span
-              className={`h-0.5 w-4 bg-[#0B1E3F] transition-all duration-300 ${
-                mobileMenuOpen ? "-translate-y-2 -rotate-45 w-6" : ""
+              className={`h-0.5 w-6 bg-[#0B1E3F] transition-all duration-300 ${
+                mobileMenuOpen ? "-translate-y-2 -rotate-45 " : ""
               }`}
             />
           </button>
@@ -528,7 +528,7 @@ export default function Home() {
       </section>
       <section className="grow-section " id="grow">
         <h2 className="text-[#0B1E3F] px-6 md:px-16 font-normal text-2xl md:text-5xl tracking-tight text-center py-8 md:py-12 text-left">
-          Built around your business
+          Built around your <br className="md:hidden block" />business
         </h2>
         <div className="grow-sticky " ref={stickyRef}>
 
