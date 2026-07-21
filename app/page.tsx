@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from "next/image";
@@ -147,43 +146,43 @@ export default function Home() {
       { image: "/images/tests/lung-ct.jpg", title: "Low Dose Lung CT Scan", description: "Detects early lung cancer signs." },
     ];
 
-    const growCards = [
-      {
-        key: "savings",
-        variant: "grow-card--savings",
-        iconPath: "M5 12H19M19 12L13 6M19 12L13 18",
-        text: "Automate savings for your important goals, from simple milestones to big dreams.",
-        littleText: "Automate savings"
-      },
-      {
-        key: "funds",
-        variant: "grow-card--funds",
-        iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
-        text: "Smart returns without guesswork. Our mutual funds handle it, letting you focus on your goals.",
-        littleText: "Smart returns"
-      },
-      {
-        key: "stocks",
-        variant: "grow-card--stocks",
-        iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
-        text: "Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.",
-        littleText: "Co-own Nigerian stocks"
-      },
-      {
-        key: "Bonds",
-        variant: "grow-card--stocks",
-        iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
-        text: "Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.",
-        littleText: "Co-own Nigerian bonds"
-      },
-      {
-        key: "securities",
-        variant: "grow-card--stocks",
-        iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
-        text: "Co-own Nigeria's top companies, from market leaders to newcomers and grow with them.",
-        littleText: "Co-own Nigerian securities"
-      },
-    ];
+  const growCards = [
+    {
+      key: "send-receive",
+      variant: "hero-card--send",
+      iconPath: "M5 12H19M19 12L13 6M19 12L13 18",
+      text: "Send and receive USDC instantly with just a username, no wallet address needed.",
+      littleText: "Send by username"
+    },
+    {
+      key: "invoices",
+      variant: "hero-card--invoice",
+      iconPath: "M7 3H17C18.1 3 19 3.9 19 5V21L12 18L5 21V5C5 3.9 5.9 3 7 3Z",
+      text: "Send invoices that get paid in seconds, not weeks. Auto-marked paid on settlement.",
+      littleText: "Invoices that get paid"
+    },
+    {
+      key: "payment-links",
+      variant: "hero-card--links",
+      iconPath: "M9 12H15M10 7H8C5.8 7 4 8.8 4 11V13C4 15.2 5.8 17 8 17H10M14 7H16C18.2 7 20 8.8 20 11V13C20 15.2 18.2 17 16 17H14",
+      text: "Share one link and get paid by wallet or card, no crypto experience required.",
+      littleText: "Get paid by link"
+    },
+    {
+      key: "balances",
+      variant: "hero-card--balances",
+      iconPath: "M4 6H20M4 12H20M4 18H14",
+      text: "Split revenue into Operating, Tax, Payroll, and Savings automatically as it comes in.",
+      littleText: "Auto-split your revenue"
+    },
+    {
+      key: "savings",
+      variant: "hero-card--savings",
+      iconPath: "M4 17L10 11L14 15L20 7M20 7H15M20 7V12",
+      text: "Put idle cash to work with savings that earn yield quietly in the background.",
+      littleText: "Savings that earn yield"
+    }
+  ];
 
   return (
     <>
@@ -500,22 +499,18 @@ export default function Home() {
         </div>
       </section>
       <section className="relative w-full min-h-[500px] md:min-h-[650px] overflow-hidden bg-[#2a5ce6]">
-        {/* Decorative textured shape - left */}
-
-
-
-       
+      
 
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-between h-full min-h-[500px] md:min-h-[650px] px-6 sm:px-10 md:px-16 py-20 md:py-20">
           {/* Heading */}
           <div>
             <h1 className="text-white pt-12 sm:pt-16 md:pt-20 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
-              Be more than a consumer.
+              Banks make you wait.
             </h1>
             <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
               <h1 className="text-emerald-300 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
-                Be a co-owner
+                We don't.
               </h1>
             
             </div>
@@ -524,17 +519,16 @@ export default function Home() {
           {/* Footer text */}
           <p className="max-w-md sm:max-w-lg text-sm sm:text-base text-white/70 leading-relaxed mt-10 md:mt-0">
             <span className="text-white font-medium">
-              More Nigerians need to own Nigeria.
+              No holding periods. No "3-5 business days."
             </span>{" "}
-            Less than 3% of Nigerians are in the capital market. That&apos;s too
-            low. We&apos;re opening the door, so everyone can grow with
-            Nigeria&apos;s top companies.
+            Send USDC and it lands instantly, every time - because your money
+            shouldn't need permission to move.
           </p>
         </div>
       </section>
-      <section className="w-full bg-white py-20 px-6 md:py-28">
+      <section className="w-full bg-white py-28 px-6 md:py-[180px] ">
         <div className="mx-auto max-w-7xl text-center">
-          <h2 className="text-3xl md:text-6xl font-normal text-neutral-900 tracking-tight text-center">
+          <h2 className="text-3xl md:text-6xl font-normal text-neutral-900 tracking-tight text-center ">
             One platform. Every way you{" "}
             <span className="inline-flex items-center gap-2 whitespace-nowrap align-middle">
               move money
@@ -633,7 +627,7 @@ export default function Home() {
                     Grow your idle cash
                   </p>
                   <p className="text-sm text-white text-left">
-                    Grow your idle cash
+                    It earns yield automatically, no spreadsheets required
                   </p>
                 </div>
               </div>
@@ -715,7 +709,7 @@ export default function Home() {
                     <div className="absolute bottom-full left-0 mb-3 w-72 sm:w-80 bg-white rounded-xl shadow-2xl p-5 z-20">
                       <div className="absolute -bottom-2 left-4 w-4 h-4 bg-white rotate-45" />
                       <p className="text-gray-800 text-sm leading-relaxed">
-                        Payroll, contractors, savings, recurring transfers — set it up once, approve it with one click, and let Comparta handle the rest. Every payment tracked, every balance separated, nothing lost in a spreadsheet.
+                        Payroll, contractors, savings, recurring transfers - set it up once, approve it with one click, and let Comparta handle the rest. Every payment tracked, every balance separated, nothing lost in a spreadsheet.
                       </p>
                     </div>
                   )}
@@ -741,11 +735,11 @@ export default function Home() {
         {/* Content */}
         <div className="relative z-10 flex flex-col items-center justify-center text-center h-full px-4 sm:px-6">
           <h1 className="text-white font-normal text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight">
-            Live healthier for longer
+            Freedom to move, instantly
           </h1>
 
           <p className="mt-4 md:mt-6 text-white/80 text-base sm:text-lg md:text-xl max-w-md sm:max-w-lg md:max-w-xl">
-            A proactive approach to long-term health, designed around you.
+            No queues. No waiting on a bank. Just money that moves the moment you need it to.
           </p>
 
         </div>
@@ -789,14 +783,13 @@ export default function Home() {
           <div
             ref={scrollRef}
             className="flex gap-4 sm:gap-5 md:gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth px-4 sm:px-8 md:px-16 lg:px-24 scrollbar-hide"
-          >
+            >
             {/* Card 1 */}
             <div className="relative snap-center shrink-0 w-[85%] sm:w-[70%] md:w-[55%] lg:w-[45%] h-[480px] sm:h-[560px] md:h-[640px] rounded-2xl md:rounded-3xl border border-black/10 bg-black overflow-hidden">
               <button className="absolute top-5 left-5 sm:top-6 sm:left-6 w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center text-white/70 hover:text-white transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
               </button>
 
@@ -806,10 +799,13 @@ export default function Home() {
 
               <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
                 <h3 className="text-white font-semibold text-lg sm:text-xl mb-2 sm:mb-3">
-                  Freelancers & Consultants
+                  Freelancers
                 </h3>
-                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
-                 Sending an invoice from your phone between meetings and payment landing before you've even closed the laptop.
+                <p className="text-gray-400 text-sm leading-relaxed sm:hidden">
+                  Invoice fast. Get paid faster.
+                </p>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed hidden sm:block">
+                  Send an invoice between meetings. Get paid before you've closed your laptop.
                 </p>
               </div>
             </div>
@@ -817,10 +813,9 @@ export default function Home() {
             {/* Card 2 */}
             <div className="relative snap-center shrink-0 w-[85%] sm:w-[70%] md:w-[55%] lg:w-[45%] h-[480px] sm:h-[560px] md:h-[640px] rounded-2xl md:rounded-3xl border border-black/10 bg-black overflow-hidden">
               <button className="absolute top-5 left-5 sm:top-6 sm:left-6 w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center text-white/70 hover:text-white transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
               </button>
 
@@ -830,10 +825,13 @@ export default function Home() {
 
               <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
                 <h3 className="text-white font-semibold text-lg sm:text-xl mb-2 sm:mb-3">
-                  Agencies & Studios
+                  Agencies
                 </h3>
-                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
-                  Multiple client invoices tracked in one view and revenue automatically split into tax and payroll buckets.
+                <p className="text-gray-400 text-sm leading-relaxed sm:hidden">
+                  Track invoices. Split revenue automatically.
+                </p>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed hidden sm:block">
+                  Every client invoice in one view. Revenue splits into tax and payroll on its own.
                 </p>
               </div>
             </div>
@@ -841,10 +839,9 @@ export default function Home() {
             {/* Card 3 */}
             <div className="relative snap-center shrink-0 w-[85%] sm:w-[70%] md:w-[55%] lg:w-[45%] h-[480px] sm:h-[560px] md:h-[640px] rounded-2xl md:rounded-3xl border border-black/10 bg-black overflow-hidden">
               <button className="absolute top-5 left-5 sm:top-6 sm:left-6 w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center text-white/70 hover:text-white transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
               </button>
 
@@ -854,10 +851,13 @@ export default function Home() {
 
               <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
                 <h3 className="text-white font-semibold text-lg sm:text-xl mb-2 sm:mb-3">
-                  Startups & Remote Teams
+                  Remote Teams
                 </h3>
-                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
-                  Payroll run across time zones, a teammate paid via username or address, no bank details exchanged.
+                <p className="text-gray-400 text-sm leading-relaxed sm:hidden">
+                  Payroll, anywhere. Paid by username.
+                </p>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed hidden sm:block">
+                  Run payroll across time zones. Pay any teammate with just a username.
                 </p>
               </div>
             </div>
@@ -866,10 +866,9 @@ export default function Home() {
              {/* Card 4 */}
             <div className="relative snap-center shrink-0 w-[85%] sm:w-[70%] md:w-[55%] lg:w-[45%] h-[480px] sm:h-[560px] md:h-[640px] rounded-2xl md:rounded-3xl border border-black/10 bg-black overflow-hidden">
               <button className="absolute top-5 left-5 sm:top-6 sm:left-6 w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 flex items-center justify-center text-white/70 hover:text-white transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
               </button>
 
@@ -879,10 +878,13 @@ export default function Home() {
 
               <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
                 <h3 className="text-white font-semibold text-lg sm:text-xl mb-2 sm:mb-3">
-                  Digital & Ecommerce Businesses
+                  Digital Businesses
                 </h3>
-                <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
-                 Payment links and instant settlements, your idle revenue quietly earning yield.
+                <p className="text-gray-400 text-sm leading-relaxed sm:hidden">
+                  Get paid instantly. Earn while it sits.
+                </p>
+                <p className="text-gray-400 text-sm sm:text-base leading-relaxed hidden sm:block">
+                  Share a payment link. Watch it settle instantly, then quietly earn yield.
                 </p>
               </div>
             </div>

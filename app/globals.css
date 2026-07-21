@@ -239,27 +239,39 @@ body {
   background-repeat: no-repeat;
 }
 
-.grow-card--savings .grow-illustration {
+.hero-card--send .grow-illustration {
   background-image:
     linear-gradient(180deg, rgba(43,199,150,0.18) 0%, rgba(24,120,220,0.55) 100%),
     url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg');
   background-blend-mode: multiply;
 }
 
-.grow-card--funds .grow-illustration {
+.hero-card--invoice .grow-illustration {
   background-image:
     linear-gradient(180deg, rgba(255,210,60,0.15) 0%, rgba(60,60,190,0.5) 100%),
     url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg');
   background-blend-mode: multiply;
 }
 
-.grow-card--stocks .grow-illustration {
+.hero-card--links .grow-illustration {
   background-image:
     linear-gradient(180deg, rgba(60,200,230,0.15) 0%, rgba(40,170,210,0.45) 100%),
     url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg');
   background-blend-mode: multiply;
 }
+.hero-card--savings .grow-illustration{
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.5) 100%),
+    url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg');
+  background-blend-mode: multiply;
+}
 
+.hero-card--balances .grow-illustration {
+  background-image:
+    linear-gradient(180deg, rgba(43,199,150,0.18) 0%, rgba(24,120,220,0.55) 100%),
+    url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg');
+  background-blend-mode: multiply;
+}
 /* ---------- Floating info card ---------- */
 .grow-info {
   position: relative;
