@@ -40,10 +40,10 @@ body {
    3D / Depth Button
    ========================================================== */
 .btn-3d {
-  --btn-bg: #2A5CE6;
-  --btn-bg-hover: #2450d1;
-  --btn-edge: #1A3FA8;
-  --btn-edge-hover: #17358f;
+  --btn-bg: #ffffff;
+  --btn-bg-hover: #f3f4f6;
+  --btn-edge: #e5e7eb;
+  --btn-edge-hover: #d1d5db;
 
   display: inline-flex;
   align-items: center;
@@ -53,7 +53,7 @@ body {
   font-family: var(--font-sans);
   font-weight: 600;
   font-size: 16px;
-  color: #ffffff;
+  color: #0B1E4B;
   text-decoration: none;
 
   background: var(--btn-bg);
@@ -62,20 +62,21 @@ body {
   padding: 14px 34px;
   cursor: pointer;
 
-  box-shadow: 0 4px 0 0 var(--btn-edge);
-  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
+  /* box-shadow: 0 4px 0 0 var(--btn-edge);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease; */
   user-select: none;
 }
 
 .btn-3d:hover {
   background: var(--btn-bg-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 5px 0 0 var(--btn-edge-hover);
+  /* transform: translateY(-1px); */
+  /* box-shadow: 0 5px 0 0 var(--btn-edge-hover); */
 }
 
 .btn-3d:active {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 0 var(--btn-edge-hover);
+  background: var(--btn-bg-hover);
+  /* transform: translateY(3px); */
+  /* box-shadow: 0 1px 0 0 var(--btn-edge-hover); */
 }
 
 .btn-3d:focus-visible {
@@ -95,11 +96,12 @@ body {
   padding: 11px 22px;
   font-size: 14px;
   border-radius: 3.75rem;
-  box-shadow: 0 3px 0 0 var(--btn-edge);
+  /* box-shadow: 0 3px 0 0 var(--btn-edge); */
 }
 
 .btn-3d--sm:hover {
-  box-shadow: 0 4px 0 0 var(--btn-edge-hover);
+  /* box-shadow: 0 4px 0 0 var(--btn-edge-hover); */
+  background: var(--btn-bg-hover);
 }
 
 .btn-3d--sm:active {
@@ -242,48 +244,55 @@ body {
 .hero-card--send .grow-illustration {
   background-image:
     linear-gradient(180deg, rgba(43,199,150,0.18) 0%, rgba(24,120,220,0.55) 100%),
-    url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg');
+    url('/NYLifeStyle_Cafe_Josh_Oct2023_ChrisOzer_1493.webp');
   background-blend-mode: multiply;
 }
 
 .hero-card--invoice .grow-illustration {
   background-image:
     linear-gradient(180deg, rgba(255,210,60,0.15) 0%, rgba(60,60,190,0.5) 100%),
-    url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg');
+    url('/NYLifeStyle_SetYourLimits_LeatherChair_Rebekah_Oct2023_ChrisOzer_0580.webp');
   background-blend-mode: multiply;
 }
 
 .hero-card--links .grow-illustration {
   background-image:
     linear-gradient(180deg, rgba(60,200,230,0.15) 0%, rgba(40,170,210,0.45) 100%),
-    url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg');
-  background-blend-mode: multiply;
-}
-.hero-card--savings .grow-illustration{
-  background-image:
-    linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.5) 100%),
-    url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg');
+    url('/WHATSAPP_11.jpg');
   background-blend-mode: multiply;
 }
 
 .hero-card--balances .grow-illustration {
   background-image:
-    linear-gradient(180deg, rgba(43,199,150,0.18) 0%, rgba(24,120,220,0.55) 100%),
-    url('/milad-fakurian-GJKx5lhwU3M-unsplash.jpg');
+    linear-gradient(180deg, rgba(60,200,230,0.15) 0%, rgba(40,170,210,0.45) 100%),
+    url('/image7.webp');
   background-blend-mode: multiply;
 }
+
+.hero-card--savings .grow-illustration{
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.5) 100%),
+    url('/image8.webp');
+  background-blend-mode: multiply;
+}
+
+
 /* ---------- Floating info card ---------- */
 .grow-info {
   position: relative;
   z-index: 2;
   margin-top: auto;
   margin-bottom: 32px;
-  background: var(--white);
+  background: rgba(255, 255, 255, 0.1); /* was 0.15 */
+  backdrop-filter: blur(50px);
+  -webkit-backdrop-filter: blur(50px);
+  border: 1px solid rgba(255, 255, 255, 0.2); /* was 0.3 */
   border-radius: 16px;
   padding: 22px 24px;
   display: flex;
   align-items: flex-start;
   gap: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15); /* slightly stronger shadow */
 }
 
 .grow-info-icon {
@@ -306,7 +315,7 @@ body {
   font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.5;
-  color: var(--body-text);
+  color: #FFFFFF;
   margin: 0;
   padding-top: 4px;
 }

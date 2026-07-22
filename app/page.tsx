@@ -260,19 +260,21 @@ export default function Home() {
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url('/ChrisOzer_SCE_39.webp')`,
+            backgroundImage: `url('/Living+Room+Night_014.webp')`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
           }}
         />
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-black/50" />
 
         {/* Header */}
         <header className="relative z-20 w-full">
           <div className="mx-auto flex max-w-[1920px] items-center justify-between px-4 py-6 sm:px-6 md:px-8">
             {/* Logo */}
             <a href="/" className="flex items-center gap-2">
-              <img src="logo.png" alt="Comparta" height={42} width={135} />
+              <img src="img5.png" alt="Comparta" height={42} width={135} />
             </a>
 
             {/* Nav */}
@@ -487,8 +489,8 @@ export default function Home() {
         {/* Hero section with background image */}
         <section className="relative"  >
 
-          <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 pt-20 pb-[78px] text-center sm:px-6 md:h-[88vh]">
-            <h1 className="text-[40px] font-normal leading-[1.05] text-[#FFFFFF] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px] pt-12 sm:pt-16 md:pt-20">
+          <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-end px-4 pt-20 md:pb-20 pb-36  text-center sm:px-6 md:h-[90vh] h-[80vh]">
+            <h1 className="text-[40px] font-normal leading-[1.05] text-[#FFFFFF] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px] pt-12  md:pt-20">
               Move money like
               <span className="inline max-[349px]:inline">&nbsp;</span>
               <br className="block max-[349px]:hidden" />
@@ -506,19 +508,7 @@ export default function Home() {
               className="mt-10 btn-3d "
             >
               <span className="md:block hidden">Create your account</span><span className="md:hidden block">Get started</span>
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M7 7v10h10" />
-                <path d="M7 17 21 3" />
-              </svg>
+             
             </a>
           </div>
         </section>
@@ -617,7 +607,7 @@ export default function Home() {
             <div className="flex flex-col gap-8">
               <div className="flex min-h-[380px] md:min-h-[425px] flex-col rounded-2xl bg-sky-100 py-8 px-10 text-left">
                 <p className="text-xl text-neutral-800">
-                  Instant payments, anywhere
+                  Instant payments, anywhere 
                 </p>
                 <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl  flex items-center justify-center">
                   <img
@@ -656,7 +646,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="w-full bg-black py-20 sm:py-20 lg:py-28 px-4 sm:px-6 lg:px-8 mt-[50px] ">
+      <section className="w-full bg-[#1B1B1B] py-20 sm:py-20 lg:py-28 px-4 sm:px-6 lg:px-8 mt-[50px] ">
         <div className="mx-auto max-w-6xl">
           {/* Heading */}
           <div className="text-center mb-10 sm:mb-14 lg:mb-16 pt-12 sm:pt-16 md:pt-20">
@@ -923,7 +913,14 @@ export default function Home() {
             <div className="hidden md:block">
               <a
                 href="#"
-                className="btn-3d btn-3d--sm "
+                className="btn-3d btn-3d--sm"
+                style={{
+                  '--btn-bg': '#2A5CE6',
+                  '--btn-bg-hover': '#2450d1',
+                  '--btn-edge': '#1A3FA8',
+                  '--btn-edge-hover': '#17358f',
+                  color: '#ffffff',
+                } as React.CSSProperties}
               >
                 Contact support
               </a>
@@ -986,21 +983,10 @@ export default function Home() {
             </h2>
             <a
               href="#"
-              className="group shrink-0 md:inline-flex items-center gap-2 bg-white text-[#0B1E3F] font-semibold rounded-full px-6 py-3.5 text-sm sm:text-base hover:bg-white/90 transition-colors w-fit hidden "
+              className="group shrink-0 md:inline-flex items-center gap-2 bg-[#2A5CE6] text-[#ffffff] font-semibold rounded-full px-6 py-3.5 text-sm sm:text-base hover:bg-[#2450d1]/90 transition-colors w-fit hidden "
             >
               Create your account
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2.5}
-                className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-              >
-                <path d="M7 7v10h10" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M7 17 21 3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              
             </a>
           </div>
 
@@ -1009,10 +995,9 @@ export default function Home() {
             {/* Brand column */}
             <div className="col-span-2 sm:col-span-3 lg:col-span-1 flex flex-col gap-4">
               <a href="/" className="flex items-center gap-2 w-fit">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5}>
-                  <path d="M6 4l6 8-6 8M12 4l6 8-6 8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="text-white font-semibold text-lg">Comparta</span>
+              
+                <img src="img5.png" alt="Comparta" height={42} width={135} />
+          
               </a>
            
 

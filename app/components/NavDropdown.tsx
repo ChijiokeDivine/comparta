@@ -73,7 +73,7 @@ export function NavDropdown({ label }: { label: string }) {
               <a
                 key={idx}
                 href="#"
-                className="nav-dropdown-item flex items-center gap-3 px-4 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+                className="nav-dropdown-item flex items-center gap-3 px-4  rounded-lg hover:bg-[#F2F4F8] transition-colors"
               >
                 {/* Icon placeholder (you can replace with actual images/icons) */}
                 <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
@@ -94,7 +94,7 @@ export function NavDropdown({ label }: { label: string }) {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[12px] font-medium text-[#0B1E3F]">
+                    <span className="text-[14px] font-medium text-[#0B1E3F]">
                       {item.label}
                     </span>
                     {item.isComingSoon && (
