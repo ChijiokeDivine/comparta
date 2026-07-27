@@ -10,9 +10,9 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://comparta.com"),
+  metadataBase: new URL("https://comparta.xyz"),
   title: {
-    default: "Comparta — Smart Financial Operating System for Teams",
+    default: "Comparta - Smart Financial Operating System for Teams",
     template: "%s | Comparta",
   },
   description:
