@@ -260,7 +260,7 @@ export default function Home() {
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url('/Living+Room+Night_014.webp')`,
+            backgroundImage: `url('/VcnS1TWU8Hk2UfNqEK734kaF9VU.webp')`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
@@ -803,7 +803,7 @@ export default function Home() {
                 </svg>
               </button>
 
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center bg-[#1B1B1B]">
                 <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-purple-700 via-purple-500 to-fuchsia-300 shadow-[0_0_80px_rgba(168,85,247,0.4)]" />
               </div>
 
@@ -829,7 +829,7 @@ export default function Home() {
                 </svg>
               </button>
 
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center  bg-[#1B1B1B]">
                 <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-orange-600 via-amber-500 to-yellow-200 shadow-[0_0_80px_rgba(251,146,60,0.4)]" />
               </div>
 
@@ -855,7 +855,7 @@ export default function Home() {
                 </svg>
               </button>
 
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center  bg-[#1B1B1B]">
                 <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-blue-700 via-cyan-500 to-teal-200 shadow-[0_0_80px_rgba(34,211,238,0.4)]" />
               </div>
 
@@ -882,7 +882,7 @@ export default function Home() {
                 </svg>
               </button>
 
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center  bg-[#1B1B1B]">
                 <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-indigo-700 via-violet-500 to-purple-200 shadow-[0_0_80px_rgba(139,92,246,0.4)]" />
               </div>
 
