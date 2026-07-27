@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     "team finance",
     "business banking alternative",
   ],
-  authors: [{ name: "Comparta", url: "https://comparta.com" }],
+  authors: [{ name: "Comparta", url: "https://comparta.xyz" }],
   creator: "Comparta",
   publisher: "Comparta",
   applicationName: "Comparta",
@@ -83,7 +83,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://comparta.com",
+    url: "https://comparta.xyz",
     siteName: "Comparta",
     title: "Comparta — Smart Financial Operating System for Teams",
     description:
