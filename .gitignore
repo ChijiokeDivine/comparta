@@ -61,3 +61,8 @@ next-env.d.ts
 vitest.config.ts.timestamp-*.mjs
 .vitest
 
+# Auth & registration pages (excluded per user request)
+
+/app/login
+/app/register
+

@@ -15,6 +15,9 @@ const envSchema = z.object({
   NEXTAUTH_URL: z.string().min(1, "NEXTAUTH_URL is required"),
   NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET is required"),
 
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+
   // Circle Developer-Controlled Wallets
   CIRCLE_API_KEY: z.string().min(1, "CIRCLE_API_KEY is required"),
   CIRCLE_CLIENT_KEY: z.string().optional(),
