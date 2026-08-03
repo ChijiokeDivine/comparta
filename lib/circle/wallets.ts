@@ -127,7 +127,7 @@ export async function getUsdcBalance(circleWalletId: string): Promise<string> {
  * getWalletTokenBalance response) to skip this lookup on every send.
  */
 async function resolveUsdcTokenId(circleWalletId: string): Promise<string> {
-  const configured = process.env.CIRCLE_USDC_TOKEN_ID;
+  const configured = getEnv().CIRCLE_USDC_TOKEN_ID;
   if (configured) return configured;
 
   const balances = await getWalletBalance(circleWalletId);

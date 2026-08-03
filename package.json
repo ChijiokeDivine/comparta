@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "postinstall": "prisma generate",
-    "build": "prisma generate && next build",
+    "prisma:clean": "node -e \"try{require('fs').rmSync('app/generated/prisma',{recursive:true,force:true})}catch(e){process.exit(0)}\"",
+    "prisma:generate": "pnpm run prisma:clean && prisma generate",
+    "postinstall": "pnpm run prisma:generate",
+    "build": "pnpm run prisma:generate && next build",
     "start": "next start",
     "lint": "eslint"
   },

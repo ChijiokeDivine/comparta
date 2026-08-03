@@ -20,6 +20,7 @@ const envSchema = z.object({
 
   // Circle Developer-Controlled Wallets
   CIRCLE_API_KEY: z.string().min(1, "CIRCLE_API_KEY is required"),
+  CIRCLE_APP_ID: z.string().optional(),
   CIRCLE_CLIENT_KEY: z.string().optional(),
   // NOTE: this env var should point at a value pulled from a secrets
   // manager at deploy time (e.g. injected by your platform's secret store),
@@ -27,6 +28,11 @@ const envSchema = z.object({
   // for why this is the single point of catastrophic failure if leaked.
   CIRCLE_ENTITY_SECRET: z.string().min(1, "CIRCLE_ENTITY_SECRET is required"),
   CIRCLE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+  // TokenId of USDC on Arc (for the wallet chain we use for transfers).
+  // If not set, lib/circle/wallets.ts will attempt to look it up per-wallet
+  // from the Circle token-balances endpoint — but that's slow and flaky on
+  // Arc testnet, so always prefer setting this explicitly.
+  CIRCLE_USDC_TOKEN_ID: z.string().optional(),
 
   // Optional: id of a pre-created Circle Wallet Set to provision wallets
   // from. If unset, wallets/create will lazily create one wallet set and
