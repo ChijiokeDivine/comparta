@@ -287,16 +287,16 @@ export default function Home() {
             {/* Actions */}
             <div className="hidden items-center gap-8 md:flex">
               <a
-                href="#"
+                href="/login"
                 className="text-[16px] font-semibold text-[#FFFFFF] hover:opacity-80"
               >
                 Log in
               </a>
               <a
-                href="#"
+                href="/register"
                 className="btn-3d btn-3d--sm"
               >
-                Sign up for free
+               Open account
               </a>
             </div>
 
@@ -469,13 +469,13 @@ export default function Home() {
                 {/* Bottom actions */}
                 <div className="mt-12 flex flex-col gap-4">
                   <a
-                    href="#"
+                    href="/login"
                     className="text-[16px] font-semibold text-[#2F6FF0] hover:opacity-80 text-center"
                   >
                     Log in
                   </a>
                   <a
-                    href="#"
+                    href="/register"
                     className="btn-3d text-center "
                   >
                     Sign up for free
@@ -504,7 +504,7 @@ export default function Home() {
               Comparta unifies invoicing, payments, payroll, and savings. instant settlement, all from one account. 
             </p>
             <a
-              href="#"
+              href="/register"
               className="mt-10 btn-3d "
             >
               <span className="md:block hidden">Create your account</span><span className="md:hidden block">Get started</span>

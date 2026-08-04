@@ -1,0 +1,202 @@
+# Build Comparta Frontend UIs
+## Context
+You are working on Comparta , a DeFi-native financial OS on Circle's Arc L1. Stack: Next.js App Router (TypeScript 5), Tailwind CSS v4, Prisma client output to app/generated/prisma , NextAuth.js (Auth.js) with Credentials + Google providers, Manrope brand font, GSAP animations.
+!important info: avoid too much text and information on the ui, make the text and content in the newly designed pages short and straight to the point, if text is need use tooltips. also prioritize whitespace and neatness above all
+Current state:
+
+- The backend is implemented. All domain logic, services, Prisma models, and REST API routes ( app/api/**/route.ts ) exist and are wired.
+- The public landing page at app/page.tsx and the auth pages ( app/login/LoginForm.tsx , app/register/RegisterForm.tsx ) are built.
+- No dashboard / authenticated UI exists. Sign-in and sign-up currently redirect to /dashboard which does not exist. This is your first deliverable.
+- There is no shared app-shell, sidebar nav, or authenticated layout yet.
+### Key files you must read before writing any UI code
+Read these first to understand design language, auth pattern, and domain models:
+
+1. app/page.tsx — home page (COMPONENTS, SPACING, COLORS, TYPOGRAPHY reference)
+2. app/layout.tsx — root layout, Manrope font application, metadata
+3. app/globals.css — CSS variables for the color system, and the btn-3d / btn-3d--neutral classes (use these for buttons)
+4. app/login/LoginForm.tsx — current auth UI style reference (spacing, rounding, focus rings, palette)
+5. middleware.ts — route protection : the matcher here lists every authenticated route prefix you must build under. Create pages that live exactly under these prefixes so the middleware enforces auth on them. The matcher is: /dashboard/:path* , /wallet/:path* , /invoices/:path* , /payroll/:path* , /savings/:path*
+6. prisma/schema.prisma — models, enums, their relations and invariants. The field names, enum values, and status lifecycles here are the source of truth for every form and status badge you render.
+7. app/api/**/* — walk the full app/api directory tree; every route file you find has an HTTP contract (JSON fields, enums) you MUST match exactly. Example: app/api/transfers/send/route.ts is the send-payment endpoint; app/api/invoices/[id]/send/route.ts is the "send invoice" action; etc.
+8. lib/insights/dashboard/queries.ts — pre-written dashboard analytics queries (use these to populate the dashboard's KPIs and charts; do not invent new aggregations).
+9. lib/auth/kyb-gate.ts — the KybStatus gate. Most financial write-actions require kybStatus === APPROVED per the Prisma Organization model. Build the UI to reflect this: disable financial buttons + show a KYB status banner when an org is still PENDING (Google sign-up creates an org in PENDING KYB state per the CompartaAuthAdapter, see lib/auth/auth.ts ).
+10. lib/auth/canManageBucket.ts — role-based gate. Operations on buckets, allocation rules, payroll schedules, savings rules are restricted to OWNER/ADMIN, not MEMBER. Your UI should reflect this in the nav and with disabled states for MEMBER roles.
+### Style directive
+Use the font (Manrope), color palette, spacing scale, rounded corners, and the btn-3d button component style exactly as they are used in the home page app/page.tsx . Do not invent a new color system or a new component system.
+
+## STRICT BUILD HIERARCHY
+Build items in the EXACT ORDER below. Do not start a lower-numbered item until everything above it is complete and correct. Each item is a dependency for everything below it.
+
+### TIER 0 — FOUNDATION SHELL (blocker for everything else)
+Build first, before any feature page:
+
+1. Authenticated app shell / layout
+   
+   - File: app/(app)/layout.tsx (use the (app) route group so middleware matcher paths keep working, or put directly under the matched paths — but place so middleware.ts routes receive this shell)
+   - Persistent sidebar navigation on desktop, collapsed/bottom-tab or drawer on mobile. Nav items ordered by feature priority: Dashboard, Wallet/Transfers, Buckets, Contacts, Invoices, Payment Links, Payroll, Savings, Recurring Transfers (DCA), Insights.
+   - Topbar: org name + KYB status pill (PENDING/APPROVED/REJECTED), user menu with Sign out / account.
+   - Read session via useSession() from next-auth/react to show user.name, user.email, and user.role badge (OWNER/ADMIN/MEMBER).
+   - Hide or disable payroll-schedule / allocation-rule / savings-rule / bucket-management nav items + actions if the current user's role is MEMBER (per canManageBucket.ts gate).
+   - Persistent layout background matching the light aesthetic of the home page.
+   - Every authenticated route you create below must render inside this layout.
+2. Dashboard page
+   
+   - Route: /dashboard → file exactly at a path that matches the middleware. Suggest: app/(app)/dashboard/page.tsx (but verify middleware covers it).
+   - Purpose: This is the page /login and /register redirect to. It must exist first so sign-in works end-to-end.
+   - KPI cards (use aggregations from lib/insights/dashboard/queries.ts ):
+     - Total balance (sum of non-archived LedgerAccount balances + deployed yield value from YieldPosition; liquid-only vs deployed clearly split)
+     - 30-day inflow (sum of inbound OnchainTransaction/LedgerEntry)
+     - 30-day outflow
+     - Net USYC yield accrued (current NAV-implied USDC value of all YieldPositions minus usdcEquivalentAtDeploy )
+     - Pending approvals: payroll runs in PENDING_APPROVAL , count of invoices in OVERDUE
+   - Recent activity feed: combined list of recent InvoiceEvents, PayrollRun status changes, OnchainTransactions, PaymentLinkPayments, SavingsRuleExecutions, AllocationRuleExecutions — with per-row icon + status + amount + counterparty + timestamp. Paginated or limit 20.
+   - Quick-actions card: 4 big buttons → New transfer, New invoice, New payment link, New payee. Each links to the respective create page.
+### TIER 1 — CORE PRIMITIVES (every other feature builds on these)
+Build in order. Everything downstream references wallets/buckets/contacts as combobox selectors.
+
+3. Wallet, Balance & Transfers
+   
+   - Routes:
+     - /wallet — overview: current Arc address (read from Wallet model), chain badge, total wallet balance card + onchain balance vs ledger reconciliation notice.
+     - /wallet/transfer — create new transfer UI (calls POST /api/transfers/send ).
+     - /wallet/transfers — list with filters (direction IN/OUT, status PENDING/CONFIRMED/FAILED, date range, counterparty search). Links to /wallet/transfers/[id] .
+     - /wallet/transfers/[id] — detail page for OnchainTransaction row with status timeline.
+   - Key behavior:
+     - Counterparty identifier input MUST support the universal @username and raw 0x... resolution via GET /api/resolve/[identifier] . Resolve on blur + show resolved display name, or show error badge "could not resolve".
+     - Source bucket selector (choose which LedgerAccount debits).
+     - Amount input in USDC with a bigint backend — always capture as decimal string on input, convert to 6-decimal smallest-unit string when calling the API. Never use floats anywhere.
+     - memo field, optional.
+     - Idempotency: the frontend should generate a client-side idempotency key (crypto.randomUUID or equivalent) and reuse it if the user retries the form within the same session. The backend stores this via lib/transfers/idempotency.ts and in IdempotencyKey table.
+4. Ledger Accounts (Buckets) management
+   
+   - Routes: /buckets list + /buckets/new create + /buckets/[id] detail.
+   - List: cards per bucket showing balance, type pill (OPERATING/RESERVE/PAYROLL/SAVINGS/CUSTOM), liquid-only vs USYC-deployed breakdown (if isYieldEnabled = true ), minimumBalanceFloor , archived filter toggle.
+   - Create/edit form: name, type dropdown, set as default org ledger account, minimumBalanceFloor input, enable yield toggle + yieldAllocationPct slider (0–100%, stored as basis points).
+   - Detail page for a bucket: mini-statement view of LedgerEntries for that account (use GET /api/ledger/transfer or create a read endpoint if one is missing; otherwise query via a server component and Prisma). Show allocation rules pointing in/out, savings rules, payroll schedules sourcing from it.
+   - Archive action calls POST /api/buckets/[id]/archive .
+   - Bucket to bucket internal transfer (no onchain tx; uses POST /api/ledger/transfer under the hood).
+5. Address Book (Contacts)
+   
+   - Routes: /contacts list + /contacts/new + /contacts/[id]/edit .
+   - Model Contact fields: displayName , identifier , identifierType dropdown (USERNAME/ADDRESS), optional notes , lastPaidAt .
+   - Calls GET /api/contacts , POST /api/contacts , PUT /api/contacts/[id] , DELETE /api/contacts/[id] .
+   - Identifier input resolves on blur via /api/resolve/[identifier] and auto-fills identifierType .
+   - List search + per-row quick action: "Send payment" → prefilled transfer page with that counterparty.
+### TIER 2 — CASH-IN FEATURES (Invoices & Payment Links)
+These reference buckets (destination) + optionally contacts (recipient).
+
+6. Invoicing
+   
+   - Routes:
+     - /invoices list (tabs: Drafts, Sent, Paid, Overdue, Void).
+     - /invoices/new create.
+     - /invoices/[id] detail + /invoices/[id]/edit (only if status=DRAFT).
+   - Create flow:
+     - Recipient: identifier input (email OR username OR address). If recipientIdentifier is not an email, require a separate recipientEmail field for delivery notifications.
+     - Line-item editor table: description, quantity, unit price, line total auto-computed. Add/remove rows.
+     - Tax amount optional.
+     - DueDate picker.
+     - Currency dropdown (per schema only USDC actually works today; show EURC but disable with a tooltip — see comment in InvoiceCurrency enum in schema.prisma).
+     - Receiving bucket selector (LedgerAccount).
+   - Detail page:
+     - PDF-style summary view, copy-payment-link button (reads Invoice.paymentLink.slug from the relation), mark as sent (POST /api/invoices/[id]/send ), void (POST /api/invoices/[id]/void ).
+     - Status timeline from InvoiceEvent rows.
+     - Paid invoice: show link to settling OnchainTransaction.
+7. Payment Links
+   
+   - Routes:
+     - /payment-links list.
+     - /payment-links/new create.
+     - /payment-links/[id] detail.
+   - Create form:
+     - Title/description, type FIXED_AMOUNT (require amount input) vs OPEN_AMOUNT (let payer enter).
+     - Optional expiresAt , optional maxUses .
+     - Receiving bucket selector.
+   - Detail page:
+     - Shareable URL {origin}/pay/[slug] big copy button.
+     - Stats: useCount , amount raised.
+     - Payments log (table of PaymentLinkPayment rows with payer, method WALLET/CARD, status, amount, date).
+     - Pause/resume calls POST /api/payment-links/[id]/pause and /resume .
+   - Additionally build public checkout route at /pay/[slug] (unauthenticated, so outside (app) group and middleware matcher) that matches how lib/paymentLinks/checkout.ts expects: render amount, accept wallet send (copy Arc address + QR) or card input (call the Circle Payments API via the checkout.ts logic endpoint — find existing API handler for card or create one if lib/paymentLinks/checkout.ts exposes it as route).
+### TIER 3 — PAYROLL
+8. Payroll (Payees, Schedules, Runs)
+   - Three sub-sections; build in order because Runs are composed from Schedules + Payees:
+     a) Payees : /payroll/payees list, new, edit. Fields match Payee model: name, identifier (resolved via /resolve/[identifier] ), payType dropdown (SALARY/HOURLY/CONTRACT), defaultAmount (USDC), optional notes, active toggle, optional link to existing Contact (combobox selector). Calls GET /api/payroll/payees , POST /api/payroll/payees , PUT /api/payroll/payees/[id] , DELETE .
+     b) Schedules : /payroll/schedules list, new, edit. Fields: name, sourceBucket selector, frequency (WEEKLY/BIWEEKLY/MONTHLY), nextRunDate date + time picker, active toggle. Calls routes at app/api/payroll/schedules/** .
+     c) Runs :
+     - /payroll/runs list with tabs: Drafts, Pending approval, Processing, Completed, Failed.
+     - /payroll/runs/new — manual one-off run builder OR generate from Schedule.
+     - /payroll/runs/[id] detail — the core payroll run interface.
+       - Table: payee, amount, identifier, identifierIssue flag + resolution suggestions, status pill (PENDING/SENT/CONFIRMED/FAILED), failure reason tooltip, confirmedAt, tx link.
+       - Total amount + number of payees, source bucket balance check (must be >= total).
+       - Action bar by state:
+         - DRAFT → Submit for approval (POST /api/payroll/runs/[id]/submit ), add/remove/edit items, export CSV via POST /api/payroll/export or /api/payroll/runs/[id]/export .
+         - PENDING_APPROVAL → Approve & execute (POST /api/payroll/runs/[id]/approve ) with role gate (OWNER/ADMIN only).
+         - PROCESSING → progress bar (count CONFIRMED vs total items), auto-poll every 5s.
+         - COMPLETED → export CSV, link to detail for each paid item's onchain tx.
+         - Per FAILED PayrollRunItem row: Retry button (POST /api/payroll/runs/[id]/items/[itemId]/retry ).
+### TIER 4 — SMART SAVINGS & YIELD
+9. Savings (Buckets with yield + Savings Rules + Yield Redemptions)
+   - Sub-sections:
+     a) Savings Buckets overview ( /savings ): cards for only LedgerAccounts where type = SAVINGS or isYieldEnabled = true . Card shows: liquid balance, amount in USYC (usycAmount × current NAV), total USDC-equivalent, yield earned to date, APY proxy label, enable/disable yield toggle, yield-allocation % slider.
+     - For each with USYC deployed: "Redeem" CTA → opens modal requesting amount (USDC or USYC denomination toggle, partial or full), submits to POST /api/savings/[ledgerAccountId]/redeem . YieldRedemptionRequest is the audit trail — show status PENDING → PROCESSING → COMPLETED via polling on the modal.
+     - Yield history chart via GET /api/savings/[ledgerAccountId]/yield-history .
+       b) Savings Rules ( /savings/rules ):
+     - List + create + edit. Shape mirrors SavingsRule from schema: name, trigger dropdown (PERCENTAGE_OF_INCOME / ROUND_UP / FIXED_RECURRING), value field semantics per trigger (basis points for %, round-up-unit amount, fixed-recurring amount), cron schedule picker UI only when FIXED_RECURRING, source bucket, target bucket (must have isYieldEnabled = true — enforce this in form validation client-side, and trust server-side validation), active toggle.
+     - POST/PUT /api/savings/rules and /[id] .
+     - Execution audit log per rule: list of SavingsRuleExecution with swept amount, status (EXECUTED/SKIPPED_*/FAILED), ledgerReferenceId link.
+### TIER 5 — AUTOMATION (Allocation Rules, DCA/Recurring Transfers)
+10. Allocation Rules ( /allocation-rules )
+    
+    - List + create + edit. Shape from AllocationRule schema: name, source bucket, target bucket, ruleType (PERCENTAGE / FIXED_AMOUNT), value (in bps or USDC smallest unit respectively), trigger dropdown (ON_INCOMING_PAYMENT / SCHEDULED). Cron UI only for SCHEDULED. Priority number (order when multiple rules share source bucket), active toggle.
+    - Call GET POST /api/allocation-rules + PUT DELETE /api/allocation-rules/[id] .
+    - Budget guard UI: show a running "allocated budget" meter for the source bucket's PERCENTAGE rules that sums active rules and warns/blocks if >100%. Server enforces via assertPercentageBudget but show it client-side.
+    - Execution audit log per rule: AllocationRuleExecution list.
+11. Recurring Transfers (DCA) ( /recurring )
+    
+    - List + create + edit. Shape from RecurringTransfer schema: name, source bucket, destination SELECTOR (two tabs: External Identifier → resolve via /resolve/identifier, OR Internal Bucket → pick a same-org LedgerAccount), amount (fixed every cycle), frequency DAILY/WEEKLY/BIWEEKLY/MONTHLY, nextExecutionDate picker, optional endDate.
+    - Status ACTIVE/PAUSED/CANCELLED/COMPLETED pills with corresponding action buttons (POST /api/dca/[id]/pause , /resume , /cancel ).
+    - Execution log (per DCA schedule): list executions with status (PENDING/SUCCESS/FAILED_INSUFFICIENT_FUNDS/FAILED_OTHER), settle date, onchain tx link, amount, failure reason. Route via GET /api/dca/[id]/executions .
+### TIER 6 — INSIGHTS (Analytics, NL Query, Categorization, Anomalies)
+12. Insights page ( /insights )
+    - Section 1: Spending by category (pie/bar). Data from TransactionCategory + TransactionCategorization, summed amount per category over a user-selectable time window (30d, 90d, all). Data source: categorization seed + rules engine in lib/insights/categorization/* .
+    - Section 2: Manual categorization queue. List of recent OnchainTransactions that have needsConfirmation (read from categorization model) OR no categorization yet. For each: counterparty, amount, LLM-suggested category pill with confidence, "Accept" / "Pick different category" / "Create new custom category" buttons.
+    - Section 3: Spending anomalies. Card list of open SpendingAnomaly (AnomalyType LARGE_OUTFLOW / NEW_COUNTERPARTY_LARGE_PAYMENT) with amount, counterparty, description, Dismiss button.
+    - Section 4: Natural-language query (NL Query) . Big hero text input + "Ask" button. User can write e.g. "How much did we pay Acme in Q2?". Flow MUST go through the RULE-then-LLM pipeline in lib/insights/nlQuery/* :
+      - Call POST or create an API handler for executeQuery in service.ts (or call the service's typed AST path via existing route — if missing route create one). NEVER send raw LLM SQL to the DB; the typed semantic AST + schema.ts is the boundary.
+      - Show the typed plan summary, then results (table), then "Export CSV".
+### TIER 7 — ORG SETTINGS, IDENTITY, KYB
+13. Organization Settings ( /settings ) — accessible via user menu
+    - Sub-sections:
+      a) Organization: legalName edit, KYB status banner + "Upload KYB docs" placeholder stub UI (backend has POST /api/org/kyb/approve admin-only; a user-facing submission route may need to be created — if it doesn't exist, build a stub UI that posts a pending form and mark the rest as future work).
+      b) Username claim : Claim your org's @username . Input with live availability check against Organization.username unique. Calls POST /api/username/claim .
+      c) Wallet: show circleWalletId (truncated), arcAddress (copy), chain badge, "Export wallet transactions CSV" button.
+      d) Team: list Users in org (rows: name, email, role badge, joined date). OWNER/ADMIN can change role, invite placeholder (or create if invite endpoint exists).
+      e) API / Developer: regenerate or view nothing sensitive (placeholder).
+### TIER 8 — PUBLIC PAYER-FACING PAGE (low priority, but complete the flows)
+14. Public invoice page (not behind auth — path /invoices/pay/[invoiceId] or follow existing URL if one is generated by invoice service. Check lib/invoices/service.ts#getPublicInvoice to see URL semantics expected by backend): shows invoice detail, total due, payer input, pay via wallet (copy address + QR) or via invoice's PaymentLink if present. Shows status VIEWED on open (call appropriate API to record InvoiceEvent VIEWED) and PAID after settlement.
+## GENERAL FRONTEND RULES (do not write a new design system — obey these)
+- Use the same font (Manrope) that is loaded in the home page app/page.tsx and layout.tsx .
+- Use the exact same color palette, spacing scale, border radii, and btn-3d / btn-3d--neutral button style used in app/page.tsx (navy #0B1E3F, blue #2A5CE6, gray text #7C8CA6, borders #E5E9F2, card white, divider #F2F4F8 — as you see in LoginForm/RegisterForm).
+- All money fields: user enters USDC as a decimal string. Convert to/from bigint (6 decimals of smallest unit) at the API boundary. Never use parseFloat , number , or toFixed in a way that loses cents. Use a dedicated helper similar to the app/invoices/_components/format.ts that already exists.
+- Forms: label + input pattern same as LoginForm (rounded-xl, 12px horizontal padding, focus:border-[#2A5CE6]).
+- Server components by default (App Router); use "use client" only where interactivity requires it (forms, state, hooks). Keep page shells as RSC and put forms inside smaller client components.
+- Pagination: use cursor/limit-style where the API already does.
+- Loading states: inline skeletons matching the content shape, not spinners where avoidable.
+- Error handling for API calls: show inline error banner below form using the same styling as LoginForm's bg-red-50 border-red-100 text-red-700 rounded-xl .
+- Optimistic UI: after POST-ing a create, route to the list page and invalidate the cache with router.refresh() or Next.js cache tags if the API exposes them.
+- Accessibility: buttons have visible focus rings (match 2px blue focus style), labels always, form errors announced with role="alert" , icons with aria-labels.
+- Respect role-based gating from canManageBucket.ts :
+  - OWNER/ADMIN → full actions
+  - MEMBER → read-only (buckets, payroll-schedules, allocation, savings rules non-editable)
+- Respect KYB gating from kyb-gate.ts :
+  - KybStatus.PENDING → show big sticky banner across the top of every financial page: "We're reviewing your organization. Most actions are disabled until approved." + DISABLE financial CTAs (transfer, create invoice, approve payroll, new payment link, redeem yield, start DCA). Keep navigation and dashboard visible.
+  - APPROVED → normal behavior
+  - REJECTED → banner "Your KYB was rejected. Contact support." + all financial writes disabled.
+## YOUR WORKFLOW
+1. Build Tier 0 FIRST (shell + dashboard, so login/register actually redirect somewhere).
+2. Then Tiers 1 → 8 in order; do NOT start an item if any item above it in the hierarchy is incomplete.
+3. For every page you build:
+   - Read the corresponding API route file under app/api/.../route.ts → understand exact request body and response shape, then build form/list against it.
+   - Read the corresponding Prisma model and enums → render every enum as a status pill with the EXACT string values the DB stores.
+   - Call the REST API endpoints that already exist. ONLY create a new route handler if a feature genuinely has none (e.g., dashboard reads if no GET /api/dashboard exists) — in that case create the route using the same patterns as neighboring routes (server-side session check, role gates, Prisma calls). Do not create routes for operations where a route already exists.
