@@ -15,6 +15,11 @@ const STYLES: Record<string, string> = {
   PAYROLL: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
   SAVINGS: "bg-emerald-50 text-emerald-700 border-emerald-200",
   CUSTOM: "bg-[#F2F4F8] text-[#3E4A6B] border-[#E5E9F2]",
+  // PayrollRunStatus (PENDING/FAILED reuse the entries above)
+  DRAFT: "bg-[#F2F4F8] text-[#3E4A6B] border-[#E5E9F2]",
+  PENDING_APPROVAL: "bg-amber-50 text-amber-700 border-amber-200",
+  PROCESSING: "bg-blue-50 text-blue-700 border-blue-200",
+  COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
   // generic fallback tones
   ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
   ARCHIVED: "bg-[#F2F4F8] text-[#7C8CA6] border-[#E5E9F2]",

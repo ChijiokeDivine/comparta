@@ -24,6 +24,9 @@ export default withAuth(
   }
 );
 
+// NOTE: /invoices/:path* will also cover the future public
+// /invoices/pay/[invoiceId] route (Tier 8 payer-facing page) — revisit
+// this matcher when that route is built, or it'll require login too.
 export const config = {
   matcher: [
     "/dashboard/:path*",
@@ -33,6 +36,7 @@ export const config = {
     "/savings/:path*",
     "/contacts/:path*",
     "/buckets/:path*",
+    "/payment-links/:path*",
     "/api/wallet/:path*",
     "/api/ledger/:path*",
     "/api/org/:path*",

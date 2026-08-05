@@ -16,22 +16,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { Prisma } from "@/app/generated/prisma/client";
 import { getEnv } from "@/lib/env";
-import { createWalletForOrg } from "@/lib/circle/wallets";
+import { provisionOrgWallet } from "@/lib/org/provisioning";
 
 const approveSchema = z.object({
   orgId: z.string().min(1),
   decision: z.enum(["APPROVED", "REJECTED"]),
   approvedByAdminId: z.string().min(1).default("system"),
 });
-
-const DEFAULT_LEDGER_BUCKETS = [
-  { name: "Operating", type: "OPERATING" as const },
-  { name: "Tax Reserve", type: "RESERVE" as const },
-  { name: "Payroll", type: "PAYROLL" as const },
-  { name: "Savings", type: "SAVINGS" as const },
-];
 
 export async function POST(req: Request) {
   const adminSecret = req.headers.get("x-admin-secret");
@@ -69,64 +61,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ organization: { id: updated.id, kybStatus: updated.kybStatus } });
   }
 
-  // APPROVED path: provision wallet + default buckets, then flip status.
-  // Circle call happens outside the DB transaction (it's a network call to
-  // a third party and shouldn't hold a Postgres transaction open); if the
-  // subsequent DB writes fail we log loudly rather than silently orphaning
-  // a Circle wallet with no local record.
-  const wallet = await createWalletForOrg(orgId);
-
+  // APPROVED path: provision wallet + default buckets (idempotent — a
+  // no-op if demo mode already provisioned this org at signup, see
+  // lib/config/demoMode.ts), then flip status. These are two separate
+  // writes rather than one shared transaction now that provisioning is
+  // extracted into lib/org/provisioning.ts; if the status update below
+  // fails after a successful provision, the org is left with a wallet
+  // but kybStatus still PENDING — retrying this same call is safe and
+  // will just pick up the existing wallet on its next attempt.
   try {
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const updatedOrg = await tx.organization.update({
-        where: { id: orgId },
-        data: {
-          kybStatus: "APPROVED",
-          kybApprovedAt: new Date(),
-          kybApprovedBy: approvedByAdminId,
-        },
-      });
+    const { wallet, ledgerAccounts } = await provisionOrgWallet(orgId);
 
-      const walletRow = await tx.wallet.create({
-        data: {
-          orgId,
-          circleWalletId: wallet.circleWalletId,
-          arcAddress: wallet.arcAddress,
-          chain: wallet.chain === "ARC" ? "ARC_MAINNET" : "ARC_TESTNET",
-        },
-      });
-
-      const ledgerAccounts = await Promise.all(
-        DEFAULT_LEDGER_BUCKETS.map((bucket) =>
-          tx.ledgerAccount.create({
-            data: {
-              orgId,
-              walletId: walletRow.id,
-              name: bucket.name,
-              type: bucket.type,
-            },
-          })
-        )
-      );
-
-      return { updatedOrg, walletRow, ledgerAccounts };
+    const updatedOrg = await prisma.organization.update({
+      where: { id: orgId },
+      data: {
+        kybStatus: "APPROVED",
+        kybApprovedAt: new Date(),
+        kybApprovedBy: approvedByAdminId,
+      },
     });
 
     return NextResponse.json({
-      organization: { id: result.updatedOrg.id, kybStatus: result.updatedOrg.kybStatus },
-      wallet: { id: result.walletRow.id, arcAddress: result.walletRow.arcAddress },
-      ledgerAccounts: result.ledgerAccounts.map((a: { id: string; name: string; type: string }) => ({ id: a.id, name: a.name, type: a.type })),
+      organization: { id: updatedOrg.id, kybStatus: updatedOrg.kybStatus },
+      wallet: { id: wallet.id, arcAddress: wallet.arcAddress },
+      ledgerAccounts: ledgerAccounts.map((a) => ({ id: a.id, name: a.name, type: a.type })),
     });
   } catch (err) {
-    console.error(
-      `[kyb-approve] CRITICAL: Circle wallet ${wallet.circleWalletId} (${wallet.arcAddress}) ` +
-        `was created for org ${orgId} but the follow-up DB write failed. Manual reconciliation needed.`,
-      err
-    );
+    console.error(`[kyb-approve] provisioning or status update failed for org ${orgId}`, err);
     return NextResponse.json(
       {
         error:
-          "Wallet was provisioned on Circle but saving it locally failed. This has been logged for manual reconciliation.",
+          "Wallet provisioning or status update failed. This has been logged for manual reconciliation.",
       },
       { status: 500 }
     );
