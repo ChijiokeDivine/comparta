@@ -229,17 +229,7 @@ export default function RegisterForm() {
       
           </div>
 
-          {/* Stepper */}
-          <div className="mb-6 md:mb-8">
-           
-            <div className="relative h-1 w-full rounded-full bg-[#F2F4F8] overflow-hidden">
-              <div
-                className="absolute left-0 top-0 h-full bg-[#2A5CE6] rounded-full transition-[width] duration-400 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-           
-          </div>
+          
 
           {error && (
             <div className="mb-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
