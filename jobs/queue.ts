@@ -32,9 +32,30 @@ function getConnection(): ConnectionOptions {
  */
 function getRawRedisClient(): IORedis {
   if (!globalForQueues.redisConnection) {
-    globalForQueues.redisConnection = new IORedis(getEnv().REDIS_URL, {
+    const client = new IORedis(getEnv().REDIS_URL, {
       maxRetriesPerRequest: null, // required by BullMQ
     });
+
+    // Without this listener, every failed reconnect attempt surfaces as
+    // an "Unhandled error event" (Node's default behavior for an
+    // EventEmitter's 'error' event with no listener) — which, with
+    // ioredis's built-in retry loop, means an unreachable Redis prints a
+    // fresh stack trace multiple times a second forever. Log it exactly
+    // once per distinct error message instead, so a misconfigured/down
+    // Redis is still visible without drowning out everything else.
+    const loggedMessages = new Set<string>();
+    client.on("error", (err: Error) => {
+      const key = err.message;
+      if (loggedMessages.has(key)) return;
+      loggedMessages.add(key);
+      console.error(
+        `[redis] connection error (further identical errors this process will be suppressed): ${err.message}. ` +
+          `Queue-backed features (payroll execution, savings sweep, DCA, invoice/payment-link sweeps, rate limiting) ` +
+          `will not work until REDIS_URL points at a reachable Redis instance.`
+      );
+    });
+
+    globalForQueues.redisConnection = client;
   }
   return globalForQueues.redisConnection;
 }

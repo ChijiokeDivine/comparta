@@ -10,8 +10,13 @@ export default function KpiCards({ kpis }: { kpis: DashboardKpis }) {
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <Stat label="30-day inflow" value={formatMoney(kpis.inflow30d)} tone="emerald" />
       <Stat label="30-day outflow" value={formatMoney(kpis.outflow30d)} tone="neutral" />
-      <Stat label="Yield accrued" value={formatMoney(kpis.netYieldAccrued)} tone="emerald" />
-      <Link href={pendingTotal > 0 ? "/payroll/runs" : "#"} className="block">
+      <Stat
+        label="Yield accrued"
+        value={formatMoney(kpis.netYieldAccrued)}
+        tone="emerald"
+        hint={kpis.yieldDataStale ? "Live NAV unavailable — showing cost basis" : undefined}
+      />
+      <Link href={pendingTotal > 0 ? "/payroll" : "#"} className="block">
         <Stat
           label="Pending approvals"
           value={String(pendingTotal)}
