@@ -12,7 +12,8 @@ const envSchema = z.object({
 
   REDIS_URL: z.string().min(1, "REDIS_URL is required"),
 
-  NEXTAUTH_URL: z.string().min(1, "NEXTAUTH_URL is required"),
+  NEXTAUTH_URL: z.string().optional(),
+  VERCEL_URL: z.string().optional(),
   NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET is required"),
 
   GOOGLE_CLIENT_ID: z.string().optional(),
@@ -74,6 +75,19 @@ export function getEnv(): Env {
       .join("\n");
     throw new Error(`Invalid/missing environment variables:\n${issues}`);
   }
-  cached = parsed.data;
+
+  const nextauthUrl =
+    (parsed.data.NEXTAUTH_URL?.startsWith("http")
+      ? parsed.data.NEXTAUTH_URL
+      : undefined) ??
+    (parsed.data.VERCEL_URL
+      ? `https://${parsed.data.VERCEL_URL.replace(/^https?:\/\//, "")}`
+      : undefined) ??
+    "http://localhost:3000";
+
+  cached = {
+    ...parsed.data,
+    NEXTAUTH_URL: nextauthUrl,
+  };
   return cached;
 }

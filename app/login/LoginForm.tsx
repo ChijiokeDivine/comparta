@@ -38,7 +38,14 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      if (!result?.ok) {
+        setError("Sign-in failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      router.refresh();
+      router.replace("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       setLoading(false);
