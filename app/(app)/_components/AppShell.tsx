@@ -44,12 +44,12 @@ export default function AppShell({
     <div className="min-h-screen flex bg-[#F7F8FB]">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r border-[#E5E9F2] bg-white">
-        <div className="h-16 flex items-center px-6">
+        <div className="h-16 flex items-center px-6 border-b border-gray-200">
           <Link href="/dashboard" className="flex items-center">
-            <img src="/img5.png" alt="Comparta" height={30} width={100} />
+            <img src="/logo.png" alt="Comparta" height={50} width={110} />
           </Link>
         </div>
-        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-0.5">
           {NAV_ITEMS.map((item) => (
             <SidebarLink key={item.href} item={item} active={isActive(pathname, item.href)} />
           ))}
@@ -75,7 +75,7 @@ export default function AppShell({
           <div className="absolute inset-0 bg-black/30" onClick={() => setMobileNavOpen(false)} />
           <div className="absolute inset-y-0 left-0 w-72 bg-white flex flex-col">
             <div className="h-16 flex items-center justify-between px-5">
-              <img src="/img5.png" alt="Comparta" height={28} width={92} />
+              <img src="/logo.png" alt="Comparta" height={32} width={97} />
               <button
                 onClick={() => setMobileNavOpen(false)}
                 aria-label="Close menu"
@@ -122,9 +122,9 @@ export default function AppShell({
               <MenuIcon className="w-5 h-5 text-[#0B1E3F]" />
             </button>
             <span className="font-semibold text-[#0B1E3F] truncate">{orgName}</span>
-            <span className="hidden sm:inline-flex">
+            {/* <span className="hidden sm:inline-flex">
               <KybPill status={kybStatus} />
-            </span>
+            </span> */}
           </div>
 
           <UserMenu userName={userName} userEmail={userEmail} role={role} initials={initials} />
@@ -133,7 +133,7 @@ export default function AppShell({
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl">
             <div className="sm:hidden mb-4">
-              <KybPill status={kybStatus} />
+              {/* <KybPill status={kybStatus} /> */}
             </div>
             {children}
           </div>
@@ -157,7 +157,7 @@ function SidebarLink({
     <Link
       href={item.href}
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+      className={`flex items-center gap-3 rounded-xl px-3 py-3 my-2 text-sm font-medium transition-colors ${
         active ? "bg-[#EEF2FF] text-[#2A5CE6]" : "text-[#3E4A6B] hover:bg-[#F2F4F8]"
       }`}
     >

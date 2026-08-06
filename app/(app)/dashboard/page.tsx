@@ -40,23 +40,20 @@ export default async function DashboardPage() {
         <p className="text-3xl sm:text-4xl font-semibold text-[#0B1E3F] tabular-nums">
           {formatMoney(kpis.totalBalance)}
         </p>
-        <p className="text-sm text-[#7C8CA6] mt-1">
+        {/* <p className="text-sm text-[#7C8CA6] mt-1">
           {formatMoney(kpis.liquidBalance)} liquid · {formatMoney(kpis.deployedBalance)} in savings
-        </p>
+        </p> */}
       </div>
 
       <QuickActions disabled={financialActionsDisabled} />
 
-      <KpiCards kpis={kpis} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <KpiCards kpis={kpis} />
 
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-[#0B1E3F]">Buckets</h2>
-          <Link href="/buckets" className="text-sm font-medium text-[#2A5CE6] hover:underline">
-            See all
-          </Link>
-        </div>
+
+          
         <BucketCards buckets={buckets} />
+       
       </div>
 
       <div>

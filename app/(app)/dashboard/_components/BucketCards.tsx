@@ -1,4 +1,3 @@
-// app/(app)/dashboard/_components/BucketCards.tsx
 import Link from "next/link";
 import type { BucketSummary } from "@/lib/buckets/service";
 import { formatMoney } from "@/app/invoices/_components/format";
@@ -11,37 +10,80 @@ const TYPE_LABEL: Record<string, string> = {
   CUSTOM: "Bucket",
 };
 
-export default function BucketCards({ buckets }: { buckets: BucketSummary[] }) {
-  if (buckets.length === 0) {
-    return (
-      <Link
-        href="/buckets/new"
-        className="block rounded-2xl border border-dashed border-[#E5E9F2] bg-white px-5 py-6 text-center text-sm text-[#7C8CA6] hover:border-[#2A5CE6] hover:text-[#2A5CE6] transition-colors"
-      >
-        No buckets yet — create your first one
-      </Link>
-    );
-  }
-
+export default function BucketCards({
+  buckets,
+}: {
+  buckets: BucketSummary[];
+}) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {buckets.slice(0, 6).map((bucket) => (
+    <div className="rounded-3xl border border-[#E5E9F2] bg-white p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-medium text-[#0B1E3F]">Buckets</h3>
+
+        {buckets.length > 0 && (
+          <Link
+            href="/buckets"
+            className="text-sm font-medium text-[#2A5CE6] hover:underline"
+          >
+            View all
+          </Link>
+        )}
+      </div>
+
+      {buckets.length === 0 ? (
         <Link
-          key={bucket.id}
-          href={`/buckets/${bucket.id}`}
-          className="rounded-2xl border border-[#E5E9F2] bg-white p-5 hover:border-[#2A5CE6] hover:shadow-sm transition-all"
+          href="/buckets/new"
+          className="flex h-36 items-center justify-center rounded-2xl border border-dashed border-[#DCE3F0] text-sm text-[#7C8CA6] hover:border-[#2A5CE6] hover:text-[#2A5CE6] transition-colors"
         >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[#7C8CA6]">
-              {TYPE_LABEL[bucket.type] ?? bucket.type}
-            </span>
-          </div>
-          <p className="text-sm font-semibold text-[#0B1E3F] truncate mb-1">{bucket.name}</p>
-          <p className="text-xl font-semibold text-[#0B1E3F] tabular-nums">
-            {formatMoney(bucket.balance)}
-          </p>
+          Create your first bucket
         </Link>
-      ))}
+      ) : (
+        <div className="space-y-4">
+          {buckets.slice(0, 5).map((bucket) => (
+            <Link
+              key={bucket.id}
+              href={`/buckets/${bucket.id}`}
+              className="flex items-center justify-between rounded-xl p-2 -mx-2 hover:bg-[#F7F9FC] transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {/* Icon */}
+                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5E9F2] bg-[#FAFBFD]">
+                  <span className="text-lg">🪣</span>
+                </div>
+
+                <div>
+                  <p className="font-medium text-[#0B1E3F]">
+                    {bucket.name}
+                  </p>
+
+                  <p className="text-sm text-[#7C8CA6]">
+                    {TYPE_LABEL[bucket.type] ?? bucket.type}
+                  </p>
+                </div>
+              </div>
+
+              <p className="font-medium text-[#0B1E3F] tabular-nums">
+                {formatMoney(bucket.balance)}
+              </p>
+            </Link>
+          ))}
+
+          {buckets.length > 5 && (
+            <Link
+              href="/buckets"
+              className="flex items-center gap-3 rounded-xl p-2 -mx-2 hover:bg-[#F7F9FC] transition-colors"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F2F5FA] text-sm font-medium text-[#5F6B7A]">
+                +{buckets.length - 5}
+              </div>
+
+              <span className="font-medium text-[#0B1E3F]">
+                View all buckets
+              </span>
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 }
