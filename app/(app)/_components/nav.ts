@@ -17,6 +17,7 @@ import {
   PaymentLinksIcon,
   PayrollIcon,
   SavingsIcon,
+  AllocationIcon,
   RecurringIcon,
   InsightsIcon,
 } from "./icons";
@@ -37,6 +38,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/payment-links", label: "Payment Links", icon: PaymentLinksIcon },
   { href: "/payroll", label: "Payroll", icon: PayrollIcon, managerOnly: true },
   { href: "/savings", label: "Savings", icon: SavingsIcon, managerOnly: true },
+  { href: "/allocation-rules", label: "Allocation Rules", icon: AllocationIcon, managerOnly: true },
   { href: "/recurring", label: "Recurring Transfers", icon: RecurringIcon },
   { href: "/insights", label: "Insights", icon: InsightsIcon },
 ];

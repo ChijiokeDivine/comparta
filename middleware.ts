@@ -37,6 +37,7 @@ export const config = {
     "/contacts/:path*",
     "/buckets/:path*",
     "/payment-links/:path*",
+    "/allocation-rules/:path*",
     "/api/wallet/:path*",
     "/api/ledger/:path*",
     "/api/org/:path*",

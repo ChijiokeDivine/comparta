@@ -88,6 +88,17 @@ export function SavingsIcon({ className = base }: IconProps) {
   );
 }
 
+export function AllocationIcon({ className = base }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="6" cy="6" r="3" />
+      <path strokeLinecap="round" d="M6 9v3a3 3 0 0 0 3 3h3M18 15v-3a3 3 0 0 0-3-3H12" />
+      <circle cx="18" cy="18" r="3" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function RecurringIcon({ className = base }: IconProps) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
