@@ -17,6 +17,23 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
+function formatBalanceHero(decimalString: string): string {
+  const [rawWhole, rawFrac = ""] = decimalString.split(".");
+  const whole = rawWhole || "0";
+
+  const trimmedFrac = rawFrac.replace(/0+$/, "");
+  if (!trimmedFrac) return `${whole}.00`;
+
+  const MIN_FRAC = 2;
+  const displayFrac =
+    trimmedFrac.length < MIN_FRAC
+      ? trimmedFrac.padEnd(MIN_FRAC, "0")
+      : trimmedFrac;
+
+  const wholeGrouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${wholeGrouped}.${displayFrac}`;
+}
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.orgId) redirect("/login");
@@ -35,10 +52,10 @@ export default async function DashboardPage() {
       <KybBanner status={org.kybStatus} />
 
       {/* Balance hero */}
-      <div>
+      <div className="md:mt-5">
         <p className="text-sm font-medium text-[#7C8CA6] mb-1">Total balance</p>
         <p className="text-3xl sm:text-4xl font-semibold text-[#0B1E3F] tabular-nums">
-          {formatMoney(kpis.totalBalance)}
+          ${formatBalanceHero(kpis.totalBalance)}
         </p>
         {/* <p className="text-sm text-[#7C8CA6] mt-1">
           {formatMoney(kpis.liquidBalance)} liquid · {formatMoney(kpis.deployedBalance)} in savings

@@ -3,16 +3,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { signOut, useSession } from "next-auth/react";
 import type { KybStatus, UserRole } from "@/app/generated/prisma/client";
 import { NAV_ITEMS } from "./nav";
 import { KybPill } from "./Kyb";
-import { 
-  Menu as MenuIcon, 
-  X as CloseIcon, 
-  ChevronDown as ChevronDownIcon, 
-  Settings as SettingsIcon 
+import CommandPalette from "./CommandPalette";
+import {
+  Menu as MenuIcon,
+  X as CloseIcon,
+  ChevronDown as ChevronDownIcon,
+  Settings as SettingsIcon,
+  Search as SearchIcon,
 } from "lucide-react";
 
 
@@ -34,11 +36,41 @@ export default function AppShell({
   const pathname = usePathname();
   const { data: session } = useSession();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
-  const userName = session?.user?.name ?? session?.user?.email ?? "Account";
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const meta = e.metaKey || e.ctrlKey;
+      if (meta && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const rawUserName = session?.user?.name ?? session?.user?.email ?? "there";
   const userEmail = session?.user?.email ?? "";
   const role = session?.user?.role ?? "MEMBER";
   const initials = getInitials(session?.user?.name, session?.user?.email);
+
+  const { displayName, greeting } = useMemo(() => {
+    const name = formatDisplayName(rawUserName);
+    const hour = now.getHours();
+    let g: string;
+    if (hour >= 5 && hour < 12) g = "Good morning";
+    else if (hour >= 12 && hour < 18) g = "Good afternoon";
+    else if (hour >= 18 && hour < 22) g = "Good evening";
+    else g = "Welcome";
+    return { displayName: name, greeting: g };
+  }, [rawUserName, now]);
 
   return (
     <div className="min-h-screen flex bg-[#F7F8FB]">
@@ -112,7 +144,7 @@ export default function AppShell({
 
       {/* Main column */}
       <div className="flex-1 md:pl-64 flex flex-col min-w-0">
-        <header className="h-16 shrink-0 border-b border-[#E5E9F2] bg-white flex items-center justify-between px-4 sm:px-6">
+        <header className="h-16 shrink-0 border-b border-[#E5E9F2] bg-white flex items-center justify-between px-4 sm:px-6 gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileNavOpen(true)}
@@ -121,14 +153,56 @@ export default function AppShell({
             >
               <MenuIcon className="w-5 h-5 text-[#0B1E3F]" />
             </button>
-            <span className="font-semibold text-[#0B1E3F] truncate">{orgName}</span>
+            <div className="flex flex-col min-w-0">
+              <span className="font-semibold text-[#0B1E3F] leading-none mb-1">
+                {greeting}, {displayName}
+              </span>
+             
+            </div>
             {/* <span className="hidden sm:inline-flex">
               <KybPill status={kybStatus} />
             </span> */}
+            
           </div>
 
-          <UserMenu userName={userName} userEmail={userEmail} role={role} initials={initials} />
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="hidden md:flex items-center gap-3 w-full max-w-md mx-auto h-10 px-3.5 rounded-lg border border-[#E5E9F2] bg-white transition-colors group focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#E5E9F2]"
+          >
+            <SearchIcon className="w-4 h-4 text-[#7C8CA6] shrink-0" />
+            <span className="flex-1 text-left text-sm text-[#7C8CA6] truncate">
+              Search pages, actions, payments…
+            </span>
+            <kbd className="hidden lg:inline-flex items-center gap-1 text-[10px] text-[#7C8CA6] font-medium">
+              <span className="rounded border border-[#E5E9F2] bg-[#F7F8FB] px-1.5 py-0.5">
+                ⌘
+              </span>
+              <span className="rounded border border-[#E5E9F2] bg-[#F7F8FB] px-1.5 py-0.5">
+                K
+              </span>
+            </kbd>
+          </button>
+
+          <div className="flex items-center gap-2 md:gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Search"
+              className="md:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#F2F4F8]"
+            >
+              <SearchIcon className="w-5 h-5 text-[#0B1E3F]" />
+            </button>
+            <UserMenu
+              userName={rawUserName}
+              userEmail={userEmail}
+              role={role}
+              initials={initials}
+            />
+          </div>
         </header>
+
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl">
@@ -234,6 +308,21 @@ function UserMenu({
 function isActive(pathname: string | null, href: string): boolean {
   if (!pathname) return false;
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function formatDisplayName(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "there";
+
+  const localPart = trimmed.includes("@") ? trimmed.split("@")[0] : trimmed;
+  const parts = localPart.split(/[\s._-]+/).filter(Boolean);
+  const first = parts[0] ?? localPart;
+
+  const MAX_LEN = 14;
+  if (first.length > MAX_LEN) {
+    return first.slice(0, MAX_LEN - 1).trimEnd() + "…";
+  }
+  return first;
 }
 
 function getInitials(name?: string | null, email?: string | null): string {

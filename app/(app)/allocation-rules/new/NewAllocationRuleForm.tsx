@@ -163,7 +163,7 @@ export default function NewAllocationRuleForm({
           onChange={(e) => setName(e.target.value)}
           disabled={disabled || submitting}
           maxLength={200}
-          placeholder="e.g. Payroll reserve sweep"
+          placeholder=""
           className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm disabled:opacity-50"
         />
         <p className="mt-1.5 text-xs text-[#7C8CA6]">
@@ -178,7 +178,7 @@ export default function NewAllocationRuleForm({
             htmlFor="source"
             className="block text-sm font-semibold text-[#0B1E3F] mb-2"
           >
-            From (source bucket)
+            From 
           </label>
           <select
             id="source"
@@ -210,7 +210,7 @@ export default function NewAllocationRuleForm({
             htmlFor="target"
             className="block text-sm font-semibold text-[#0B1E3F] mb-2"
           >
-            To (target bucket)
+            To 
           </label>
           <select
             id="target"
@@ -237,23 +237,29 @@ export default function NewAllocationRuleForm({
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {RULE_TYPES.map((r) => (
-            <button
-              key={r.value}
-              type="button"
-              disabled={disabled || submitting}
-              onClick={() => {
-                setRuleType(r.value);
-                setValue("");
-              }}
-              className={`text-left px-4 py-3 rounded-xl border transition-colors disabled:opacity-50 ${
-                ruleType === r.value
-                  ? "border-[#2A5CE6] bg-[#EEF2FF]"
-                  : "border-[#E5E9F2] hover:border-[#2A5CE6]"
-              }`}
-            >
-              <p className="text-sm font-medium text-[#0B1E3F]">{r.label}</p>
-              <p className="text-xs text-[#7C8CA6] mt-0.5">{r.hint}</p>
-            </button>
+            <div key={r.value} className="relative group">
+              <button
+                type="button"
+                disabled={disabled || submitting}
+                onClick={() => {
+                  setRuleType(r.value);
+                  setValue("");
+                }}
+                className={`w-full text-left px-4 py-3 rounded-xl border transition-colors disabled:opacity-50 cursor-help ${
+                  ruleType === r.value
+                    ? "border-[#2A5CE6] bg-[#EEF2FF]"
+                    : "border-[#E5E9F2] hover:border-[#2A5CE6]"
+                }`}
+              >
+                <p className="text-sm font-medium text-[#0B1E3F]">{r.label}</p>
+              </button>
+              <div className="pointer-events-none absolute z-10 left-1/2 -translate-x-1/2 top-full mt-2 w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <div className="bg-white/90 backdrop-blur-md rounded-xl px-4 py-2.5 shadow-lg border border-[#E5E9F2]">
+                  <p className="text-xs text-[#7C8CA6] leading-relaxed">{r.hint}</p>
+                </div>
+                <div className="absolute left-1/2 -translate-x-1/2 -top-1.5 w-3 h-3 rotate-45 bg-white/90 backdrop-blur-md border-l border-t border-[#E5E9F2]"></div>
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -275,7 +281,7 @@ export default function NewAllocationRuleForm({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           disabled={disabled || submitting}
-          placeholder={ruleType === "PERCENTAGE" ? "20" : "150.00"}
+          
           className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm disabled:opacity-50"
         />
         {ruleType === "PERCENTAGE" && (
@@ -292,23 +298,29 @@ export default function NewAllocationRuleForm({
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {TRIGGERS.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              disabled={disabled || submitting}
-              onClick={() => {
-                setTrigger(t.value);
-                if (t.value !== "SCHEDULED") setScheduleCron("");
-              }}
-              className={`text-left px-4 py-3 rounded-xl border transition-colors disabled:opacity-50 ${
-                trigger === t.value
-                  ? "border-[#2A5CE6] bg-[#EEF2FF]"
-                  : "border-[#E5E9F2] hover:border-[#2A5CE6]"
-              }`}
-            >
-              <p className="text-sm font-medium text-[#0B1E3F]">{t.label}</p>
-              <p className="text-xs text-[#7C8CA6] mt-0.5">{t.hint}</p>
-            </button>
+            <div key={t.value} className="relative group">
+              <button
+                type="button"
+                disabled={disabled || submitting}
+                onClick={() => {
+                  setTrigger(t.value);
+                  if (t.value !== "SCHEDULED") setScheduleCron("");
+                }}
+                className={`w-full text-left px-4 py-3 rounded-xl border transition-colors disabled:opacity-50 cursor-help ${
+                  trigger === t.value
+                    ? "border-[#2A5CE6] bg-[#EEF2FF]"
+                    : "border-[#E5E9F2] hover:border-[#2A5CE6]"
+                }`}
+              >
+                <p className="text-sm font-medium text-[#0B1E3F]">{t.label}</p>
+              </button>
+              <div className="pointer-events-none absolute z-10 left-1/2 -translate-x-1/2 top-full mt-2 w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <div className="bg-white/90 backdrop-blur-md rounded-xl px-4 py-2.5 shadow-lg border border-[#E5E9F2]">
+                  <p className="text-xs text-[#7C8CA6] leading-relaxed">{t.hint}</p>
+                </div>
+                <div className="absolute left-1/2 -translate-x-1/2 -top-1.5 w-3 h-3 rotate-45 bg-white/90 backdrop-blur-md border-l border-t border-[#E5E9F2]"></div>
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -373,7 +385,7 @@ export default function NewAllocationRuleForm({
           } as React.CSSProperties
         }
       >
-        {submitting ? "Creating…" : "Create allocation rule"}
+        {submitting ? "Creating…" : "Create rule"}
       </button>
     </form>
   );
