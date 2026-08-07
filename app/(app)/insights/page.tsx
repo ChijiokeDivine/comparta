@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import InsightsSubNav from "./_components/InsightSubNav";
+import InsightsSubNav from "./_components/InsightsSubNav";
 import { formatMoney } from "@/app/invoices/_components/format";
 
 interface SpendSlice {
