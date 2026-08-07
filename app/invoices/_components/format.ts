@@ -1,7 +1,7 @@
 // app/invoices/_components/format.ts
 //
 // Client-safe display helpers. Deliberately doesn't import anything
-// server-only (Prisma, node:crypto, etc) — this runs in the browser.
+// server-only (Prisma, node:crypto, etc) - this runs in the browser.
 
 export type InvoiceStatus = "DRAFT" | "SENT" | "VIEWED" | "PAID" | "OVERDUE" | "VOID";
 
@@ -30,6 +30,9 @@ export function formatMoney(decimalString: string): string {
   return `${grouped}.${frac.padEnd(2, "0").slice(0, 2)}`;
 }
 
+export function formatUSDC(decimalString: string): string {
+  return `${formatMoney(decimalString)} USDC`;
+}
 export function formatDate(iso: string | Date): string {
   const d = typeof iso === "string" ? new Date(iso) : iso;
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });

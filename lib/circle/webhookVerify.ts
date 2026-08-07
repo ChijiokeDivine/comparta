@@ -9,7 +9,7 @@
 //      used to sign that specific key id. Public keys are static per
 //      keyId, so we cache them in-process.
 //   3. Verify X-Circle-Signature against the *raw* request body bytes
-//      (not a re-serialized JSON.stringify — whitespace differences break
+//      (not a re-serialized JSON.stringify - whitespace differences break
 //      the signature) using that public key.
 //
 // Never trust a webhook payload before this passes. The API route stores
@@ -71,7 +71,7 @@ export interface WebhookVerifyResult {
 }
 
 /**
- * @param rawBody   The exact raw request body bytes/string as received —
+ * @param rawBody   The exact raw request body bytes/string as received -
  *                  do NOT pass a re-stringified/parsed-then-stringified
  *                  version, the signature won't match.
  * @param keyId     Value of the X-Circle-Key-Id header.

@@ -41,7 +41,7 @@ export default async function WalletPage() {
 
   const isApproved = org.kybStatus === "APPROVED";
   // The live onchain balance requires an approved org (financial data,
-  // same gate as app/api/wallet/balance/route.ts) — skip the Circle call
+  // same gate as app/api/wallet/balance/route.ts) - skip the Circle call
   // entirely when PENDING/REJECTED rather than letting it throw.
   const onchainUsdc =
     isApproved && wallet ? await getUsdcBalance(wallet.circleWalletId).catch(() => null) : null;
@@ -104,7 +104,7 @@ export default async function WalletPage() {
                   height={20}
                   className="rounded-full shrink-0"
                 />
-                {onchainUsdc !== null ? formatMoney(onchainUsdc) : "—"}
+                {onchainUsdc !== null ? formatMoney(onchainUsdc) : "-"}
               </p>
               {!isApproved && (
                 <p className="text-xs text-[#7C8CA6] mt-1">Visible once KYB is approved</p>

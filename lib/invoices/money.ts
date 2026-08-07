@@ -2,12 +2,12 @@
 //
 // Line-item math for invoices. Same rule as lib/circle/amount.ts: every
 // persisted USDC amount is a bigint in the smallest unit (micro-USDC),
-// computed from decimal strings — never Number() math on money.
+// computed from decimal strings - never Number() math on money.
 //
 // Quantity is allowed up to 4 decimal places (e.g. "2.5" hours) so this
 // scales it into an integer before multiplying against the unit price's
 // bigint smallest-unit value, then floor-divides back down. Floor (never
-// round up) matches the ledger's "never silently create money" posture —
+// round up) matches the ledger's "never silently create money" posture -
 // a fraction of a micro-USDC is rounded away, not toward the biller.
 
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
@@ -34,13 +34,13 @@ export interface ComputedLineItem {
   description: string;
   quantity: string;
   unitPrice: string;
-  /** Decimal string — the authoritative per-line total, server-computed. */
+  /** Decimal string - the authoritative per-line total, server-computed. */
   lineTotal: string;
 }
 
 export interface ComputedLineItems {
   items: ComputedLineItem[];
-  /** bigint micro-USDC — sum of every line's total. */
+  /** bigint micro-USDC - sum of every line's total. */
   subtotal: bigint;
 }
 
@@ -65,7 +65,7 @@ function parseQuantity(raw: string): bigint {
 /**
  * Validates and computes totals for a full set of line items. Throws
  * InvoiceValidationError (with a message identifying the offending line)
- * on any bad input. Never trust a client-submitted subtotal — this is
+ * on any bad input. Never trust a client-submitted subtotal - this is
  * the only place a line total or invoice subtotal is computed.
  */
 export function computeLineItems(rawItems: RawLineItemInput[]): ComputedLineItems {
@@ -114,7 +114,7 @@ export function computeLineItems(rawItems: RawLineItemInput[]): ComputedLineItem
   return { items, subtotal };
 }
 
-/** Validates a client-supplied tax amount (issuer-entered, not derived — no tax-rate config exists yet). */
+/** Validates a client-supplied tax amount (issuer-entered, not derived - no tax-rate config exists yet). */
 export function parseTaxAmount(raw: string | undefined): bigint {
   if (raw === undefined || raw.trim() === "") return 0n;
   try {

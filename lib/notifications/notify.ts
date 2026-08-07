@@ -1,6 +1,6 @@
 // lib/notifications/notify.ts
 //
-// Placeholder notification hooks — same pattern as notifyPaymentReceived
+// Placeholder notification hooks - same pattern as notifyPaymentReceived
 // in lib/transfers/receive.ts and notifyPaymentFailed in
 // jobs/confirmTransaction.ts. Wire up to real email/in-app infra once it
 // exists; logging loudly in the meantime so these are at least visible
@@ -23,7 +23,7 @@ export interface InvoiceEmailContext {
 /** Sent when an invoice transitions DRAFT -> SENT. */
 export async function sendInvoiceCreatedEmail(ctx: InvoiceEmailContext): Promise<void> {
   console.log(
-    `[notify] TODO: email invoice ${ctx.invoiceId} to ${ctx.recipientEmail} — ` +
+    `[notify] TODO: email invoice ${ctx.invoiceId} to ${ctx.recipientEmail} - ` +
       `"${ctx.orgLegalName} sent you an invoice for ${ctx.total} ${ctx.currency}, due ${ctx.dueDate.toISOString()}. ` +
       `View it: ${ctx.publicUrl}"`
   );
@@ -34,7 +34,7 @@ export async function sendInvoiceReminderEmail(
   ctx: InvoiceEmailContext & { daysPastDue: number }
 ): Promise<void> {
   console.log(
-    `[notify] TODO: reminder email for invoice ${ctx.invoiceId} to ${ctx.recipientEmail} — ` +
+    `[notify] TODO: reminder email for invoice ${ctx.invoiceId} to ${ctx.recipientEmail} - ` +
       `${ctx.daysPastDue} day(s) past due. View it: ${ctx.publicUrl}`
   );
 }
@@ -52,7 +52,7 @@ export async function notifyIssuerInvoicePaid(issuerOrgId: string, invoiceId: st
 /**
  * Flags an inbound payment that couldn't be cleanly reconciled to exactly
  * one invoice (amount matched zero or more-than-one open invoice) for
- * manual review. v1 has no dedicated queue/table for this — it's a loud
+ * manual review. v1 has no dedicated queue/table for this - it's a loud
  * log line an operator monitors, same posture as the reconciliation
  * worker's mismatch logging in jobs/workers/reconciliation.worker.ts.
  */
@@ -62,6 +62,6 @@ export async function flagPaymentForManualReconciliation(
   reason: string
 ): Promise<void> {
   console.error(
-    `[notify] MANUAL RECONCILIATION NEEDED: org ${orgId}, onchainTransaction ${onchainTransactionId} — ${reason}`
+    `[notify] MANUAL RECONCILIATION NEEDED: org ${orgId}, onchainTransaction ${onchainTransactionId} - ${reason}`
   );
 }

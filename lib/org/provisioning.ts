@@ -7,13 +7,13 @@
 // This used to live inline in app/api/org/kyb/approve/route.ts. It's
 // pulled out here so app/api/auth/register/route.ts can call the exact
 // same logic when DEMO_KYB_APPROVED is on (see lib/config/demoMode.ts)
-// — new signups get a wallet immediately instead of waiting for a KYB
+// - new signups get a wallet immediately instead of waiting for a KYB
 // approval that, in demo mode, never actually happens as a separate step.
 //
 // Idempotent by design: if a wallet already exists for the org, this is
 // a no-op that returns the existing wallet. That matters because BOTH
 // callers can reach it for the same org depending on how demo mode is
-// toggled over the org's lifetime — e.g. an org provisioned at signup
+// toggled over the org's lifetime - e.g. an org provisioned at signup
 // under demo mode must never be re-provisioned (and billed a second
 // Circle wallet) if /api/org/kyb/approve is ever also called for it.
 import { prisma } from "@/lib/db/prisma";

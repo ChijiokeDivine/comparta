@@ -11,7 +11,7 @@
 // aggregations.
 //
 // Everything here is read-only. Money amounts are returned as decimal
-// strings (see lib/circle/amount.ts) — never floats.
+// strings (see lib/circle/amount.ts) - never floats.
 
 import { prisma } from "@/lib/db/prisma";
 import { toDecimalString, toSmallestUnit } from "@/lib/circle/amount";
@@ -22,14 +22,14 @@ import { getCachedUsycNav } from "@/lib/savings/yieldRate";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export interface DashboardKpis {
-  liquidBalance: string; // decimal string — sum of non-archived bucket balances
-  deployedBalance: string; // decimal string — NAV-implied value of ACTIVE yield positions
+  liquidBalance: string; // decimal string - sum of non-archived bucket balances
+  deployedBalance: string; // decimal string - NAV-implied value of ACTIVE yield positions
   totalBalance: string; // liquidBalance + deployedBalance
   inflow30d: string;
   outflow30d: string;
   netYieldAccrued: string; // deployedBalance - cost basis, across ACTIVE positions
   /** True if there are ACTIVE yield positions but the live NAV couldn't be
-   * fetched (e.g. Circle's USYC endpoint erroring) — deployedBalance and
+   * fetched (e.g. Circle's USYC endpoint erroring) - deployedBalance and
    * netYieldAccrued above fall back to cost basis (no markup) in that
    * case, so the UI should hint the figure may be stale rather than
    * presenting it as precise. */
@@ -140,7 +140,7 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
 
   // ── balances ─────────────────────────────────────────────────────────
   // listBucketsWithBalances already returns exact decimal strings (see
-  // lib/buckets/service.ts) — convert back through toSmallestUnit rather
+  // lib/buckets/service.ts) - convert back through toSmallestUnit rather
   // than Number()/parseFloat() so we never lose precision on cents.
   const liquidBalance = buckets.reduce((sum, b) => sum + toSmallestUnit(b.balance), 0n);
 
@@ -150,7 +150,7 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
 
   if (activePositions.length > 0) {
     // Only hit Circle's USYC NAV endpoint when there's actually something
-    // to value — and never let that call take the whole dashboard down
+    // to value - and never let that call take the whole dashboard down
     // with it. A transient/misconfigured NAV endpoint (e.g. sandbox
     // returning 404) should degrade to "show cost basis, flag it as
     // stale" rather than an uncaught error crashing every other card on

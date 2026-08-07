@@ -3,12 +3,12 @@
 // Central BullMQ queue definitions. API routes enqueue jobs here; workers
 // (jobs/workers/*) process them. Kept as a Postgres-independent layer so
 // payroll runs, DCA transfers, and savings sweeps survive a process
-// restart mid-job — Redis has the durable job state, not in-memory timers.
+// restart mid-job - Redis has the durable job state, not in-memory timers.
 //
 // Phase 7 (Smart Savings) note: SAVINGS_SWEEP already existed (reserved
 // for this phase) and is now wired up by
 // jobs/workers/savingsSweep.worker.ts. YIELD_REDEMPTION_CONFIRMATION is
-// new — it's the polling queue for jobs/confirmYieldRedemption.ts,
+// new - it's the polling queue for jobs/confirmYieldRedemption.ts,
 // mirroring how CONFIRM_TRANSACTION backs jobs/confirmTransaction.ts.
 
 import { Queue, type ConnectionOptions } from "bullmq";
@@ -26,7 +26,7 @@ function getConnection(): ConnectionOptions {
 
 /**
  * Returns the actual IORedis client instance, properly typed with its
- * real command methods (incr, expire, ttl, etc.) — for callers that need
+ * real command methods (incr, expire, ttl, etc.) - for callers that need
  * to run Redis commands directly (e.g. lib/rateLimit.ts, lib/savings/yieldRate.ts)
  * rather than just handing a connection to BullMQ.
  */
@@ -38,7 +38,7 @@ function getRawRedisClient(): IORedis {
 
     // Without this listener, every failed reconnect attempt surfaces as
     // an "Unhandled error event" (Node's default behavior for an
-    // EventEmitter's 'error' event with no listener) — which, with
+    // EventEmitter's 'error' event with no listener) - which, with
     // ioredis's built-in retry loop, means an unreachable Redis prints a
     // fresh stack trace multiple times a second forever. Log it exactly
     // once per distinct error message instead, so a misconfigured/down

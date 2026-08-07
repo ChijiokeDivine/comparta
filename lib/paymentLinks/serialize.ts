@@ -1,7 +1,7 @@
 // lib/paymentLinks/serialize.ts
 //
 // PaymentLink.amount / PaymentLinkPayment.amountExpected/amountPaid are
-// bigint — same JSON-serialization problem as Invoice's money fields (see
+// bigint - same JSON-serialization problem as Invoice's money fields (see
 // lib/invoices/serialize.ts). Every API route returning one of these must
 // go through here first.
 

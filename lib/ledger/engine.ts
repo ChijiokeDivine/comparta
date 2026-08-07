@@ -1,8 +1,8 @@
 // lib/ledger/engine.ts
 //
 // This is the ONLY module in the codebase allowed to write to LedgerEntry.
-// Every balance mutation — onchain settlement, invoice payment, payroll
-// run, savings sweep, DCA, internal bucket transfer — must go through
+// Every balance mutation - onchain settlement, invoice payment, payroll
+// run, savings sweep, DCA, internal bucket transfer - must go through
 // recordEntry() or transferBetweenLedgerAccounts(). Never write a
 // LedgerEntry row anywhere else, and never UPDATE or DELETE one: this
 // table is append-only. Corrections are new offsetting entries with
@@ -65,7 +65,7 @@ export interface RecordEntryInput {
   direction: LedgerDirection;
   referenceType: LedgerReferenceType;
   referenceId: string;
-  /** Allow DEBIT to take the balance negative (rare — e.g. pre-authorized overdraft). Default false. */
+  /** Allow DEBIT to take the balance negative (rare - e.g. pre-authorized overdraft). Default false. */
   allowNegative?: boolean;
 }
 
@@ -139,7 +139,7 @@ export async function getBalance(ledgerAccountId: string): Promise<bigint> {
 
 /**
  * Internal-only move between two of an org's buckets (e.g. Operating ->
- * Savings). Never touches the blockchain — just two offsetting entries in
+ * Savings). Never touches the blockchain - just two offsetting entries in
  * the same Postgres transaction, so they can never be observed half-done.
  */
 export async function transferBetweenLedgerAccounts(
@@ -152,7 +152,7 @@ export async function transferBetweenLedgerAccounts(
   // that's already inside its own interactive transaction (e.g. the
   // allocation engine writing an AllocationRuleExecution row alongside the
   // transfer) reuse that transaction instead of nesting a second one.
-  // Prisma doesn't support nested interactive transactions — passing the
+  // Prisma doesn't support nested interactive transactions - passing the
   // existing `tx` through is the only safe way to compose this with other
   // writes. Omit it (as every pre-existing caller does) to keep the old
   // standalone-transaction behavior.
@@ -210,7 +210,7 @@ export interface ReconciliationResult {
 /**
  * Recomputes a ledger account's balance from the FULL entry history
  * (ignoring the denormalized balanceAfter snapshots entirely) and compares
- * it to the current snapshot. Run this periodically (see jobs/) — a
+ * it to the current snapshot. Run this periodically (see jobs/) - a
  * mismatch means either a bug or an entry written outside recordEntry(),
  * and should page someone immediately.
  */
@@ -247,7 +247,7 @@ export async function reconcileOrg(orgId: string): Promise<ReconciliationResult[
 }
 
 /**
- * Sum of every LedgerAccount's current balance for an org — used by the
+ * Sum of every LedgerAccount's current balance for an org - used by the
  * Phase 0 acceptance test to assert this equals the actual onchain wallet
  * balance (within tolerance / after confirmation lag).
  */

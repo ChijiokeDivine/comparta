@@ -2,11 +2,11 @@
 //
 // Executes ONE due cycle of a RecurringTransfer: creates (or reuses, for
 // idempotency) a RecurringTransferExecution row, resolves the
-// destination FRESH (never cached — see the module docstring on
+// destination FRESH (never cached - see the module docstring on
 // RecurringTransfer in prisma/schema.prisma), calls sendPayment() or
 // transferBetweenLedgerAccounts() depending on destination type, and
 // records the outcome. This function NEVER throws and NEVER advances
-// RecurringTransfer.nextExecutionDate — advancing (regardless of this
+// RecurringTransfer.nextExecutionDate - advancing (regardless of this
 // function's outcome) is jobs/processRecurringTransfers.ts's job, since
 // that must happen whether this cycle succeeded or failed.
 
@@ -35,13 +35,13 @@ const STALE_PENDING_MS = 10 * 60 * 1000; // 10 minutes
 /**
  * Executes ONE due cycle of `transfer`, for the given `scheduledDate`
  * (always transfer.nextExecutionDate at the moment the sweep picked it
- * up — passed explicitly rather than re-read, so this stays correct even
+ * up - passed explicitly rather than re-read, so this stays correct even
  * if nextExecutionDate has since been advanced by the time this runs).
  *
  * Idempotent: if a previous invocation for this exact scheduledDate
  * already created a row (e.g. a worker crash between creating the
  * execution and finishing it), that row is reused rather than
- * double-executing — unless it's been PENDING for more than
+ * double-executing - unless it's been PENDING for more than
  * STALE_PENDING_MS, in which case it's treated as abandoned and retried
  * fresh (a fresh sendPayment call for a stuck PENDING is still safe: the
  * idempotency key below is derived from the execution id, so even a
@@ -70,7 +70,7 @@ export async function executeSingleRecurringTransfer(
       data: { recurringTransferId: transfer.id, scheduledDate, status: "PENDING" },
     }));
 
-  // Fast-fail balance check up front — gives a specific
+  // Fast-fail balance check up front - gives a specific
   // FAILED_INSUFFICIENT_FUNDS outcome rather than letting it surface as
   // whatever generic error sendPayment/transferBetweenLedgerAccounts
   // would throw for the same underlying reason.
@@ -91,7 +91,7 @@ export async function executeSingleRecurringTransfer(
     }
     return await executeExternalTransfer(transfer, execution.id);
   } catch (err) {
-    // Last-resort safety net — both branches above are written to catch
+    // Last-resort safety net - both branches above are written to catch
     // their own known failure modes and never throw, but this guards
     // against anything genuinely unexpected so the execution row still
     // reaches a terminal state rather than being stuck PENDING forever.
@@ -107,7 +107,7 @@ async function executeInternalTransfer(
   transfer: RecurringTransfer,
   executionId: string
 ): Promise<ExecuteRecurringTransferResult> {
-  // Internal bucket-to-bucket — no onchain tx, no destination resolution
+  // Internal bucket-to-bucket - no onchain tx, no destination resolution
   // needed at all: the target bucket IS the destination, and buckets
   // can't be "released" or "transferred" the way a username can, so
   // there's no re-resolution edge case on this path.
@@ -136,7 +136,7 @@ async function executeExternalTransfer(
   transfer: RecurringTransfer,
   executionId: string
 ): Promise<ExecuteRecurringTransferResult> {
-  // Resolve FRESH, every single time — never reuse a resolution from a
+  // Resolve FRESH, every single time - never reuse a resolution from a
   // prior cycle or from setup time. A username can be released,
   // transferred, or repointed between creation and any given execution;
   // this cycle must send to whoever/whatever the identifier currently
@@ -163,7 +163,7 @@ async function executeExternalTransfer(
       memo: transfer.name ? `Recurring transfer: ${transfer.name}` : "Recurring transfer",
       referenceType: "DCA",
       referenceId: executionId,
-      // Deterministic per-execution key — a retried job for the SAME
+      // Deterministic per-execution key - a retried job for the SAME
       // execution (BullMQ attempt retry, or this function's own
       // stale-PENDING retry path) never double-submits to Circle.
       idempotencyKey: `dca-execution-${executionId}`,

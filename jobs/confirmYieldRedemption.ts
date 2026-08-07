@@ -5,12 +5,12 @@
 // reconciles both the YieldPosition (reduces usycAmount, marks REDEEMED
 // if it hits exactly zero) and the bucket's ledger (CREDITs the settled
 // USDC back as spendable balance). Mirrors jobs/confirmTransaction.ts's
-// polling/backoff pattern exactly — "near-instant" is still modeled as
+// polling/backoff pattern exactly - "near-instant" is still modeled as
 // async, per the product requirement that the UI show PENDING/PROCESSING
 // states rather than assume synchronous success.
 //
 // Idempotent: safe to call repeatedly, including after the request has
-// already reached a terminal state locally (a no-op then) — matters
+// already reached a terminal state locally (a no-op then) - matters
 // because BullMQ retries and a possible future webhook path could both
 // invoke this for the same request.
 
@@ -39,7 +39,7 @@ export class RedemptionStillPendingError extends Error {
 
 /**
  * Advances one YieldRedemptionRequest based on its current Circle
- * conversion status. Idempotent — a no-op if the request is already
+ * conversion status. Idempotent - a no-op if the request is already
  * COMPLETED or FAILED.
  */
 export async function confirmYieldRedemption(yieldRedemptionRequestId: string): Promise<void> {
@@ -56,7 +56,7 @@ export async function confirmYieldRedemption(yieldRedemptionRequestId: string): 
     return; // already resolved
   }
   if (!request.circleConversionId) {
-    // Never got past submission — lib/savings/yield.ts#submitRedemptionToCircle
+    // Never got past submission - lib/savings/yield.ts#submitRedemptionToCircle
     // (or its manual retry, retryRedemptionSubmission) is responsible for
     // moving this out of PENDING. This job simply exits and will be
     // re-enqueued on its own backoff.
@@ -78,7 +78,7 @@ export async function confirmYieldRedemption(yieldRedemptionRequestId: string): 
     return;
   }
 
-  // Still settling — not yet terminal.
+  // Still settling - not yet terminal.
   throw new RedemptionStillPendingError(status.state);
 }
 
@@ -97,7 +97,7 @@ async function finalizeSuccessfulRedemption(
     // Prefer Circle's reported settlement amount (the NAV-at-redemption
     // truth); fall back to our own estimate using navApplied (or the
     // position's navAtDeploy, worst case) only if Circle's response
-    // omitted it — never invent a number silently different from what
+    // omitted it - never invent a number silently different from what
     // actually settled.
     const usdcSettled = settledAmountDecimal
       ? toSmallestUnit(settledAmountDecimal)

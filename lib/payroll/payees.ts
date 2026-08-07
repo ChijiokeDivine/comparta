@@ -1,8 +1,8 @@
 // lib/payroll/payees.ts
 //
-// CRUD for Payee — the formal payroll relationship, distinct from
+// CRUD for Payee - the formal payroll relationship, distinct from
 // Contact (the general address book). Mirrors the shape of
-// lib/contacts/service.ts. Never touches PayrollRun/PayrollRunItem —
+// lib/contacts/service.ts. Never touches PayrollRun/PayrollRunItem -
 // run generation lives in lib/payroll/runs.ts and reads Payee rows
 // read-only.
 
@@ -95,7 +95,7 @@ export async function createPayee(input: CreatePayeeInput): Promise<Payee> {
   }
 }
 
-/** Convenience for the "add from address book" UI flow — pre-fills name/identifier from an existing Contact. */
+/** Convenience for the "add from address book" UI flow - pre-fills name/identifier from an existing Contact. */
 export async function createPayeeFromContact(
   orgId: string,
   contactId: string,
@@ -182,7 +182,7 @@ export async function updatePayee(orgId: string, payeeId: string, input: UpdateP
   }
 }
 
-/** Convenience wrapper — the common case of removing a payee from future runs without losing their history. */
+/** Convenience wrapper - the common case of removing a payee from future runs without losing their history. */
 export async function deactivatePayee(orgId: string, payeeId: string): Promise<Payee> {
   return updatePayee(orgId, payeeId, { active: false });
 }
@@ -190,7 +190,7 @@ export async function deactivatePayee(orgId: string, payeeId: string): Promise<P
 /**
  * Hard-deletes a payee that has never appeared in a payroll run. A payee
  * with run history is kept for audit purposes (PayrollRunItem.payeeId is
- * onDelete: Restrict, so this would fail at the DB level anyway) —
+ * onDelete: Restrict, so this would fail at the DB level anyway) -
  * deactivate instead.
  */
 export async function deletePayee(orgId: string, payeeId: string): Promise<void> {

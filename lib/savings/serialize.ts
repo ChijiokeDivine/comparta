@@ -3,13 +3,13 @@
 // bigint JSON-serialization for savings-feature API responses, same
 // convention as lib/allocationRules/serialize.ts. Every API route
 // returning a SavingsRule, SavingsRuleExecution, YieldPosition, or
-// YieldRedemptionRequest must go through here first — bigint doesn't
+// YieldRedemptionRequest must go through here first - bigint doesn't
 // survive JSON.stringify on its own.
 //
 // `value` on SavingsRule is surfaced two ways so the UI never has to
 // know the trigger-dependent unit convention: `value` stays raw (basis
 // points for PERCENTAGE_OF_INCOME, smallest USDC unit for ROUND_UP /
-// FIXED_RECURRING — for round-tripping back into an edit form as-is) and
+// FIXED_RECURRING - for round-tripping back into an edit form as-is) and
 // `displayValue` is pre-formatted human units ("10.00" meaning 10% for
 // PERCENTAGE_OF_INCOME, "10.00" USDC for ROUND_UP / FIXED_RECURRING).
 

@@ -2,7 +2,7 @@
 //
 // Address book business logic. Identifier type (USERNAME vs ADDRESS) is
 // always inferred from the identifier's format rather than trusted from
-// caller input — same format rules as lib/identity/resolver.ts, so a
+// caller input - same format rules as lib/identity/resolver.ts, so a
 // saved contact's type can never drift from what resolve() would
 // actually do with it.
 
@@ -110,7 +110,7 @@ export async function updateContact(
   contactId: string,
   input: UpdateContactInput
 ): Promise<Contact> {
-  // Ownership check first — findFirst scoped to orgId — so an org can
+  // Ownership check first - findFirst scoped to orgId - so an org can
   // never update another org's contact by guessing an id.
   await getContact(orgId, contactId);
 

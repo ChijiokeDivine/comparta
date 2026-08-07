@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     template: "%s | Comparta",
   },
   description:
-    "Comparta is the all-in-one financial OS for modern teams: send USDC payments, issue invoices, run payroll, create payment links, allocate balances, earn yield on savings, and gain AI-powered spending insights — all on one secure, onchain platform.",
+    "Comparta is the all-in-one financial OS for modern teams: send USDC payments, issue invoices, run payroll, create payment links, allocate balances, earn yield on savings, and gain AI-powered spending insights - all on one secure, onchain platform.",
   keywords: [
     "Comparta",
     "USDC payments",
@@ -85,15 +85,15 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://comparta.xyz",
     siteName: "Comparta",
-    title: "Comparta — Smart Financial Operating System for Teams",
+    title: "Comparta - Smart Financial Operating System for Teams",
     description:
-      "Send, receive, and manage USDC with your team. Invoicing, payroll, payment links, automated allocations, yield on savings, DCA, and AI-driven insights — unified onchain.",
+      "Send, receive, and manage USDC with your team. Invoicing, payroll, payment links, automated allocations, yield on savings, DCA, and AI-driven insights - unified onchain.",
     images: [
       {
         url: "/IMG-20260716-WA0038.jpg",
         width: 1200,
         height: 630,
-        alt: "Comparta — Financial OS for Modern Teams",
+        alt: "Comparta - Financial OS for Modern Teams",
         type: "image/jpeg",
       },
     ],
@@ -103,13 +103,13 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@comparta",
     creator: "@comparta",
-    title: "Comparta — Smart Financial Operating System for Teams",
+    title: "Comparta - Smart Financial Operating System for Teams",
     description:
-      "Send, receive, and manage USDC with your team. Invoicing, payroll, payment links, automated allocations, yield on savings, DCA, and AI-driven insights — unified onchain.",
+      "Send, receive, and manage USDC with your team. Invoicing, payroll, payment links, automated allocations, yield on savings, DCA, and AI-driven insights - unified onchain.",
     images: [
       {
         url: "/IMG-20260716-WA0038.jpg",
-        alt: "Comparta — Financial OS for Modern Teams",
+        alt: "Comparta - Financial OS for Modern Teams",
       },
     ],
   },

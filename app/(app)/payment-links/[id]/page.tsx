@@ -91,7 +91,7 @@ export default function PaymentLinkDetailPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // clipboard unavailable — non-critical, no-op
+      // clipboard unavailable - non-critical, no-op
     }
   }
 
@@ -175,7 +175,7 @@ export default function PaymentLinkDetailPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold text-[#0B1E3F] tabular-nums">
-                    {p.amountPaid ? formatMoney(p.amountPaid) : "—"}
+                    {p.amountPaid ? formatMoney(p.amountPaid) : "-"}
                   </span>
                   <StatusPill value={p.status} />
                 </div>

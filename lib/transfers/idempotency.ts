@@ -2,7 +2,7 @@
 //
 // Generic API-level idempotency, backed by the IdempotencyKey table. This
 // guards against double-submission from a slow/retrying UI at the HTTP
-// layer — distinct from (and in addition to) the Circle-level
+// layer - distinct from (and in addition to) the Circle-level
 // idempotencyKey on OnchainTransaction, which guards the actual funds
 // movement even if this layer were somehow bypassed.
 //
@@ -63,7 +63,7 @@ export async function checkAndReserveIdempotencyKey(
 
   if (existing) {
     if (existing.expiresAt < new Date()) {
-      // Expired — treat as absent, delete and fall through to re-reserve.
+      // Expired - treat as absent, delete and fall through to re-reserve.
       await prisma.idempotencyKey.delete({ where: { id: existing.id } }).catch(() => {});
     } else if (existing.status === "COMPLETED") {
       if (existing.requestHash !== requestHash) {
@@ -134,7 +134,7 @@ export async function failIdempotencyKey(orgId: string, endpoint: string, key: s
       data: { status: "FAILED" },
     })
     .catch(() => {
-      // Best-effort — if this fails there's nothing more useful to do
+      // Best-effort - if this fails there's nothing more useful to do
       // than let the key expire naturally via TTL.
     });
 }

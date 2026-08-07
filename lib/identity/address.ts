@@ -15,7 +15,7 @@ export function isValidAddress(value: string): boolean {
 
 /**
  * Returns the EIP-55 checksummed form of a valid address. Throws if the
- * input isn't a valid address — check isValidAddress first if the input is
+ * input isn't a valid address - check isValidAddress first if the input is
  * untrusted/unvalidated.
  */
 export function toChecksumAddress(value: string): string {

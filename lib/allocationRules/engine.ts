@@ -13,23 +13,23 @@
 //     fixed-amount slice of the source bucket's CURRENT balance rather
 //     than of an incoming payment.
 //
-// Deliberate design choice — why this runs OUTSIDE the transaction that
+// Deliberate design choice - why this runs OUTSIDE the transaction that
 // credited the source bucket, not nested inside it:
 //
 //   lib/ledger/engine.ts's transferBetweenLedgerAccounts() now accepts an
-//   externalTx so it CAN be composed into an existing transaction — but a
+//   externalTx so it CAN be composed into an existing transaction - but a
 //   failed rule (e.g. InsufficientBalanceError on a FIXED_AMOUNT rule)
 //   would abort that shared Postgres transaction, taking the inbound
 //   payment's own credit down with it. Crediting the inbound payment must
 //   never depend on an allocation rule succeeding. So this module always
 //   runs after the triggering transaction has already committed, and each
-//   rule gets its own small transaction — one rule failing never affects
+//   rule gets its own small transaction - one rule failing never affects
 //   another rule or the payment that triggered them. This mirrors how
 //   receive.ts already treats invoice-paid notifications and wrong-amount
 //   refunds as post-commit, best-effort follow-ups.
 //
 // Multiple rules on the same source execute sequentially (by priority,
-// then creation order) — not in parallel — because a FIXED_AMOUNT rule's
+// then creation order) - not in parallel - because a FIXED_AMOUNT rule's
 // success depends on the balance left behind by any rule that ran before
 // it.
 
@@ -49,7 +49,7 @@ export interface AllocationExecutionSummary {
 
 function computeAllocationAmount(rule: Pick<AllocationRule, "ruleType" | "value">, baseAmount: bigint): bigint {
   if (rule.ruleType === "PERCENTAGE") {
-    return (baseAmount * rule.value) / BASIS_POINTS_SCALE; // floor — never allocate more than the percentage implies
+    return (baseAmount * rule.value) / BASIS_POINTS_SCALE; // floor - never allocate more than the percentage implies
   }
   return rule.value; // FIXED_AMOUNT
 }
@@ -130,7 +130,7 @@ async function executeSingleRule(
 export interface ExecuteIncomingPaymentAllocationRulesParams {
   orgId: string;
   sourceLedgerAccountId: string;
-  /** The amount that was just credited to sourceLedgerAccountId — PERCENTAGE rules are computed against this, not the account's resulting balance. */
+  /** The amount that was just credited to sourceLedgerAccountId - PERCENTAGE rules are computed against this, not the account's resulting balance. */
   creditedAmount: bigint;
   triggerReferenceType: LedgerReferenceType;
   triggerReferenceId: string;
@@ -138,7 +138,7 @@ export interface ExecuteIncomingPaymentAllocationRulesParams {
 
 /**
  * Call this AFTER committing the transaction that credited an inbound
- * payment to sourceLedgerAccountId. Fire-and-forget-safe: never throws —
+ * payment to sourceLedgerAccountId. Fire-and-forget-safe: never throws -
  * failures are logged to AllocationRuleExecution and returned in the
  * summary, not propagated, so a caller can `.catch(console.error)` this
  * and move on (see lib/transfers/receive.ts for the intended call site).
@@ -170,7 +170,7 @@ export async function executeIncomingPaymentAllocationRules(
 // Minimal cron-due check: "has at least one full day passed since this
 // rule last ran (or since it was created, if it's never run)". This
 // intentionally does not implement full cron-field parsing (minute/hour
-// granularity) — jobs/workers/allocationRulesScheduled.worker.ts is meant
+// granularity) - jobs/workers/allocationRulesScheduled.worker.ts is meant
 // to run once daily, so day-granularity is all a daily worker can honor
 // regardless of what the stored cron string says. If sub-daily scheduling
 // becomes a real requirement, swap this for a proper cron library and run

@@ -6,7 +6,7 @@
 //   1. Read the RAW body (needed byte-for-byte for signature verification)
 //   2. Verify X-Circle-Signature against Circle's published public key
 //   3. Persist the raw payload to WebhookEvent UNCONDITIONALLY, before any
-//      processing — so a bug in step 4 can never lose an event. Even
+//      processing - so a bug in step 4 can never lose an event. Even
 //      requests that fail signature verification are stored (with
 //      signatureOk: false) for audit/debugging, but are never processed.
 //   4. Process, dispatching on notificationType:
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
       ? String((parsedPayload as Record<string, unknown>).notificationType)
       : undefined;
 
-  // Always write the raw event first — this is the "never lose an event"
+  // Always write the raw event first - this is the "never lose an event"
   // guarantee, independent of whether it verifies or how processing goes.
   const event = await prisma.webhookEvent.create({
     data: {
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     console.warn(`[webhooks/circle] signature verification failed: ${verification.reason}`, {
       webhookEventId: event.id,
     });
-    // Still 200 — Circle doesn't need to retry an unverifiable request,
+    // Still 200 - Circle doesn't need to retry an unverifiable request,
     // and we don't want to leak *why* verification failed to a caller
     // that might be forging requests.
     return NextResponse.json({ received: true });
@@ -158,7 +158,7 @@ async function dispatchNotification(
     }
 
     default:
-      console.log(`[webhooks/circle] received event ${eventType ?? "unknown"} — no handler, ignoring`);
+      console.log(`[webhooks/circle] received event ${eventType ?? "unknown"} - no handler, ignoring`);
       return;
   }
 }

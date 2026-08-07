@@ -2,7 +2,7 @@
 //
 // PayrollRun/PayrollRunItem lifecycle: creation (auto from a schedule, or
 // manual), the pre-approval review summary, and the approval gate itself.
-// This module NEVER moves money — it only ever gets a run to PROCESSING
+// This module NEVER moves money - it only ever gets a run to PROCESSING
 // and enqueues the execution job. See jobs/executePayroll.ts for the part
 // that actually calls sendPayment().
 //
@@ -13,7 +13,7 @@
 //
 // PROCESSING -> COMPLETED/FAILED is driven by jobs/executePayroll.ts, not
 // this module. A DRAFT run can still be freely edited (items
-// added/removed/amount-changed); PENDING_APPROVAL cannot — return it to
+// added/removed/amount-changed); PENDING_APPROVAL cannot - return it to
 // DRAFT first.
 
 import { prisma } from "@/lib/db/prisma";
@@ -56,7 +56,7 @@ export class InsufficientPayrollBalanceError extends Error {
     const shortfall = required - available;
     super(
       `This run needs ${toDecimalString(required)} USDC but the source bucket only has ${toDecimalString(available)} ` +
-        `USDC available — short by ${toDecimalString(shortfall)} USDC. Add funds or reduce the run before approving.`
+        `USDC available - short by ${toDecimalString(shortfall)} USDC. Add funds or reduce the run before approving.`
     );
     this.name = "InsufficientPayrollBalanceError";
   }
@@ -102,17 +102,17 @@ async function recomputeTotal(tx: Tx, payrollRunId: string): Promise<void> {
 
 export interface GenerateDraftRunResult {
   run: PayrollRun;
-  skippedPayeeNames: string[]; // active payees with no defaultAmount — excluded, must be added manually if wanted
+  skippedPayeeNames: string[]; // active payees with no defaultAmount - excluded, must be added manually if wanted
 }
 
 /**
  * Builds a DRAFT PayrollRun from every active Payee with a non-null
  * defaultAmount > 0. Payees without a defaultAmount (typically HOURLY
- * workers whose amount varies per period) are skipped, not guessed at —
+ * workers whose amount varies per period) are skipped, not guessed at -
  * they show up in skippedPayeeNames so the caller (the scheduler, or a
  * "regenerate" UI action) can surface them for manual addition before
  * the run is submitted for approval. `scheduledFor` must be the
- * schedule's nextRunDate at the moment of generation — it's the
+ * schedule's nextRunDate at the moment of generation - it's the
  * duplicate-run guard (see PayrollRun's unique constraint).
  */
 export async function generateDraftRunFromSchedule(
@@ -134,7 +134,7 @@ export async function generateDraftRunFromSchedule(
         sourceLedgerAccountId: schedule.sourceLedgerAccountId,
         scheduledFor,
         status: "DRAFT",
-        initiatedBy: null, // system-generated — see PayrollRun.initiatedBy doc comment in schema.prisma
+        initiatedBy: null, // system-generated - see PayrollRun.initiatedBy doc comment in schema.prisma
       },
     });
 
@@ -161,7 +161,7 @@ export async function generateDraftRunFromSchedule(
 
 export interface CreateManualRunItemInput {
   payeeId: string;
-  /** Decimal string. Falls back to the payee's defaultAmount if omitted — throws if neither is available. */
+  /** Decimal string. Falls back to the payee's defaultAmount if omitted - throws if neither is available. */
   amount?: string;
 }
 
@@ -199,7 +199,7 @@ export async function createManualRun(input: CreateManualRunInput): Promise<Payr
     const rawAmount = item.amount ?? (payee.defaultAmount !== null ? toDecimalString(payee.defaultAmount) : undefined);
     if (rawAmount === undefined) {
       throw new PayrollRunValidationError(
-        `"${payee.name}" has no default amount — an explicit amount is required for this payee.`
+        `"${payee.name}" has no default amount - an explicit amount is required for this payee.`
       );
     }
     let amount: bigint;
@@ -269,7 +269,7 @@ export async function addRunItem(
 
   const rawAmount = amount ?? (payee.defaultAmount !== null ? toDecimalString(payee.defaultAmount) : undefined);
   if (rawAmount === undefined) {
-    throw new PayrollRunValidationError(`"${payee.name}" has no default amount — an explicit amount is required.`);
+    throw new PayrollRunValidationError(`"${payee.name}" has no default amount - an explicit amount is required.`);
   }
   let parsedAmount: bigint;
   try {
@@ -330,7 +330,7 @@ export async function updateRunItemAmount(
   });
 }
 
-/** Deletes a DRAFT run entirely (e.g. an auto-generated run the org doesn't want this period). Non-DRAFT runs must never be deleted — they're the audit trail. */
+/** Deletes a DRAFT run entirely (e.g. an auto-generated run the org doesn't want this period). Non-DRAFT runs must never be deleted - they're the audit trail. */
 export async function deleteDraftRun(orgId: string, runId: string): Promise<void> {
   const run = await getPayrollRun(orgId, runId);
   await assertDraft(run);
@@ -363,19 +363,19 @@ export async function returnRunToDraft(orgId: string, runId: string): Promise<Pa
 /**
  * The approval gate. Caller (the API route) is responsible for
  * confirming the approver is an OWNER/ADMIN via
- * lib/auth/canManageBucket.ts#assertCanManageBucket — this function only
+ * lib/auth/canManageBucket.ts#assertCanManageBucket - this function only
  * handles the payroll-specific invariants:
  *
  *   1. Run must be PENDING_APPROVAL.
- *   2. No item may have an unresolved identifier (identifierIssue) —
+ *   2. No item may have an unresolved identifier (identifierIssue) -
  *      the "flag at creation, block at approval" edge case.
- *   3. The source bucket's CURRENT balance must cover the run's total —
+ *   3. The source bucket's CURRENT balance must cover the run's total -
  *      re-checked here (not just at review-time) since balance can move
  *      between review and approval. Blocks approval outright rather than
  *      allowing a partial/silent execution.
  *
  * On success, flips the run to PROCESSING and enqueues the execution job
- * (jobs/executePayroll.ts) — this function itself never calls
+ * (jobs/executePayroll.ts) - this function itself never calls
  * sendPayment().
  */
 export async function approveRun(orgId: string, runId: string, approverUserId: string): Promise<PayrollRun> {
@@ -418,7 +418,7 @@ async function enqueueExecution(payrollRunId: string): Promise<void> {
       { attempts: 3, backoff: { type: "exponential", delay: 5000 }, removeOnComplete: true, removeOnFail: false }
     );
   } catch (err) {
-    // The run is already PROCESSING at this point — a failed enqueue
+    // The run is already PROCESSING at this point - a failed enqueue
     // must be loud, not silent, since otherwise the run sits in
     // PROCESSING forever with nothing driving it forward. An operator
     // (or a periodic sweep, not built in v1) needs to retry the enqueue
@@ -468,15 +468,15 @@ export async function listPayrollRuns(
 export interface PayrollRunReview {
   run: PayrollRun & { items: (PayrollRunItem & { payee: Payee })[] };
   sourceBucketName: string;
-  /** Decimal string — the source bucket's current balance. */
+  /** Decimal string - the source bucket's current balance. */
   sourceBucketBalance: string;
-  /** Decimal string — sum of item amounts. */
+  /** Decimal string - sum of item amounts. */
   totalAmount: string;
   /** True if sourceBucketBalance < totalAmount. */
   insufficientFunds: boolean;
-  /** Decimal string, only set when insufficientFunds is true — exactly how much more is needed. */
+  /** Decimal string, only set when insufficientFunds is true - exactly how much more is needed. */
   shortfall: string | null;
-  /** Payees on this run whose identifier currently fails to resolve — must be fixed/removed before approval. */
+  /** Payees on this run whose identifier currently fails to resolve - must be fixed/removed before approval. */
   unresolvedIdentifiers: { itemId: string; payeeId: string; payeeName: string; reason: string }[];
 }
 

@@ -2,13 +2,13 @@
 //
 // Deploys a savings bucket's liquid USDC into USYC (for yield) and
 // redeems USYC back to USDC on demand. This is the ONLY module allowed
-// to create/mutate YieldPosition and YieldRedemptionRequest rows —
+// to create/mutate YieldPosition and YieldRedemptionRequest rows -
 // mirrors how lib/ledger/engine.ts is the only module allowed to touch
 // LedgerEntry.
 //
 // Balance model (read this before touching this file):
 //   - A bucket's ledger balance (lib/ledger/engine.ts#getBalance)
-//     represents ONLY liquid, immediately-spendable USDC — the same
+//     represents ONLY liquid, immediately-spendable USDC - the same
 //     invariant every other bucket in this codebase holds. Nothing about
 //     this phase changes that.
 //   - Deploying into USYC therefore DEBITs the bucket's ledger balance
@@ -16,7 +16,7 @@
 //     spendable pool, and creates a YieldPosition tracking what was
 //     deployed and at what NAV.
 //   - Redeeming CREDITs the ledger balance back (referenceType
-//     YIELD_REDEMPTION) once Circle confirms the USDC settlement — NOT
+//     YIELD_REDEMPTION) once Circle confirms the USDC settlement - NOT
 //     at request time. Even though USYC redemption is billed as
 //     "near-instant", this module always models it as an async
 //     PENDING -> PROCESSING -> COMPLETED/FAILED state machine (see
@@ -25,7 +25,7 @@
 //     to the user as a silently-lost request.
 //
 // Deploys are only ever triggered as a side effect of a savings sweep
-// (see lib/savings/sweep.ts) — there's no "manually deploy $X" user
+// (see lib/savings/sweep.ts) - there's no "manually deploy $X" user
 // action, mirroring how the product spec frames yield as something a
 // bucket does automatically, not a separate transfer the user initiates.
 // Redemption IS a direct user action (requestRedemption), since "give me
@@ -70,7 +70,7 @@ export class InsufficientYieldPositionError extends YieldError {
   }
 }
 
-// USYC's smallest-unit convention — this codebase assumes 6 decimals,
+// USYC's smallest-unit convention - this codebase assumes 6 decimals,
 // matching USDC (see lib/circle/amount.ts). If Circle's USYC integration
 // uses a different decimal count, this is the one place to change it.
 const USDC_SCALE = 1_000_000n;
@@ -92,7 +92,7 @@ export function usycToUsdc(usycAmount: bigint, navDecimalString: string): bigint
 export interface DeployToYieldParams {
   orgId: string;
   ledgerAccountId: string;
-  /** Smallest USDC unit to convert. Caller (lib/savings/sweep.ts) computes this against yieldAllocationPct — this function trusts the amount and only re-validates it against the bucket's current liquid balance via recordEntry's own row lock. */
+  /** Smallest USDC unit to convert. Caller (lib/savings/sweep.ts) computes this against yieldAllocationPct - this function trusts the amount and only re-validates it against the bucket's current liquid balance via recordEntry's own row lock. */
   amount: bigint;
   referenceType: LedgerReferenceType;
   referenceId: string;
@@ -121,11 +121,11 @@ export async function deployToYield(params: DeployToYieldParams): Promise<Deploy
 
   const idempotencyKey = `yield-deploy-${params.referenceId}`;
 
-  // Debit the ledger FIRST, in its own transaction — recordEntry's row
+  // Debit the ledger FIRST, in its own transaction - recordEntry's row
   // lock is what actually protects against a concurrent sweep
   // over-deploying past the bucket's real liquid balance. If the Circle
   // call below fails, we reverse this debit with an offsetting credit
-  // rather than trying to "undo" inside one shared transaction —
+  // rather than trying to "undo" inside one shared transaction -
   // mirrors lib/transfers/send.ts's posture that a Circle call never
   // lives inside a DB transaction.
   const debit = await recordEntry({
@@ -163,7 +163,7 @@ export async function deployToYield(params: DeployToYieldParams): Promise<Deploy
       `[yield] deploy failed for bucket ${params.ledgerAccountId}, reversing debit ${debit.id}`,
       err
     );
-    // The conversion never happened (or we can't confirm it did) — the
+    // The conversion never happened (or we can't confirm it did) - the
     // funds must go back to being spendable, never silently vanish.
     await recordEntry({
       ledgerAccountId: params.ledgerAccountId,
@@ -200,7 +200,7 @@ export interface RequestRedemptionResult {
  * Kicks off redemption of up to `usycAmount` USYC (across the bucket's
  * ACTIVE positions, oldest first) back to liquid USDC. ALWAYS creates
  * PENDING YieldRedemptionRequest row(s) and submits to Circle
- * asynchronously — never assumes the conversion is instantly done, even
+ * asynchronously - never assumes the conversion is instantly done, even
  * though USYC's real-world settlement is typically fast. Supports
  * partial redemption of a single position, and redemption spanning
  * multiple positions, transparently.
@@ -217,7 +217,7 @@ export async function requestRedemption(
   });
 
   // "Available to redeem" excludes any usycAmount already tied up in a
-  // not-yet-terminal redemption request against the SAME position — two
+  // not-yet-terminal redemption request against the SAME position - two
   // concurrent redeem clicks must never both succeed against the same
   // USYC (the edge case the spec calls out explicitly).
   const pendingByPosition = await getPendingRedemptionAmountsByPosition(
@@ -247,7 +247,7 @@ export async function requestRedemption(
 
   // Consume oldest positions first (FIFO) until the requested amount is
   // covered, creating one YieldRedemptionRequest row per position touched
-  // — keeps each request's cost-basis math exact (via its own
+  // - keeps each request's cost-basis math exact (via its own
   // YieldPosition.navAtDeploy) rather than blended across positions
   // deployed at different NAVs.
   let remaining = requestedUsyc;
@@ -277,7 +277,7 @@ export async function requestRedemption(
     // long. If THIS submission throws, the row stays PENDING (not
     // FAILED) so a retry (via a periodic reconciliation sweep, or the
     // user retrying) can pick it back up rather than requiring a
-    // brand-new request — see submitRedemptionToCircle.
+    // brand-new request - see submitRedemptionToCircle.
     submitRedemptionToCircle(request.id, wallet.circleWalletId, takeFromThis, idempotencyKey).catch(
       (err) =>
         console.error(
@@ -311,7 +311,7 @@ async function submitRedemptionToCircle(
   idempotencyKey: string
 ): Promise<void> {
   // Leaving status at PENDING (not FAILED) on a thrown error is
-  // deliberate — a submission failure here (network blip, transient
+  // deliberate - a submission failure here (network blip, transient
   // Circle error) should be retried, not require the user to file a
   // whole new redemption request. Only jobs/confirmYieldRedemption.ts
   // ever marks a request terminally FAILED, and only once Circle itself
@@ -355,7 +355,7 @@ async function enqueueRedemptionConfirmation(requestId: string): Promise<void> {
 
 /**
  * Manual retry for a redemption request stuck at PENDING (never
- * successfully submitted to Circle) — the equivalent of
+ * successfully submitted to Circle) - the equivalent of
  * lib/payroll/execution.ts#retryPayrollRunItem for this feature. Safe to
  * call repeatedly; a no-op once the request has moved past PENDING.
  */
@@ -368,7 +368,7 @@ export async function retryRedemptionSubmission(
     where: { id: requestId, ledgerAccountId, ledgerAccount: { orgId } },
   });
   if (!request) throw new YieldError("Redemption request not found.");
-  if (request.status !== "PENDING") return; // already submitted or terminal — nothing to retry
+  if (request.status !== "PENDING") return; // already submitted or terminal - nothing to retry
 
   const bucket = await getBucket(orgId, ledgerAccountId);
   const wallet = await prisma.wallet.findUnique({ where: { id: bucket.walletId } });

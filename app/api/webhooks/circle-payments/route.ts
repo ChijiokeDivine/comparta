@@ -1,6 +1,6 @@
 // app/api/webhooks/circle-payments/route.ts
 //
-// Ingests Circle Payments API webhooks (the card/ACH payment-link path —
+// Ingests Circle Payments API webhooks (the card/ACH payment-link path -
 // see lib/circle/payments.ts). Separate endpoint from
 // app/api/webhooks/circle/route.ts because this is a different Circle
 // product surface with its own event shape, even though both are stored
@@ -10,11 +10,11 @@
 // Unlike the wallet-transfer webhook, there's no amount-matching
 // heuristic needed here: Circle echoes back the metadata we set at
 // session-creation (paymentLinkPaymentId), so a payment is matched to its
-// checkout session unambiguously — see lib/circle/payments.ts's
+// checkout session unambiguously - see lib/circle/payments.ts's
 // CreateHostedCardPaymentInput.metadata.
 //
 // Order of operations mirrors app/api/webhooks/circle/route.ts: persist
-// the raw event unconditionally first, verify signature, then process —
+// the raw event unconditionally first, verify signature, then process -
 // so a bug in processing can never lose an event, and an unverifiable
 // request is stored (for audit) but never acted on.
 
@@ -91,7 +91,7 @@ export async function POST(req: Request) {
         processError: err instanceof Error ? err.message : "Unknown processing error",
       },
     });
-    // Still 200 — the event is durably stored and can be reprocessed;
+    // Still 200 - the event is durably stored and can be reprocessed;
     // returning non-2xx just causes Circle to retry-storm it.
   }
 
@@ -108,7 +108,7 @@ async function processPaymentEvent(payload: CirclePaymentWebhookPayload): Promis
   const paymentLinkPaymentId = payment.metadata?.paymentLinkPaymentId;
   if (!paymentLinkPaymentId) {
     console.warn(
-      `[webhooks/circle-payments] payment ${payment.id} has no paymentLinkPaymentId in metadata — ` +
+      `[webhooks/circle-payments] payment ${payment.id} has no paymentLinkPaymentId in metadata - ` +
         `not one of ours (or a stale/misconfigured session), skipping.`
     );
     return;
@@ -125,7 +125,7 @@ async function processPaymentEvent(payload: CirclePaymentWebhookPayload): Promis
   }
 
   if (!SUCCESS_STATUSES.has(status)) {
-    // Non-terminal (e.g. "pending", "processing") — nothing to do yet;
+    // Non-terminal (e.g. "pending", "processing") - nothing to do yet;
     // Circle will send another webhook once it reaches a terminal state.
     return;
   }
@@ -139,13 +139,13 @@ async function processPaymentEvent(payload: CirclePaymentWebhookPayload): Promis
     return;
   }
   if (session.status !== "PENDING") {
-    return; // already processed — redelivered webhook, no-op
+    return; // already processed - redelivered webhook, no-op
   }
 
   const wallet = session.paymentLink.organization.wallets[0];
   if (!wallet) {
     console.error(
-      `[webhooks/circle-payments] org ${session.paymentLink.orgId} has no wallet — cannot settle payment ${payment.id}`
+      `[webhooks/circle-payments] org ${session.paymentLink.orgId} has no wallet - cannot settle payment ${payment.id}`
     );
     return;
   }
@@ -155,7 +155,7 @@ async function processPaymentEvent(payload: CirclePaymentWebhookPayload): Promis
 
   const reconciliation = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // The card/ACH payment settles as a real USDC deposit to the org's Arc
-    // wallet — recorded as an inbound OnchainTransaction, exactly like a
+    // wallet - recorded as an inbound OnchainTransaction, exactly like a
     // wallet-originated transfer, so the wallet balance / ledger
     // reconciliation story (jobs/workers/reconciliation.worker.ts) stays
     // uniform regardless of which checkout method the payer used.

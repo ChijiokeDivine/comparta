@@ -16,7 +16,14 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      // /invoices/pay/[invoiceId] is the one deliberately public route
+      // under /invoices — the payer opening it has no Comparta account
+      // at all, so it can never require a token. Every other path this
+      // matcher covers (including the rest of /invoices/*) still does.
+      authorized: ({ token, req }) => {
+        if (req.nextUrl.pathname.startsWith("/invoices/pay/")) return true;
+        return !!token;
+      },
     },
     pages: {
       signIn: "/login",
@@ -24,9 +31,6 @@ export default withAuth(
   }
 );
 
-// NOTE: /invoices/:path* will also cover the future public
-// /invoices/pay/[invoiceId] route (Tier 8 payer-facing page) — revisit
-// this matcher when that route is built, or it'll require login too.
 export const config = {
   matcher: [
     "/dashboard/:path*",
@@ -40,6 +44,7 @@ export const config = {
     "/allocation-rules/:path*",
     "/recurring/:path*",
     "/insights/:path*",
+    "/settings/:path*",
     "/api/wallet/:path*",
     "/api/ledger/:path*",
     "/api/org/:path*",

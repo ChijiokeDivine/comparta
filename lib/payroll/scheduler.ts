@@ -2,7 +2,7 @@
 //
 // Daily sweep for PayrollSchedule: finds every active schedule whose
 // nextRunDate is due, generates a DRAFT PayrollRun for it (still
-// requiring full human approval before anything executes — see
+// requiring full human approval before anything executes - see
 // lib/payroll/runs.ts), then advances nextRunDate by the schedule's
 // frequency. Wired up by jobs/workers/payrollSchedule.worker.ts, the
 // same BullMQ/cron pattern as
@@ -11,7 +11,7 @@
 // Duplicate-run guard: PayrollRun has a
 // @@unique([payrollScheduleId, scheduledFor]) constraint. Before
 // generating, this module checks for an existing run at that
-// (schedule, date) pair and skips if found — belt-and-suspenders with
+// (schedule, date) pair and skips if found - belt-and-suspenders with
 // the DB constraint, which is what actually protects against two
 // overlapping sweep invocations both slipping past the pre-check race.
 
@@ -26,7 +26,7 @@ export interface PayrollScheduleSweepResult {
 }
 
 /**
- * A schedule is due once its nextRunDate has arrived (day granularity —
+ * A schedule is due once its nextRunDate has arrived (day granularity -
  * this is meant to run once daily, same posture as
  * runScheduledAllocationRules in lib/allocationRules/engine.ts).
  */
@@ -52,7 +52,7 @@ export async function runPayrollScheduleSweep(now = new Date()): Promise<Payroll
 
     if (existing) {
       // Already generated (a prior sweep, or a retried job, got here
-      // first). Still advance nextRunDate if it wasn't advanced yet —
+      // first). Still advance nextRunDate if it wasn't advanced yet -
       // guards against a crash that generated the run but died before
       // the advance step below.
       skipped.push({ scheduleId: schedule.id, reason: `Run already exists for ${scheduledFor.toISOString()}` });
@@ -71,16 +71,16 @@ export async function runPayrollScheduleSweep(now = new Date()): Promise<Payroll
       }
     } catch (err) {
       // A unique-constraint violation here means a concurrent sweep won
-      // the race between our existence check and this create — treat it
+      // the race between our existence check and this create - treat it
       // exactly like the "existing" branch above, not as a real error.
       if (isUniqueConstraintError(err)) {
-        skipped.push({ scheduleId: schedule.id, reason: "Duplicate run generation race — another sweep created it first." });
+        skipped.push({ scheduleId: schedule.id, reason: "Duplicate run generation race - another sweep created it first." });
         await advanceIfStillDue(schedule.id, scheduledFor);
         continue;
       }
       console.error(`[payrollScheduler] failed to generate run for schedule ${schedule.id}`, err);
       skipped.push({ scheduleId: schedule.id, reason: err instanceof Error ? err.message : "Unknown error" });
-      continue; // never advance nextRunDate on a genuine failure — retry next sweep
+      continue; // never advance nextRunDate on a genuine failure - retry next sweep
     }
 
     await advanceSchedule(schedule.id, scheduledFor, schedule.frequency);
@@ -98,7 +98,7 @@ async function advanceSchedule(
   await prisma.payrollSchedule.update({ where: { id: scheduleId }, data: { nextRunDate } });
 }
 
-/** Advances nextRunDate only if it still equals the date we just handled — avoids clobbering a date some other process already moved forward. */
+/** Advances nextRunDate only if it still equals the date we just handled - avoids clobbering a date some other process already moved forward. */
 async function advanceIfStillDue(scheduleId: string, scheduledFor: Date): Promise<void> {
   const schedule = await prisma.payrollSchedule.findUnique({ where: { id: scheduleId } });
   if (!schedule) return;

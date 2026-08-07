@@ -3,7 +3,7 @@
 // Daily-ish sweep: any ACTIVE payment link past its expiresAt flips to
 // EXPIRED. This is the bulk mechanism; lib/paymentLinks/checkout.ts also
 // lazily flips a single link the moment someone loads its checkout page
-// past expiry (same self-healing pattern as invoice VIEWED tracking) — so
+// past expiry (same self-healing pattern as invoice VIEWED tracking) - so
 // this sweep mainly matters for links nobody ever visits again, keeping
 // the merchant-facing list view accurate without requiring a page load.
 //

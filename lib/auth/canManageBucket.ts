@@ -8,12 +8,12 @@
 // Current rule (role-only): OWNER and ADMIN can manage (move money,
 // create/edit/archive buckets, create/edit allocation rules). MEMBER can
 // view balances/history but never mutate. Every authenticated org member
-// can view — there is no separate "can view" gate function because
+// can view - there is no separate "can view" gate function because
 // viewing is the default; only mutation needs this check.
 //
 // The `ledgerAccountId` parameter is accepted (but unused) today so the
 // signature doesn't need to change when finer-grained, per-bucket ACLs
-// arrive later (e.g. "this MEMBER may manage Payroll but not Savings") —
+// arrive later (e.g. "this MEMBER may manage Payroll but not Savings") -
 // callers should always pass the bucket they're acting on even though it
 // isn't consulted yet, so that future enforcement doesn't silently change
 // behavior at call sites that forgot to pass it.
@@ -32,7 +32,7 @@ const MANAGE_ROLES = new Set(["OWNER", "ADMIN"]);
 /**
  * Returns whether `user` may mutate bucket state: manual transfers,
  * bucket create/rename/archive, allocation rule create/edit/delete.
- * Reserved `ledgerAccountId` param for future per-bucket ACLs — see file header.
+ * Reserved `ledgerAccountId` param for future per-bucket ACLs - see file header.
  */
 export function canManageBucket(user: Pick<AuthedContext, "role">, _ledgerAccountId?: string): boolean {
   return MANAGE_ROLES.has(user.role);

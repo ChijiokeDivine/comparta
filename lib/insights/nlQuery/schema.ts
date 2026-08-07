@@ -5,7 +5,7 @@
 // feature: the LLM never sees or produces SQL, never talks to Postgres
 // directly, and can only populate fields from this exact schema. Even a
 // maximally adversarial or malformed LLM response can only ever produce
-// a StructuredQueryFilter (or fail zod validation entirely) — there is
+// a StructuredQueryFilter (or fail zod validation entirely) - there is
 // no code path from an LLM response to a raw query string.
 
 import { z } from "zod";
@@ -29,14 +29,14 @@ export type RelativeRange = (typeof RELATIVE_RANGES)[number];
 export const SORT_OPTIONS = ["date_desc", "date_asc", "amount_desc", "amount_asc"] as const;
 export type SortOption = (typeof SORT_OPTIONS)[number];
 
-// Every field is optional/nullable — an unset field means "don't filter
+// Every field is optional/nullable - an unset field means "don't filter
 // on this." The LLM is instructed (see llmTranslate.ts's system prompt)
 // to omit or null out anything the query didn't mention rather than
 // guess a value.
 export const structuredQueryFilterSchema = z.object({
   direction: z.enum(["IN", "OUT"]).nullable().optional(),
 
-  // Exactly one of relativeRange OR (dateFrom/dateTo) should be set —
+  // Exactly one of relativeRange OR (dateFrom/dateTo) should be set -
   // relativeRange takes precedence if both are present (see
   // executeQuery.ts#resolveDateBounds). Absolute dates are ISO date
   // strings ("2026-04-01").
@@ -50,13 +50,13 @@ export const structuredQueryFilterSchema = z.object({
 
   // Free-text fragment matched (case-insensitive) against the
   // counterparty's resolved display name (Contact/Payee) OR the raw
-  // memo text — covers "payments to Sarah" and "anything mentioning
+  // memo text - covers "payments to Sarah" and "anything mentioning
   // invoice #114" alike. NEVER matched against raw addresses directly.
   counterpartyContains: z.string().nullable().optional(),
 
   // Must exactly match one of the org's current TransactionCategory
   // names (validated against the real list in executeQuery.ts, not
-  // trusted blindly from the LLM output) — covers "contractors",
+  // trusted blindly from the LLM output) - covers "contractors",
   // "software spend", etc.
   categoryName: z.string().nullable().optional(),
 

@@ -83,7 +83,7 @@ export default function PayeesPage() {
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-sm font-semibold text-[#0B1E3F] tabular-nums">
-                  {p.defaultAmount ? formatMoney(p.defaultAmount) : "—"}
+                  {p.defaultAmount ? formatMoney(p.defaultAmount) : "-"}
                 </span>
                 <StatusPill value={p.payType} />
               </div>

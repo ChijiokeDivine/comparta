@@ -2,7 +2,7 @@
 //
 // Circle's API/webhooks identify chains with strings like "ARC-TESTNET",
 // "ETH-SEPOLIA", "MATIC-AMOY", "SOL-DEVNET". Our Chain enum is coarser
-// (mainnet/testnet collapsed per network family in a few cases) — this is
+// (mainnet/testnet collapsed per network family in a few cases) - this is
 // the one place that translation happens, so inbound webhook handling and
 // anything else touching Circle's raw chain strings stays consistent.
 
@@ -26,7 +26,7 @@ const CIRCLE_TO_INTERNAL: Record<string, Chain> = {
 
 /**
  * Best-effort mapping from a Circle blockchain string to our Chain enum.
- * Returns null for anything unrecognized rather than guessing — callers
+ * Returns null for anything unrecognized rather than guessing - callers
  * should treat null as "record the raw string, don't assume a chain."
  */
 export function mapCircleBlockchain(circleBlockchain: string | undefined | null): Chain | null {

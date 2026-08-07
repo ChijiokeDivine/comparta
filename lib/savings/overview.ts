@@ -4,10 +4,10 @@
 // deployed balance split, accrued yield to date, and a simple monthly
 // projection at the current published rate. Shaped so an API route can
 // return this object directly with no further reshaping needed by the
-// UI layer — same "return exactly what a detail view wants" posture as
+// UI layer - same "return exactly what a detail view wants" posture as
 // lib/buckets/service.ts#getBucketDetail.
 //
-// This module never mutates anything (all reads) — money movement lives
+// This module never mutates anything (all reads) - money movement lives
 // in lib/savings/sweep.ts and lib/savings/yield.ts.
 
 import { prisma } from "@/lib/db/prisma";
@@ -41,15 +41,15 @@ export interface SavingsBucketOverview {
   isYieldEnabled: boolean;
   yieldAllocationPct: number | null; // basis points, e.g. 8000 = 80%
   minimumBalanceFloor: string; // decimal string
-  liquidBalance: string; // decimal string — spendable now, identical to getBalance()
-  deployedBalance: string; // decimal string — sum of ACTIVE positions' currentUsdcValue
+  liquidBalance: string; // decimal string - spendable now, identical to getBalance()
+  deployedBalance: string; // decimal string - sum of ACTIVE positions' currentUsdcValue
   totalBalance: string; // liquidBalance + deployedBalance
   accruedYieldToDate: string; // sum of ACTIVE positions' accruedYield
   currentApyBps: number;
   currentApyAsOf: Date;
   /**
    * Simple projection: deployedBalance * currentApy / 12. Assumes the
-   * deployed balance and rate both hold steady for a month — a
+   * deployed balance and rate both hold steady for a month - a
    * projection, not a guarantee, and should be labeled as such wherever
    * it's surfaced.
    */
@@ -127,7 +127,7 @@ export interface YieldHistoryPoint {
 }
 
 /**
- * Yield-history series for a chart — one point per day. Derived from
+ * Yield-history series for a chart - one point per day. Derived from
  * YieldPosition rows directly rather than a separate time-series table:
  * each position's value grows monotonically from its deploy-time cost
  * basis to its current NAV-implied value, so this linearly interpolates
@@ -136,7 +136,7 @@ export interface YieldHistoryPoint {
  *
  * NOTE: this is a simplified reconstruction, not a true historical NAV
  * series. Once Circle exposes a USYC NAV-history endpoint, swap the
- * per-day interpolation below for real historical NAV lookups — nothing
+ * per-day interpolation below for real historical NAV lookups - nothing
  * else in this module needs to change (the function signature and
  * return shape stay the same).
  */
@@ -145,7 +145,7 @@ export async function getYieldHistory(
   ledgerAccountId: string,
   days = 30
 ): Promise<YieldHistoryPoint[]> {
-  await getBucket(orgId, ledgerAccountId); // ownership check — throws BucketNotFoundError if not owned
+  await getBucket(orgId, ledgerAccountId); // ownership check - throws BucketNotFoundError if not owned
 
   const [positions, nav] = await Promise.all([
     prisma.yieldPosition.findMany({ where: { ledgerAccountId } }),

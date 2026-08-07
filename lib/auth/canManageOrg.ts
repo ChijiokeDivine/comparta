@@ -1,14 +1,14 @@
 // lib/auth/canManageOrg.ts
 //
 // Authorization helpers for org-level settings, split into two tiers of
-// sensitivity — mirrors lib/auth/canManageBucket.ts's shape:
+// sensitivity - mirrors lib/auth/canManageBucket.ts's shape:
 //
 //   - Editing the org profile (legal name) follows the same OWNER/ADMIN
 //     bar as bucket management: routine administrative work.
 //   - Changing a teammate's role or removing them is OWNER-only. An
 //     ADMIN promoting themselves to OWNER, or removing the org's only
 //     OWNER, would be a privilege-escalation / lockout bug waiting to
-//     happen — so that entire class of action is reserved for OWNER,
+//     happen - so that entire class of action is reserved for OWNER,
 //     with no ADMIN exception.
 
 import type { AuthedContext } from "./kyb-gate";

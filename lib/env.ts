@@ -31,7 +31,7 @@ const envSchema = z.object({
   CIRCLE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
   // TokenId of USDC on Arc (for the wallet chain we use for transfers).
   // If not set, lib/circle/wallets.ts will attempt to look it up per-wallet
-  // from the Circle token-balances endpoint — but that's slow and flaky on
+  // from the Circle token-balances endpoint - but that's slow and flaky on
   // Arc testnet, so always prefer setting this explicitly.
   CIRCLE_USDC_TOKEN_ID: z.string().optional(),
 
@@ -52,11 +52,11 @@ const envSchema = z.object({
   // provider is integrated.
   ADMIN_API_SECRET: z.string().min(1, "ADMIN_API_SECRET is required"),
 
-  // Phase 9 — Spending Insights. Groq-hosted LLM inference (OpenAI-
-  // compatible chat completions via the `groq-sdk` package) — used for
+  // Phase 9 - Spending Insights. Groq-hosted LLM inference (OpenAI-
+  // compatible chat completions via the `groq-sdk` package) - used for
   // transaction categorization suggestions and natural-language query
   // translation. See lib/groq/client.ts. Only transaction METADATA
-  // (amounts, memos, display names, dates) is ever sent to this API —
+  // (amounts, memos, display names, dates) is ever sent to this API -
   // never raw addresses, account numbers, or entity secrets. Get a key
   // at https://console.groq.com.
   GROQ_API_KEY: z.string().min(1, "GROQ_API_KEY is required"),

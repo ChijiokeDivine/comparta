@@ -6,9 +6,9 @@
 //
 //   - CONFIRMED: flip OnchainTransaction.status, stamp confirmedAt. The
 //     ledger entry was already recorded at send time (see
-//     lib/transfers/send.ts) — nothing to change there.
+//     lib/transfers/send.ts) - nothing to change there.
 //   - FAILED: write an OFFSETTING CREDIT ledger entry equal to the
-//     original debit. The original debit is never deleted or updated —
+//     original debit. The original debit is never deleted or updated -
 //     the ledger is append-only; this is a correction, not a rewrite.
 //     Then flag the org for a "payment failed" notification.
 //
@@ -57,7 +57,7 @@ export async function confirmTransaction(onchainTransactionId: string): Promise<
   }
 
   if (onchainTx.status !== "PENDING") {
-    return; // already resolved — nothing to do
+    return; // already resolved - nothing to do
   }
 
   if (!onchainTx.circleTransactionId) {
@@ -78,7 +78,7 @@ export async function confirmTransaction(onchainTransactionId: string): Promise<
         txHash: status.txHash ?? onchainTx.txHash,
       },
     });
-    // Best-effort, post-commit follow-up — see lib/payroll/completion.ts.
+    // Best-effort, post-commit follow-up - see lib/payroll/completion.ts.
     // A no-op for any non-payroll transaction.
     await handlePayrollTransactionResolved(updated).catch((err) =>
       console.error(`[confirmTransaction] payroll completion hook failed for ${onchainTx.id}`, err)
@@ -103,7 +103,7 @@ async function handleFailedTransaction(onchainTransactionId: string): Promise<vo
     });
     if (!onchainTx || onchainTx.status !== "PENDING") return null; // already handled (idempotency)
 
-    // Find the original debit this send created, to reverse it exactly —
+    // Find the original debit this send created, to reverse it exactly -
     // never infer the amount independently.
     const originalDebit = await tx.ledgerEntry.findFirst({
       where: { referenceType: "ONCHAIN_TX", referenceId: onchainTransactionId, direction: "DEBIT" },
@@ -128,7 +128,7 @@ async function handleFailedTransaction(onchainTransactionId: string): Promise<vo
       );
     } else {
       console.error(
-        `[confirmTransaction] No original DEBIT entry found for failed tx ${onchainTransactionId} — nothing to reverse. Investigate.`
+        `[confirmTransaction] No original DEBIT entry found for failed tx ${onchainTransactionId} - nothing to reverse. Investigate.`
       );
     }
 
@@ -136,7 +136,7 @@ async function handleFailedTransaction(onchainTransactionId: string): Promise<vo
   });
 
   if (updated) {
-    // Best-effort, post-commit follow-up — see lib/payroll/completion.ts.
+    // Best-effort, post-commit follow-up - see lib/payroll/completion.ts.
     // A no-op for any non-payroll transaction.
     await handlePayrollTransactionResolved(updated).catch((err) =>
       console.error(`[confirmTransaction] payroll completion hook failed for ${onchainTransactionId}`, err)
@@ -147,7 +147,7 @@ async function handleFailedTransaction(onchainTransactionId: string): Promise<vo
 }
 
 /**
- * Placeholder notification hook — wire up to real email/in-app
+ * Placeholder notification hook - wire up to real email/in-app
  * notifications once that infra exists. Logging loudly in the meantime
  * so failures are at least visible in application logs.
  */

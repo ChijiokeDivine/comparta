@@ -4,14 +4,14 @@
 // checkout sessions (PaymentLinkPayment rows with method=WALLET and
 // status=PENDING). Called from lib/transfers/receive.ts for every inbound
 // transfer, ahead of the legacy invoice exact-amount heuristic
-// (lib/invoices/reconciliation.ts) — a payment-link match is more
+// (lib/invoices/reconciliation.ts) - a payment-link match is more
 // specific and, when clean, credits the LINK's chosen
 // receivingLedgerAccountId rather than the org's default bucket.
 //
 // Matching key: (orgId, method=WALLET, status=PENDING, amountExpected).
 // amountExpected is fixed at session-start (see lib/paymentLinks/checkout.ts),
 // so this is exact-amount matching against a much smaller, self-selected
-// candidate set than the invoice heuristic — but it is still a heuristic,
+// candidate set than the invoice heuristic - but it is still a heuristic,
 // not a true onchain reference/memo match (see the module-level note in
 // lib/invoices/reconciliation.ts for why: plain EOA-to-EOA USDC transfers
 // don't carry an application-level reference field). Concretely:
@@ -56,7 +56,7 @@ export type PaymentLinkReconcileResult =
  * inbound OnchainTransaction row, mirroring
  * lib/invoices/reconciliation.ts#reconcileInboundPaymentAgainstInvoices.
  * On a clean match, this ALSO performs the ledger credit + session/link
- * update (via confirmPaymentLinkPayment) — callers must NOT separately
+ * update (via confirmPaymentLinkPayment) - callers must NOT separately
  * credit the default ledger account when this returns "matched".
  */
 export async function reconcileWalletTransferAgainstPaymentLinks(
@@ -97,7 +97,7 @@ export async function reconcileWalletTransferAgainstPaymentLinks(
       orgId,
       onchainTransactionId,
       `Inbound wallet transfer of ${amount} matched ${exactMatches.length} open payment-link checkout ` +
-        `sessions with the same expected amount — ambiguous: ${exactMatches.map((m) => m.id).join(", ")}`
+        `sessions with the same expected amount - ambiguous: ${exactMatches.map((m) => m.id).join(", ")}`
     );
     return { kind: "ambiguous" };
   }
@@ -116,7 +116,7 @@ export async function reconcileWalletTransferAgainstPaymentLinks(
 
   if (openFixedAmountSessions.length === 1) {
     const session = openFixedAmountSessions[0]!;
-    // Funds are real and already at this org's custody address — credit
+    // Funds are real and already at this org's custody address - credit
     // the default flow will handle the ledger side (receive.ts credits
     // the org's default bucket for ANY non-matched inbound transfer,
     // which is correct here too: the money is sitting in the wallet and
@@ -131,7 +131,7 @@ export async function reconcileWalletTransferAgainstPaymentLinks(
         txId: onchainTransactionId,
         payerIdentifier: counterpartyAddress,
         confirmedAt: new Date(),
-        failureReason: `Received ${amount} but this checkout session expected a different fixed amount — rejected and queued for refund.`,
+        failureReason: `Received ${amount} but this checkout session expected a different fixed amount - rejected and queued for refund.`,
       },
     });
     return { kind: "wrong_amount_pending_refund", paymentLinkPaymentId: session.id, refundToAddress: counterpartyAddress };
@@ -142,7 +142,7 @@ export async function reconcileWalletTransferAgainstPaymentLinks(
       orgId,
       onchainTransactionId,
       `Inbound wallet transfer of ${amount} didn't match any open checkout session's expected amount, and ` +
-        `${openFixedAmountSessions.length} fixed-amount sessions are open concurrently — can't tell which one ` +
+        `${openFixedAmountSessions.length} fixed-amount sessions are open concurrently - can't tell which one ` +
         `it was meant for. Left for manual review.`
     );
     return { kind: "ambiguous" };
@@ -154,7 +154,7 @@ export async function reconcileWalletTransferAgainstPaymentLinks(
 /**
  * Submits the actual refund transaction for a WRONG_AMOUNT_REFUNDED
  * session. Called AFTER the transaction that recorded the inbound
- * transfer + WRONG_AMOUNT_REFUNDED status has committed — mirrors
+ * transfer + WRONG_AMOUNT_REFUNDED status has committed - mirrors
  * lib/transfers/send.ts's posture of submitting to Circle outside the DB
  * transaction that established the funds are there to send. Debits the
  * org's default ledger bucket (where the wrong-amount funds were credited
@@ -171,21 +171,21 @@ export async function issueWrongAmountRefund(
   });
   if (!session || session.status !== "WRONG_AMOUNT_REFUNDED" || !session.amountPaid || !session.payerIdentifier) {
     console.error(
-      `[paymentLinks] issueWrongAmountRefund called on session ${paymentLinkPaymentId} in an unexpected state — skipping.`
+      `[paymentLinks] issueWrongAmountRefund called on session ${paymentLinkPaymentId} in an unexpected state - skipping.`
     );
     return;
   }
 
   const wallet = session.paymentLink.organization.wallets[0];
   if (!wallet) {
-    console.error(`[paymentLinks] Org ${orgId} has no wallet — cannot refund session ${paymentLinkPaymentId}.`);
+    console.error(`[paymentLinks] Org ${orgId} has no wallet - cannot refund session ${paymentLinkPaymentId}.`);
     return;
   }
 
   const defaultLedgerAccountId = await resolveDefaultLedgerAccountId(orgId, wallet.id);
   if (!defaultLedgerAccountId) {
     console.error(
-      `[paymentLinks] Org ${orgId} has no default ledger account — cannot refund session ${paymentLinkPaymentId}.`
+      `[paymentLinks] Org ${orgId} has no default ledger account - cannot refund session ${paymentLinkPaymentId}.`
     );
     return;
   }
@@ -271,7 +271,7 @@ async function enqueueConfirmationPolling(label: string, onchainTransactionRefKe
   try {
     const queue = getQueue(QUEUE_NAMES.CONFIRM_TRANSACTION);
     // The confirmTransaction job keys off our local OnchainTransaction id,
-    // not Circle's — look it up by the idempotency key we just wrote.
+    // not Circle's - look it up by the idempotency key we just wrote.
     const tx = await prisma.onchainTransaction.findUnique({
       where: { idempotencyKey: label },
       select: { id: true },

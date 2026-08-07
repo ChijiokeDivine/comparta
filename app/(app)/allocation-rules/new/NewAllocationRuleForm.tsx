@@ -13,12 +13,12 @@ const RULE_TYPES = [
   {
     value: "PERCENTAGE",
     label: "Percentage",
-    hint: "Allocate a % of every incoming amount — e.g. 20 = 20%",
+    hint: "Allocate a % of every incoming amount - e.g. 20 = 20%",
   },
   {
     value: "FIXED_AMOUNT",
     label: "Fixed amount",
-    hint: "Allocate a specific USDC amount every time — e.g. 150.00",
+    hint: "Allocate a specific USDC amount every time - e.g. 150.00",
   },
 ] as const;
 

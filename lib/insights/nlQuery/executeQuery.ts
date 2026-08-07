@@ -2,7 +2,7 @@
 //
 // Turns an already-validated StructuredQueryFilter into a Prisma query.
 // This is the only function that touches the database for the NL-query
-// feature — it never receives raw text, only the zod-validated,
+// feature - it never receives raw text, only the zod-validated,
 // schema-constrained filter object from llmTranslate.ts. Every field on
 // the filter maps to a specific, fixed Prisma where-clause fragment;
 // there is no string concatenation into a query anywhere in this file.
@@ -28,7 +28,7 @@ export interface NlQueryTransactionResult {
 
 export interface NlQueryResult {
   transactions: NlQueryTransactionResult[];
-  totalAmount: string; // decimal string — sum of ALL matches, not just the returned page (see note below)
+  totalAmount: string; // decimal string - sum of ALL matches, not just the returned page (see note below)
   totalCount: number;
   resolvedRange: { from: string | null; to: string | null };
 }
@@ -36,7 +36,7 @@ export interface NlQueryResult {
 /**
  * Executes `filter` against OnchainTransaction, scoped to `orgId`.
  * totalAmount/totalCount reflect EVERY matching row (a separate
- * aggregate query), independent of `filter.limit` — so "how much did I
+ * aggregate query), independent of `filter.limit` - so "how much did I
  * pay contractors last quarter" answers correctly even if there were 300
  * matching transactions and only the first 50 are returned as the
  * detail list.
@@ -66,7 +66,7 @@ export async function executeStructuredQuery(
     };
   }
   if (filter.categoryName) {
-    // Only applies if the name matches a REAL category on this org —
+    // Only applies if the name matches a REAL category on this org -
     // resolved via a lookup, never trusted as a free-form string filter
     // (the DB-level filter is always by categoryId, never by name).
     const category = await prisma.transactionCategory.findFirst({
@@ -74,7 +74,7 @@ export async function executeStructuredQuery(
       select: { id: true },
     });
     // A categoryName that doesn't resolve to a real category returns zero
-    // results rather than silently ignoring the filter — the caller
+    // results rather than silently ignoring the filter - the caller
     // asked for a category, an unmatched category should look like "no
     // matches," not "showing everything."
     where.categorization = category ? { categoryId: category.id } : { categoryId: "__no_match__" };

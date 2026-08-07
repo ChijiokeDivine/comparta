@@ -3,7 +3,7 @@
 // The 7 curated SYSTEM categories every org gets, plus the idempotent
 // seeding function that ensures they exist. Called lazily (ensured, not
 // assumed) at the top of every entry point that needs an org's category
-// list — categorization, dashboard queries, NL query translation — so
+// list - categorization, dashboard queries, NL query translation - so
 // there's no separate "run this at org signup" step to forget to wire up.
 
 import { prisma } from "@/lib/db/prisma";
@@ -23,7 +23,7 @@ export type CuratedCategoryName = (typeof CURATED_CATEGORY_NAMES)[number];
 
 /**
  * Idempotent: creates any curated categories the org doesn't have yet.
- * Safe to call on every request that needs the category list — after the
+ * Safe to call on every request that needs the category list - after the
  * first call for an org, this is a single read plus a no-op write.
  * Uses createMany + skipDuplicates rather than upsert-per-name so a
  * concurrent double-call (two requests hitting this org's first-ever

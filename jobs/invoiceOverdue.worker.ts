@@ -1,8 +1,8 @@
 // jobs/invoiceOverdue.worker.ts
 //
 // Daily sweep: any SENT/VIEWED invoice past its dueDate flips to OVERDUE.
-// Reminder emails are rate-limited to three milestones — due date, +3
-// days, +7 days — then stop entirely, tracked via Invoice.reminderCount
+// Reminder emails are rate-limited to three milestones - due date, +3
+// days, +7 days - then stop entirely, tracked via Invoice.reminderCount
 // so a job that's late (ran a day behind, or double-fires) never sends a
 // milestone twice.
 //
@@ -31,7 +31,7 @@ export async function runInvoiceOverdueSweep(): Promise<OverdueSweepResult> {
 
   // 1. Flip anything SENT/VIEWED past its due date to OVERDUE. No
   // dedicated InvoiceEvent type exists for this per the Phase 3 spec's
-  // event enum — the status column itself is the record; reminder sends
+  // event enum - the status column itself is the record; reminder sends
   // below still log REMINDER_SENT events for the audit trail.
   const flip = await prisma.invoice.updateMany({
     where: { status: { in: ["SENT", "VIEWED"] }, dueDate: { lt: now } },
@@ -85,7 +85,7 @@ export async function runInvoiceOverdueSweep(): Promise<OverdueSweepResult> {
       remindersSent += 1;
     } catch (err) {
       console.error(`[invoiceOverdue] reminder failed for invoice ${invoice.id}`, err);
-      // Don't increment reminderCount on failure — retried on the next sweep.
+      // Don't increment reminderCount on failure - retried on the next sweep.
     }
   }
 

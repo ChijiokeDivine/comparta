@@ -4,11 +4,11 @@
 // CONFIRMED outbound transaction confirmed within the lookback window.
 // The lookback window is intentionally wider than the sweep interval
 // (default 6h lookback vs. an assumed ~hourly run) so a missed or slow
-// sweep cycle never permanently skips a transaction — detectAnomaliesForTransaction
+// sweep cycle never permanently skips a transaction - detectAnomaliesForTransaction
 // is idempotent (upserts on transaction+type), so re-checking the same
 // transaction across overlapping windows is always safe.
 //
-// Purely informational — never blocks, reverses, or holds any payment.
+// Purely informational - never blocks, reverses, or holds any payment.
 
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@/jobs/queue";

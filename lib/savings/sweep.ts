@@ -1,7 +1,7 @@
 // lib/savings/sweep.ts
 //
 // Fires SavingsRule the same way lib/allocationRules/engine.ts fires
-// AllocationRule — this module is the ONLY place that actually moves
+// AllocationRule - this module is the ONLY place that actually moves
 // money because of a SavingsRule. Three entry points, one per trigger:
 //
 //   - executeIncomingPaymentSavingsRules(): called from
@@ -11,7 +11,7 @@
 //   - executeOutgoingPaymentSavingsRules(): called from
 //     lib/transfers/send.ts AFTER an outbound payment has been debited,
 //     for every active ROUND_UP rule sourced from that bucket. This is
-//     the one trigger AllocationRule has no equivalent for — a round-up
+//     the one trigger AllocationRule has no equivalent for - a round-up
 //     rule only makes sense reacting to money LEAVING a bucket, not
 //     arriving.
 //   - runScheduledSavingsRules(): called from a daily worker (see
@@ -23,22 +23,22 @@
 // failing (floor-protected, insufficient balance) must never take the
 // payment that triggered it down with it. Multiple rules on the same
 // source execute sequentially, not in parallel, for the same reason
-// lib/allocationRules/engine.ts does — a floor/balance-constrained rule's
+// lib/allocationRules/engine.ts does - a floor/balance-constrained rule's
 // outcome depends on the balance left behind by any rule that ran before
 // it.
 //
 // Floor protection: every sweep amount is clamped so the SOURCE bucket's
 // balance never drops below LedgerAccount.minimumBalanceFloor. A sweep
 // that would otherwise move $50 but the floor only allows $30 moves $30,
-// not $0 and not $50 — never silently skipped when a partial sweep is
+// not $0 and not $50 - never silently skipped when a partial sweep is
 // still meaningful. A sweep clamped to exactly $0 is logged as
-// SKIPPED_FLOOR_PROTECTED, not FAILED — this isn't an error condition,
+// SKIPPED_FLOOR_PROTECTED, not FAILED - this isn't an error condition,
 // it's the floor doing its job.
 //
 // Yield deployment: after a successful sweep INTO a bucket with
 // isYieldEnabled=true, this module immediately calls
 // lib/savings/yield.ts#deployToYield for yieldAllocationPct of the
-// amount JUST swept in — never of the bucket's whole balance. Only the
+// amount JUST swept in - never of the bucket's whole balance. Only the
 // fresh inflow is deployed, so a manual internal transfer someone parked
 // in the bucket outside of a savings rule is left alone rather than
 // being auto-deployed out from under them.
@@ -154,7 +154,7 @@ async function executeSingleRule(
     // Best-effort and non-blocking for the sweep's own success: a deploy
     // failure leaves the funds sitting liquid in the savings bucket
     // (still fully credited, still fully the org's money) rather than
-    // failing the whole sweep — see lib/savings/yield.ts#deployToYield
+    // failing the whole sweep - see lib/savings/yield.ts#deployToYield
     // for how it reverses cleanly on its own failure.
     let yieldPositionId: string | undefined;
     const targetBucket = await prisma.ledgerAccount.findUnique({
@@ -209,7 +209,7 @@ async function executeSingleRule(
 export interface ExecuteIncomingPaymentSavingsRulesParams {
   orgId: string;
   sourceLedgerAccountId: string;
-  /** The amount that was just credited to sourceLedgerAccountId — PERCENTAGE_OF_INCOME rules are computed against this, not the account's resulting balance. */
+  /** The amount that was just credited to sourceLedgerAccountId - PERCENTAGE_OF_INCOME rules are computed against this, not the account's resulting balance. */
   creditedAmount: bigint;
   triggerReferenceType: LedgerReferenceType;
   triggerReferenceId: string;
@@ -217,7 +217,7 @@ export interface ExecuteIncomingPaymentSavingsRulesParams {
 
 /**
  * Call this AFTER committing the transaction that credited an inbound
- * payment to sourceLedgerAccountId. Fire-and-forget-safe: never throws —
+ * payment to sourceLedgerAccountId. Fire-and-forget-safe: never throws -
  * failures are logged to SavingsRuleExecution and returned in the
  * summary, not propagated. Intended call site: lib/transfers/receive.ts,
  * alongside executeIncomingPaymentAllocationRules.
@@ -278,12 +278,12 @@ export async function executeOutgoingPaymentSavingsRules(
 
   const summaries: SavingsExecutionSummary[] = [];
   for (const rule of rules) {
-    const roundUpUnit = rule.value; // smallest USDC unit — see lib/savings/service.ts#parseValueForTrigger
+    const roundUpUnit = rule.value; // smallest USDC unit - see lib/savings/service.ts#parseValueForTrigger
     if (roundUpUnit <= 0n) continue;
 
     const remainder = params.debitedAmount % roundUpUnit;
     // A payment that already lands on an exact multiple has nothing to
-    // round up — 0, not roundUpUnit (never sweep a "round up" on a
+    // round up - 0, not roundUpUnit (never sweep a "round up" on a
     // payment that needed no rounding).
     const amount = remainder === 0n ? 0n : roundUpUnit - remainder;
 
@@ -299,7 +299,7 @@ export async function executeOutgoingPaymentSavingsRules(
 // Minimal due-check, matching lib/allocationRules/engine.ts#isScheduledRuleDue
 // exactly: "has at least a day passed since this rule last ran (or since
 // creation, if never run)". Day-granularity only, since this is meant to
-// run from a once-daily worker — see that module's comment for the
+// run from a once-daily worker - see that module's comment for the
 // rationale, which applies identically here.
 function isScheduledRuleDue(rule: SavingsRule, now: Date): boolean {
   if (!rule.lastExecutedAt) return true;

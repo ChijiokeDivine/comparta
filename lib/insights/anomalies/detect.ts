@@ -1,10 +1,10 @@
 // lib/insights/anomalies/detect.ts
 //
 // Two lightweight, purely statistical checks against a single confirmed
-// outbound OnchainTransaction — no ML model, just trailing averages, per
+// outbound OnchainTransaction - no ML model, just trailing averages, per
 // the spec's "lightweight job" framing. Never blocks or reverses
 // anything; only ever creates an informational SpendingAnomaly row.
-// "Worth a second look," never an accusation — see the schema comment on
+// "Worth a second look," never an accusation - see the schema comment on
 // SpendingAnomaly.message for why the wording is baked in here rather
 // than left to a UI to phrase.
 
@@ -17,11 +17,11 @@ const TRAILING_WINDOW_DAYS = 90;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // A trailing average computed from fewer than this many prior
-// transactions isn't trustworthy enough to call anything "3x normal" —
+// transactions isn't trustworthy enough to call anything "3x normal" -
 // an org's 4th-ever outbound payment shouldn't get flagged just because
 // its 3 predecessors happened to be small. Below this sample size, the
 // LARGE_OUTFLOW check is skipped entirely (not flagged, not silently
-// "no anomaly" logged as a false negative — genuinely not enough data
+// "no anomaly" logged as a false negative - genuinely not enough data
 // to judge).
 const MIN_SAMPLE_SIZE_FOR_AVERAGE = 5;
 
@@ -30,7 +30,7 @@ const NEW_COUNTERPARTY_MULTIPLIER = 2;
 
 // Fallback flag for a new counterparty's first payment when the org has
 // NO trailing average at all yet (e.g. this is genuinely one of the
-// org's first several transactions) — an absolute floor so a brand-new
+// org's first several transactions) - an absolute floor so a brand-new
 // org's very first big payment can still be flagged rather than only
 // ever comparing against averages that don't exist yet. Smallest USDC
 // unit: 5,000.00 USDC.
@@ -42,7 +42,7 @@ export interface DetectAnomaliesResult {
 
 /**
  * Runs both checks against one transaction. Idempotent: upserts on
- * (onchainTransactionId, type) — safe to call more than once for the
+ * (onchainTransactionId, type) - safe to call more than once for the
  * same transaction (e.g. re-run by the sweep, or a manual re-check) with
  * no duplicate flags.
  */
@@ -72,7 +72,7 @@ export async function detectAnomaliesForTransaction(
         message:
           `This ${toDecimalString(tx.amount)} USDC payment to ${displayName} is about ` +
           `${multiplier.toFixed(1)}x your trailing 90-day average outflow of ` +
-          `${toDecimalString(trailingAverage)} USDC — worth a second look.`,
+          `${toDecimalString(trailingAverage)} USDC - worth a second look.`,
         transactionAmount: tx.amount,
         comparisonAmount: trailingAverage,
         multiplier,
@@ -101,9 +101,9 @@ export async function detectAnomaliesForTransaction(
       const displayName = await resolveCounterpartyDisplayName(orgId, tx.counterpartyAddress);
       const message =
         multiplier !== null
-          ? `The first-ever payment to ${displayName} was ${toDecimalString(tx.amount)} USDC — about ` +
-            `${multiplier.toFixed(1)}x your trailing 90-day average outflow — worth a second look before it becomes a pattern.`
-          : `The first-ever payment to ${displayName} was ${toDecimalString(tx.amount)} USDC — worth a second look before it becomes a pattern.`;
+          ? `The first-ever payment to ${displayName} was ${toDecimalString(tx.amount)} USDC - about ` +
+            `${multiplier.toFixed(1)}x your trailing 90-day average outflow - worth a second look before it becomes a pattern.`
+          : `The first-ever payment to ${displayName} was ${toDecimalString(tx.amount)} USDC - worth a second look before it becomes a pattern.`;
 
       const anomaly = await upsertAnomaly(orgId, tx.id, "NEW_COUNTERPARTY_LARGE_PAYMENT", {
         message,
@@ -180,7 +180,7 @@ async function upsertAnomaly(
   return prisma.spendingAnomaly.upsert({
     where: { onchainTransactionId_type: { onchainTransactionId, type } },
     create: { orgId, onchainTransactionId, type, ...fields },
-    // Deliberately don't touch `status` on update — if a user already
+    // Deliberately don't touch `status` on update - if a user already
     // DISMISSED this flag, a re-run of the sweep must never resurrect it
     // by resetting status back to OPEN. Only the message/comparison
     // numbers refresh (e.g. the trailing average shifted slightly).

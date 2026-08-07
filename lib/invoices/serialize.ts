@@ -3,7 +3,7 @@
 // Prisma's Invoice model stores subtotal/taxAmount/total as BigInt, which
 // JSON.stringify (and therefore NextResponse.json) cannot serialize
 // as-is. Every API route returning an Invoice must go through here first
-// — same convention as toDecimalString use in app/api/wallet/balance/route.ts.
+// - same convention as toDecimalString use in app/api/wallet/balance/route.ts.
 
 import { toDecimalString } from "@/lib/circle/amount";
 import type { Invoice, InvoiceEvent } from "@/app/generated/prisma/client";

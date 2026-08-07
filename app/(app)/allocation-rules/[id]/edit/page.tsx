@@ -197,7 +197,7 @@ export default function EditAllocationRulePage() {
         ) : (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
             <p className="text-sm text-amber-800">
-              Rules that have already fired at least once can&apos;t be deleted — deactivate instead.
+              Rules that have already fired at least once can&apos;t be deleted - deactivate instead.
             </p>
             <div className="flex gap-2">
               <button

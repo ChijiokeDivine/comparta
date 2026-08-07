@@ -2,7 +2,7 @@
 //
 // Translates a natural-language question into a StructuredQueryFilter
 // via Groq. This is the ONLY function in the codebase allowed to turn
-// free text into query parameters for this feature — everything
+// free text into query parameters for this feature - everything
 // downstream (lib/insights/nlQuery/executeQuery.ts) only ever accepts an
 // already-validated StructuredQueryFilter, never a raw string.
 //
@@ -26,7 +26,7 @@ export interface TranslateNlQueryInput {
   question: string;
   /** The org's current category names, so "contractors" maps to the org's actual category, not a guess. */
   availableCategories: string[];
-  /** Today's date, ISO — the LLM needs this to resolve nothing itself (relative ranges are resolved in code), but it helps the model reason about tense ("last quarter" vs "this quarter"). */
+  /** Today's date, ISO - the LLM needs this to resolve nothing itself (relative ranges are resolved in code), but it helps the model reason about tense ("last quarter" vs "this quarter"). */
   todayIso: string;
 }
 
@@ -49,9 +49,9 @@ export async function translateNlQuery(input: TranslateNlQueryInput): Promise<St
     `a structured JSON filter. Output ONLY a JSON object matching EXACTLY this shape (no extra fields, no prose):\n` +
     `${SCHEMA_DESCRIPTION}\n\n` +
     `Rules:\n` +
-    `- Set a field to null (or omit it) if the question didn't mention it — never guess a value.\n` +
+    `- Set a field to null (or omit it) if the question didn't mention it - never guess a value.\n` +
     `- "I paid" / "I sent" / money going out => direction "OUT". "I received" / "I was paid" => direction "IN".\n` +
-    `- Use relativeRange for anything relative to today ("${input.todayIso}") like "last quarter" or "this month" — never compute dateFrom/dateTo yourself for a relative phrase.\n` +
+    `- Use relativeRange for anything relative to today ("${input.todayIso}") like "last quarter" or "this month" - never compute dateFrom/dateTo yourself for a relative phrase.\n` +
     `- categoryName, if set, MUST be exactly one of these existing categories: ${input.availableCategories.map((c) => `"${c}"`).join(", ")}. If the question mentions a category-like word that doesn't match any of these, leave categoryName null instead of inventing one.\n` +
     `- "over $X" / "more than $X" => minAmount. "under $X" / "less than $X" => maxAmount.\n` +
     `- A person or company name mentioned as the payee/payer => counterpartyContains.`;

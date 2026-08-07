@@ -3,7 +3,7 @@
 // USDC has 6 decimals. Internally (Postgres, the ledger) every amount is a
 // bigint in the smallest unit ("micro-USDC") to avoid float rounding bugs.
 // Circle's API speaks decimal strings ("12.34"). These helpers are the only
-// place that conversion should happen — never sprinkle Number() math on
+// place that conversion should happen - never sprinkle Number() math on
 // money anywhere else in the codebase.
 
 const USDC_DECIMALS = 6;

@@ -6,11 +6,11 @@
 // the model choice and API key wiring only need to be correct in one
 // place.
 //
-// SECURITY / PRIVACY CONSTRAINT — applies to every caller of this
+// SECURITY / PRIVACY CONSTRAINT - applies to every caller of this
 // client, not just this file: NEVER send full account numbers, wallet
 // private keys, Circle entity secrets, or any other credential-shaped
 // value to the Groq API. Only transaction METADATA needed for the
-// specific task — amounts, memos, counterparty DISPLAY NAMES, dates —
+// specific task - amounts, memos, counterparty DISPLAY NAMES, dates -
 // ever leaves this codebase via this client. See
 // lib/insights/categorization/counterparty.ts for how a raw wallet
 // address is turned into a safe display name (truncated, never the full
@@ -32,7 +32,7 @@ export function getGroqClient(): Groq {
 // strong pick for structured-JSON tasks (categorization, NL-to-filter
 // translation) at Groq's characteristic low latency. If it's ever
 // deprecated/renamed on Groq's end, llama-3.3-70b-versatile is a solid
-// drop-in alternative — both are configured here as the single place to
+// drop-in alternative - both are configured here as the single place to
 // swap, rather than hardcoded per call site.
 export const GROQ_MODEL = "openai/gpt-oss-120b";
 

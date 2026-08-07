@@ -6,7 +6,7 @@
 //   1. Username format and Arc-address format never overlap. Addresses are
 //      always "0x" + 40 hex chars; usernames can never start with "0x".
 //      That prefix rule alone guarantees no valid username is ever
-//      confusable with a truncated/malformed address, and vice versa —
+//      confusable with a truncated/malformed address, and vice versa -
 //      lib/identity/resolver.ts relies on this to route without ambiguity.
 //   2. Lookups are always case-insensitive; usernames are normalized to
 //      lowercase before every comparison and before storage.
@@ -20,7 +20,7 @@ export class InvalidUsernameError extends Error {
   }
 }
 
-/** Lowercases and trims — the canonical form stored and compared everywhere. */
+/** Lowercases and trims - the canonical form stored and compared everywhere. */
 export function normalizeUsername(raw: string): string {
   return raw.trim().toLowerCase();
 }
@@ -28,7 +28,7 @@ export function normalizeUsername(raw: string): string {
 /**
  * Throws InvalidUsernameError with a specific, user-facing reason if the
  * (already-normalized) username fails format rules. Does NOT check
- * uniqueness or the denylist — see checkUsernameAvailable in resolver.ts's
+ * uniqueness or the denylist - see checkUsernameAvailable in resolver.ts's
  * caller (the claim route) for the full pipeline.
  */
 export function assertValidUsernameFormat(normalized: string): void {
@@ -37,7 +37,7 @@ export function assertValidUsernameFormat(normalized: string): void {
   }
   if (normalized.startsWith("0x")) {
     throw new InvalidUsernameError(
-      "Username cannot start with \"0x\" — that prefix is reserved for wallet addresses."
+      "Username cannot start with \"0x\" - that prefix is reserved for wallet addresses."
     );
   }
   if (!USERNAME_REGEX.test(normalized)) {
@@ -54,7 +54,7 @@ export function assertValidUsernameFormat(normalized: string): void {
  * "circle"), since a bare exact-match list is trivially bypassed with
  * padding characters.
  *
- * This is intentionally coarse for v1 — false positives are cheap (the
+ * This is intentionally coarse for v1 - false positives are cheap (the
  * person picks a different handle), false negatives are the expensive
  * failure mode (brand impersonation reaching real users).
  */
@@ -95,7 +95,7 @@ export function isUsernameDenylisted(normalized: string): boolean {
 /**
  * Full validation pipeline for a claim attempt: format, then denylist.
  * Throws InvalidUsernameError with a specific reason on any failure.
- * Does not check database uniqueness — that's a separate, DB-backed step
+ * Does not check database uniqueness - that's a separate, DB-backed step
  * in the claim route (format/denylist checks are cheap and synchronous;
  * uniqueness needs a query).
  */

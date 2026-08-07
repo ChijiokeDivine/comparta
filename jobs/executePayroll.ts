@@ -3,13 +3,13 @@
 // Executes an approved (PROCESSING) PayrollRun: iterates its
 // PayrollRunItem rows and calls sendPayment() for each, sourcing from
 // PayrollRun.sourceLedgerAccountId. This is the ONLY module that ever
-// moves money for payroll — lib/payroll/runs.ts gets a run to PROCESSING
+// moves money for payroll - lib/payroll/runs.ts gets a run to PROCESSING
 // and enqueues this job, but never calls sendPayment() itself.
 //
 // Sequential, not parallel, with per-item error isolation: one payee's
 // failed payment (bad identifier, provider error, mid-run balance race)
 // must never block or roll back the others. Each item gets its own
-// try/catch inside the loop — a thrown SendPaymentError is caught,
+// try/catch inside the loop - a thrown SendPaymentError is caught,
 // recorded on that item, and the loop moves on to the next payee.
 //
 // Idempotent / safe to re-run: items already in a terminal state (SENT,
@@ -44,7 +44,7 @@ export interface ExecutePayrollRunResult {
 
 /**
  * Advances one PayrollRunItem: submits sendPayment(), then records
- * SENT/txId or FAILED/failureReason. Never throws — failures are fully
+ * SENT/txId or FAILED/failureReason. Never throws - failures are fully
  * captured on the item so the caller's loop can move on unconditionally.
  */
 async function executeSingleItem(
@@ -95,7 +95,7 @@ async function executeSingleItem(
 
 /**
  * Executes every not-yet-terminal item on a PROCESSING run, sequentially.
- * Safe to call directly (not just via the queue) — e.g. for manual
+ * Safe to call directly (not just via the queue) - e.g. for manual
  * recovery after a failed enqueue (see lib/payroll/runs.ts#approveRun).
  */
 export async function executePayrollRun(payrollRunId: string): Promise<ExecutePayrollRunResult> {
@@ -110,9 +110,9 @@ export async function executePayrollRun(payrollRunId: string): Promise<ExecutePa
   }
 
   if (run.status !== "PROCESSING") {
-    // Already completed (or never approved) — idempotent no-op so a
+    // Already completed (or never approved) - idempotent no-op so a
     // duplicate/retried job never re-sends money.
-    console.log(`[executePayroll] run ${payrollRunId} is ${run.status}, not PROCESSING — skipping.`);
+    console.log(`[executePayroll] run ${payrollRunId} is ${run.status}, not PROCESSING - skipping.`);
     return { payrollRunId, itemsProcessed: 0, itemsSent: 0, itemsFailed: 0, itemsSkipped: run.items.length };
   }
 
@@ -122,8 +122,8 @@ export async function executePayrollRun(payrollRunId: string): Promise<ExecutePa
 
   for (const item of run.items) {
     if (item.identifierIssue) {
-      // Should never reach PROCESSING with an unresolved identifier —
-      // approveRun() blocks that — but guard defensively in case the
+      // Should never reach PROCESSING with an unresolved identifier -
+      // approveRun() blocks that - but guard defensively in case the
       // run was force-approved or the item was edited out of band.
       itemsSkipped++;
       continue;
@@ -155,7 +155,7 @@ export async function executePayrollRun(payrollRunId: string): Promise<ExecutePa
 
 /**
  * Manual retry for a single FAILED item (identifier issues are NOT
- * retryable here — fix the payee or remove the item from the run
+ * retryable here - fix the payee or remove the item from the run
  * instead). Resets the item and re-attempts sendPayment() in isolation,
  * without touching any other item on the run.
  */
@@ -194,7 +194,7 @@ export async function retryPayrollRunItem(orgId: string, payrollRunId: string, i
   );
 
   // If every item on the run is now terminal and the run had been left
-  // COMPLETED from a prior pass, no further action needed — COMPLETED
+  // COMPLETED from a prior pass, no further action needed - COMPLETED
   // already reflects "execution has finished", not "everything
   // succeeded". Nothing else to reconcile here.
   void outcome;

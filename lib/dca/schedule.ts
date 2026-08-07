@@ -7,7 +7,7 @@
 // equivalent for.
 //
 // UTC ALWAYS. Every date this module touches is treated as already being
-// in UTC (Date's own UTC* methods are used throughout) — converting a
+// in UTC (Date's own UTC* methods are used throughout) - converting a
 // user's local "every Friday at 9am" input into the correct UTC instant
 // is the API layer's job (see lib/dca/service.ts), not this module's.
 // nextExecutionDate is stored and compared in UTC everywhere in this

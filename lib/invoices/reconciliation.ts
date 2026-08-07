@@ -5,13 +5,13 @@
 //
 // Phase 4 note: once payment links exist, this should match by
 // paymentLinkId embedded in the transfer (unambiguous by construction).
-// Until then, this is a same-org + exact-amount heuristic — call sites
+// Until then, this is a same-org + exact-amount heuristic - call sites
 // (lib/transfers/receive.ts) invoke it for every confirmed inbound
 // transfer, and it deliberately no-ops for the common case where a
 // transfer isn't for any invoice at all (zero matches).
 //
 // v1 explicitly does NOT support partial payment. An inbound amount that
-// doesn't exactly match exactly one open invoice's total is left alone —
+// doesn't exactly match exactly one open invoice's total is left alone -
 // either it's an unrelated payment (zero matches, normal) or it's an
 // overpayment/underpayment/ambiguous-duplicate-amount case (one or more
 // candidates matched by nothing this simple, or too many matched)
@@ -52,14 +52,14 @@ export async function reconcileInboundPaymentAgainstInvoices(
   });
 
   if (candidates.length === 0) {
-    return { matched: false }; // ordinary payment, not tied to any invoice — not an error
+    return { matched: false }; // ordinary payment, not tied to any invoice - not an error
   }
 
   if (candidates.length > 1) {
     await flagPaymentForManualReconciliation(
       orgId,
       onchainTransactionId,
-      `Inbound transfer of ${amount} matched ${candidates.length} open invoices with the same total — ` +
+      `Inbound transfer of ${amount} matched ${candidates.length} open invoices with the same total - ` +
         `ambiguous, needs manual reconciliation: ${candidates.map((c) => c.id).join(", ")}`
     );
     return { matched: false };
@@ -73,8 +73,8 @@ export async function reconcileInboundPaymentAgainstInvoices(
 
 /**
  * Flips a specific, already-identified invoice to PAID. Extracted so
- * callers that already know the exact invoice — no amount-matching
- * heuristic needed — can reuse the same write path rather than
+ * callers that already know the exact invoice - no amount-matching
+ * heuristic needed - can reuse the same write path rather than
  * duplicating it. Used by reconcileInboundPaymentAgainstInvoices above
  * (heuristic match) and by lib/paymentLinks/completion.ts (unambiguous
  * match via a payment link's checkout session).

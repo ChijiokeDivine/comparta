@@ -3,12 +3,12 @@
 // Short-TTL cache in front of Circle's USYC NAV / yield-rate endpoints
 // (lib/circle/usyc.ts). Backed by the same Redis connection jobs/queue.ts
 // and lib/rateLimit.ts already maintain, so the cache is shared across
-// every Next.js server instance — one Circle API call serves every
+// every Next.js server instance - one Circle API call serves every
 // request within the TTL window, not just requests hitting the same
 // process.
 //
 // NEVER call lib/circle/usyc.ts's getUsycNav / getUsycYieldRate directly
-// from a request handler — always go through here, or a busy dashboard
+// from a request handler - always go through here, or a busy dashboard
 // hits Circle's API on every single page load (the exact problem this
 // module exists to prevent, per the product requirement).
 
@@ -20,13 +20,13 @@ const YIELD_RATE_CACHE_KEY = "usyc:yield-rate";
 
 // Short enough that displayed figures never drift far from reality, long
 // enough that a busy dashboard doesn't hammer Circle's API. Tune per your
-// own latency/freshness tradeoff — nothing else in this module needs to
+// own latency/freshness tradeoff - nothing else in this module needs to
 // change if you do.
 const CACHE_TTL_SECONDS = 300; // 5 minutes
 
 interface CachedUsycNav {
   navPerShare: string;
-  asOf: string; // ISO string — Date doesn't survive JSON round-trip
+  asOf: string; // ISO string - Date doesn't survive JSON round-trip
 }
 
 interface CachedUsycYieldRate {
@@ -66,7 +66,7 @@ export async function getCachedUsycYieldRate(): Promise<UsycYieldRate> {
   return rate;
 }
 
-/** Force-invalidates both caches — for tests, or an admin "refresh now" action if you ever want one. Never call this from a normal request path. */
+/** Force-invalidates both caches - for tests, or an admin "refresh now" action if you ever want one. Never call this from a normal request path. */
 export async function invalidateUsycRateCache(): Promise<void> {
   const redis = getRawRedisClient();
   await redis.del(NAV_CACHE_KEY, YIELD_RATE_CACHE_KEY);

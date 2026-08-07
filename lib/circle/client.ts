@@ -2,7 +2,7 @@
 //
 // Singleton wrapper around Circle's Developer-Controlled Wallets SDK.
 //
-// SECURITY NOTE — READ BEFORE TOUCHING THIS FILE:
+// SECURITY NOTE - READ BEFORE TOUCHING THIS FILE:
 // CIRCLE_ENTITY_SECRET is the single point of catastrophic failure for this
 // entire product. Anyone who has it (plus your API key) can move every
 // dollar sitting in every org's Arc wallet. It must:
@@ -11,12 +11,12 @@
 //   - NEVER be committed to git, logged, returned from an API route, or
 //     stored in Postgres in plaintext
 //   - be paired with the recovery file you generated during entity-secret
-//     registration (registerEntitySecretCiphertext) — store that file
+//     registration (registerEntitySecretCiphertext) - store that file
 //     offline/encrypted, it's your only recovery path if the secret is lost
 //
 // The SDK itself takes care of encrypting the entity secret into a fresh
 // entitySecretCiphertext (RSA-encrypted against Circle's public key) on
-// every single write call — you do not need to, and should not, roll your
+// every single write call - you do not need to, and should not, roll your
 // own ciphertext generation. That's handled inside
 // initiateDeveloperControlledWalletsClient.
 
@@ -34,7 +34,7 @@ const globalForCircle = globalThis as unknown as {
  * for whichever environment (sandbox/production) CIRCLE_ENVIRONMENT points
  * at. The underlying API key already encodes test vs. live
  * (TEST_API_KEY:... vs LIVE_API_KEY:...) so there is nothing else to switch
- * here — we just fail loudly if the two are inconsistent.
+ * here - we just fail loudly if the two are inconsistent.
  */
 export function getCircleClient(): CircleClient {
   if (globalForCircle.circleClient) return globalForCircle.circleClient;

@@ -1,6 +1,6 @@
 // lib/payroll/identifier.ts
 //
-// Identifier normalization for Payee.identifier — deliberately mirrors
+// Identifier normalization for Payee.identifier - deliberately mirrors
 // lib/contacts/service.ts#normalizeIdentifier (same username-vs-address
 // inference rules as lib/identity/resolver.ts) rather than importing it,
 // since Contact and Payee are separate rows with separate validation
@@ -24,11 +24,11 @@ export class PayeeIdentifierFormatError extends Error {
  * Normalizes a raw identifier into its canonical stored form and infers
  * its type. Throws PayeeIdentifierFormatError if the identifier is
  * shaped like neither a valid username nor a valid address. This is a
- * pure format check — it does NOT check whether the identifier actually
+ * pure format check - it does NOT check whether the identifier actually
  * resolves to a live account/wallet right now; use
  * lib/identity/resolver.ts#resolve for that (called at payroll
  * run-generation time, not here, since resolvability can change after a
- * Payee is created — see the identifierIssue flag on PayrollRunItem).
+ * Payee is created - see the identifierIssue flag on PayrollRunItem).
  */
 export function normalizePayeeIdentifier(raw: string): { identifier: string; identifierType: IdentifierType } {
   const trimmed = raw.trim();

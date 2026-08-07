@@ -1,7 +1,7 @@
 // lib/insights/anomalies/service.ts
 //
 // Read/dismiss operations for SpendingAnomaly. Detection itself (writing
-// rows) lives entirely in lib/insights/anomalies/detect.ts — this module
+// rows) lives entirely in lib/insights/anomalies/detect.ts - this module
 // never creates or recomputes an anomaly, only surfaces and dismisses
 // existing ones.
 
@@ -27,7 +27,7 @@ export async function listAnomalies(
   });
 }
 
-/** Not blocking, not an accusation — dismiss just clears it from the "worth a second look" list. Never resurrected by a later detection sweep re-run (see detect.ts#upsertAnomaly). */
+/** Not blocking, not an accusation - dismiss just clears it from the "worth a second look" list. Never resurrected by a later detection sweep re-run (see detect.ts#upsertAnomaly). */
 export async function dismissAnomaly(orgId: string, anomalyId: string): Promise<SpendingAnomaly> {
   const anomaly = await prisma.spendingAnomaly.findFirst({ where: { id: anomalyId, orgId } });
   if (!anomaly) throw new AnomalyNotFoundError();

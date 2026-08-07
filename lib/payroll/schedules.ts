@@ -3,7 +3,7 @@
 // CRUD for PayrollSchedule, plus the pure date-math for advancing
 // nextRunDate by a frequency interval (used by lib/payroll/scheduler.ts
 // after each successful auto-generated run). This module never touches
-// PayrollRun/PayrollRunItem or moves money — see lib/payroll/scheduler.ts
+// PayrollRun/PayrollRunItem or moves money - see lib/payroll/scheduler.ts
 // and lib/payroll/runs.ts for that.
 
 import { prisma } from "@/lib/db/prisma";
@@ -139,7 +139,7 @@ export async function listPayrollSchedules(
   });
 }
 
-/** Convenience wrapper — pauses future auto-generation without deleting history. */
+/** Convenience wrapper - pauses future auto-generation without deleting history. */
 export async function deactivatePayrollSchedule(orgId: string, scheduleId: string): Promise<PayrollSchedule> {
   return updatePayrollSchedule(orgId, scheduleId, { active: false });
 }

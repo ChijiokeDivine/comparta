@@ -47,7 +47,7 @@ function parsePercentageToBasisPoints(raw: string): bigint {
   const [wholePart, fracPartRaw = ""] = trimmed.split(".");
   if (fracPartRaw.length > 2) {
     throw new AllocationRuleValidationError(
-      `"${raw}" — percentages support at most 2 decimal places (0.01% granularity).`
+      `"${raw}" - percentages support at most 2 decimal places (0.01% granularity).`
     );
   }
   const fracPart = fracPartRaw.padEnd(2, "0");
@@ -90,7 +90,7 @@ function parseValueForType(ruleType: AllocationRuleType, rawValue: string): bigi
 /**
  * Throws if adding/updating a PERCENTAGE rule would push the active
  * percentage total for (orgId, sourceLedgerAccountId, trigger) above
- * 100%. Only PERCENTAGE + active rules count toward the budget —
+ * 100%. Only PERCENTAGE + active rules count toward the budget -
  * FIXED_AMOUNT rules aren't percentage-of-incoming and aren't included.
  * `excludeRuleId` lets an update re-check the budget as if the rule being
  * edited didn't already exist (so shrinking or editing a rule's own value
@@ -205,7 +205,7 @@ export async function createAllocationRule(input: CreateAllocationRuleInput): Pr
 // ── update ──────────────────────────────────────────────────────────────
 
 export interface UpdateAllocationRuleInput {
-  value?: string; // re-parsed against the rule's existing ruleType — ruleType itself is immutable, see note below
+  value?: string; // re-parsed against the rule's existing ruleType - ruleType itself is immutable, see note below
   active?: boolean;
   priority?: number;
   name?: string;
@@ -226,7 +226,7 @@ export async function updateAllocationRule(
 
     // Only re-check the budget when the rule will be active with a
     // PERCENTAGE type and either its value changed or it's being
-    // (re)activated — an update that only touches priority/name on an
+    // (re)activated - an update that only touches priority/name on an
     // already-valid active rule doesn't need to re-run the check.
     const valueChanged = nextValue !== rule.value;
     const reactivating = nextActive && !rule.active;
@@ -259,14 +259,14 @@ export async function updateAllocationRule(
 
 // ── delete / deactivate ────────────────────────────────────────────────
 
-/** Convenience wrapper — the common case of turning a rule off without deleting its history. */
+/** Convenience wrapper - the common case of turning a rule off without deleting its history. */
 export async function deactivateAllocationRule(orgId: string, ruleId: string): Promise<AllocationRule> {
   return updateAllocationRule(orgId, ruleId, { active: false });
 }
 
 /**
  * Hard-deletes a rule that has never fired. A rule with execution history
- * is kept for audit purposes — deactivate it instead (AllocationRuleExecution
+ * is kept for audit purposes - deactivate it instead (AllocationRuleExecution
  * rows FK to AllocationRule and are themselves append-only, so deleting a
  * rule with history would either cascade-delete audit rows or fail the FK;
  * neither is acceptable, so this function refuses instead).

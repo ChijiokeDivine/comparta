@@ -1,7 +1,7 @@
 // lib/payroll/serialize.ts
 //
 // Payee.defaultAmount, PayrollRun.totalAmount, and PayrollRunItem.amount
-// are all bigint (smallest USDC unit) — same JSON-serialization problem
+// are all bigint (smallest USDC unit) - same JSON-serialization problem
 // as every other money-adjacent bigint in this codebase (see
 // lib/allocationRules/serialize.ts, lib/paymentLinks/serialize.ts).
 // Every API route returning one of these rows must go through here

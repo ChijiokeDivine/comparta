@@ -1,8 +1,8 @@
 // lib/transfers/send.ts
 //
 // The generic outbound transfer primitive. Every feature that moves money
-// out of an org's wallet — a manual send, an invoice payout, a payroll
-// run, a DCA execution — calls sendPayment() rather than talking to the
+// out of an org's wallet - a manual send, an invoice payout, a payroll
+// run, a DCA execution - calls sendPayment() rather than talking to the
 // ledger engine or Circle directly. Keeping this in one place means
 // balance-checking, idempotency, and the debit-then-poll-then-reconcile
 // flow only need to be correct once.
@@ -10,13 +10,13 @@
 // Flow:
 //   1. resolve toIdentifier -> destination address (lib/identity/resolver)
 //   2. reject sending to yourself
-//   3. validate amount (positive, <=6 decimals — reject, never silently round)
+//   3. validate amount (positive, <=6 decimals - reject, never silently round)
 //   4. check fromLedgerAccountId has sufficient balance (fast-fail; the
 //      real atomic guard is still recordEntry's row lock in step 6)
 //   5. submit the transfer to Circle (idempotency key protects against
 //      double-submission even if this function is retried)
 //   6. in a single DB transaction: write the OnchainTransaction (PENDING)
-//      row and debit the ledger account via recordEntry — the ledger
+//      row and debit the ledger account via recordEntry - the ledger
 //      debits immediately, not on confirmation; Arc's sub-second finality
 //      keeps the unconfirmed-but-debited window tiny, and the confirmation
 //      poller reverses it if the transfer ultimately fails
@@ -24,7 +24,7 @@
 //
 // If step 6 fails after step 5 succeeded (funds left Circle but our DB
 // write didn't land), that's logged as CRITICAL for manual reconciliation
-// against Circle's own transaction records — the same partial-failure
+// against Circle's own transaction records - the same partial-failure
 // pattern used in the KYB-approval wallet provisioning flow.
 
 import { randomUUID } from "node:crypto";
@@ -34,8 +34,8 @@ import { recordEntry, getBalance, InsufficientBalanceError as LedgerInsufficient
 import { sendTransaction as circleSendTransaction, CircleApiError } from "@/lib/circle/wallets";
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
 import { touchContactLastPaid } from "@/lib/contacts/service";
-// Phase 7 — Smart Savings: ROUND_UP SavingsRules fire on the outbound
-// debit — the one trigger AllocationRule has no equivalent for. See
+// Phase 7 - Smart Savings: ROUND_UP SavingsRules fire on the outbound
+// debit - the one trigger AllocationRule has no equivalent for. See
 // lib/savings/sweep.ts's module docstring for why this lives here
 // rather than on the inbound side.
 import { executeOutgoingPaymentSavingsRules } from "@/lib/savings/sweep";
@@ -82,7 +82,7 @@ export interface SendPaymentResult {
 
 export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentResult> {
   // 1. Resolve recipient. Resolver failures get a specific, user-facing
-  // message rather than a generic "something went wrong" — the person
+  // message rather than a generic "something went wrong" - the person
   // needs to know whether it was a typo, an unclaimed username, or a
   // malformed address.
   let resolved: Awaited<ReturnType<typeof resolve>>;
@@ -95,7 +95,7 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
     throw err;
   }
 
-  // 2. Reject self-send — comparing resolved org, not raw identifier
+  // 2. Reject self-send - comparing resolved org, not raw identifier
   // string, so this also catches "send to my own address" and "send to
   // my own username" cases the same way.
   if (resolved.orgId && resolved.orgId === input.orgId) {
@@ -103,7 +103,7 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
   }
 
   // 3. Validate amount: positive, at most 6 decimal places. Reject
-  // outright rather than rounding — silently truncating a user-entered
+  // outright rather than rounding - silently truncating a user-entered
   // amount is exactly the kind of surprise that erodes trust in a
   // payments product.
   let amountSmallestUnit: bigint;
@@ -142,7 +142,7 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
 
   // 5. Submit to Circle. CircleApiError's raw message may contain
   // provider-internal detail (endpoint names, request ids) that
-  // shouldn't reach end users — wrap it in a generic message instead.
+  // shouldn't reach end users - wrap it in a generic message instead.
   let circleResult: Awaited<ReturnType<typeof circleSendTransaction>>;
   try {
     circleResult = await circleSendTransaction(
@@ -164,7 +164,7 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
 
   // 6. Persist the transaction + debit the ledger together. The Circle
   // call already succeeded and is idempotency-keyed, so if this DB
-  // transaction fails, funds have left custody without a local record —
+  // transaction fails, funds have left custody without a local record -
   // that's the partial-failure case the edge cases call out explicitly.
   try {
     const { onchainTx } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -199,18 +199,18 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
       return { onchainTx: createdTx };
     });
 
-    // 7. Enqueue confirmation polling — best-effort; a missed enqueue
+    // 7. Enqueue confirmation polling - best-effort; a missed enqueue
     // here doesn't lose money (the transaction still exists in PENDING
     // and a periodic sweep can pick it up), so failures here are logged,
     // not thrown.
     await enqueueConfirmationPolling(onchainTx.id);
 
-    // Best-effort address-book denormalization — never block the send on this.
+    // Best-effort address-book denormalization - never block the send on this.
     touchContactLastPaid(input.orgId, input.toIdentifier.trim()).catch(() => {});
 
-    // Phase 7 — Smart Savings: ROUND_UP rules sourced from this same
+    // Phase 7 - Smart Savings: ROUND_UP rules sourced from this same
     // bucket. Post-commit, best-effort, same posture as every other
-    // rule-engine hook in this codebase — a savings sweep failing must
+    // rule-engine hook in this codebase - a savings sweep failing must
     // never affect (or be affected by) the outbound payment that already
     // debited successfully.
     executeOutgoingPaymentSavingsRules({
@@ -232,7 +232,7 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
     };
   } catch (err) {
     if (err instanceof LedgerInsufficientBalanceError) {
-      // Lost the race between the fast-fail check and the atomic debit —
+      // Lost the race between the fast-fail check and the atomic debit -
       // extremely rare (another concurrent send drained the balance in
       // between) but must surface clearly rather than as a 500. Funds
       // were already submitted to Circle at this point; this needs
@@ -253,7 +253,7 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
       err
     );
     throw new SendPaymentError(
-      "This payment may have been submitted but we couldn't confirm it locally. Our team has been notified — please don't retry until you hear back.",
+      "This payment may have been submitted but we couldn't confirm it locally. Our team has been notified - please don't retry until you hear back.",
       "PROVIDER_ERROR"
     );
   }

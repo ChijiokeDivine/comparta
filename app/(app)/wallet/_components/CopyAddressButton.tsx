@@ -12,7 +12,7 @@ export default function CopyAddressButton({ address }: { address: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // clipboard API unavailable — silently no-op, nothing financial at stake
+      // clipboard API unavailable - silently no-op, nothing financial at stake
     }
   }
 

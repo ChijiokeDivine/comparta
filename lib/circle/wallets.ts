@@ -2,7 +2,7 @@
 //
 // Thin, typed functions over the Circle Developer-Controlled Wallets SDK.
 // This is the ONLY module in the codebase allowed to call the Circle SDK
-// directly for wallet/transaction operations — everything else (API
+// directly for wallet/transaction operations - everything else (API
 // routes, jobs) should go through these functions so custody logic stays
 // in one place.
 
@@ -40,7 +40,7 @@ async function getOrCreateWalletSet(): Promise<string> {
     throw new CircleApiError("Circle createWalletSet returned no wallet set id");
   }
   console.warn(
-    `[circle] No CIRCLE_WALLET_SET_ID configured — created wallet set ${id}. ` +
+    `[circle] No CIRCLE_WALLET_SET_ID configured - created wallet set ${id}. ` +
       `Persist this into your env config to avoid creating a new one on every cold start.`
   );
   cachedWalletSetId = id;
@@ -134,7 +134,7 @@ async function resolveUsdcTokenId(circleWalletId: string): Promise<string> {
   const usdc = balances.find((b) => b.tokenSymbol === "USDC");
   if (!usdc?.tokenId) {
     throw new CircleApiError(
-      `Could not resolve USDC tokenId for wallet ${circleWalletId} — set CIRCLE_USDC_TOKEN_ID explicitly.`
+      `Could not resolve USDC tokenId for wallet ${circleWalletId} - set CIRCLE_USDC_TOKEN_ID explicitly.`
     );
   }
   return usdc.tokenId;
@@ -147,7 +147,7 @@ export interface SendResult {
 
 /**
  * Sends USDC from a Comparta-custodied wallet to an arbitrary Arc address.
- * `amount` is a bigint in micro-USDC (smallest unit) — this function does
+ * `amount` is a bigint in micro-USDC (smallest unit) - this function does
  * the decimal-string conversion Circle's API expects, so callers never
  * touch float math on money.
  *

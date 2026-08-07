@@ -3,7 +3,7 @@
 // Payment link business logic: creation, listing/management, and status
 // transitions. Mirrors the shape of lib/invoices/service.ts and
 // lib/contacts/service.ts. The public (unauthenticated) checkout view
-// lives in lib/paymentLinks/checkout.ts, not here — this module is the
+// lives in lib/paymentLinks/checkout.ts, not here - this module is the
 // merchant-facing side.
 
 import { prisma } from "@/lib/db/prisma";
@@ -33,7 +33,7 @@ export class PaymentLinkStateError extends Error {
 }
 
 // A payer never sees $0.00 or a fractional-cent amount presented as
-// "free" — mirrors the floor used elsewhere for money validation.
+// "free" - mirrors the floor used elsewhere for money validation.
 const MIN_AMOUNT_SMALLEST_UNIT = 1n;
 
 export interface CreatePaymentLinkInput {
@@ -188,7 +188,7 @@ export async function getPaymentLinkWithUsage(orgId: string, id: string): Promis
   return { link, confirmedPaymentCount: confirmed.length, totalCollected, payments };
 }
 
-/** Pauses an ACTIVE link — payer-facing checkout starts returning "unavailable". Idempotent. */
+/** Pauses an ACTIVE link - payer-facing checkout starts returning "unavailable". Idempotent. */
 export async function pausePaymentLink(orgId: string, id: string): Promise<PaymentLink> {
   const link = await getPaymentLink(orgId, id);
   if (link.status === "EXPIRED") {
@@ -202,13 +202,13 @@ export async function pausePaymentLink(orgId: string, id: string): Promise<Payme
 // Invoice integration (replaces lib/paymentLinks/stub.ts from Phase 3)
 // ─────────────────────────────────────────────────────────────────────────
 
-/** Grace period past an invoice's dueDate during which its payment link still accepts payment (an overdue invoice is still payable — see jobs/invoiceOverdue.worker.ts, which never voids on its own). */
+/** Grace period past an invoice's dueDate during which its payment link still accepts payment (an overdue invoice is still payable - see jobs/invoiceOverdue.worker.ts, which never voids on its own). */
 const INVOICE_LINK_GRACE_PERIOD_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
 /**
  * Creates a single-use, amount-locked PaymentLink for a just-created
  * invoice. Called from lib/invoices/service.ts#createInvoice, which
- * treats a null/thrown result as non-fatal (see that module) — the
+ * treats a null/thrown result as non-fatal (see that module) - the
  * public invoice page falls back to the direct-address flow if this
  * never runs or fails.
  *
@@ -224,7 +224,7 @@ export async function createPaymentLinkForInvoice(input: {
   dueDate: Date;
 }): Promise<string | null> {
   if (input.currency !== "USDC") {
-    // Only USDC settles onchain today (see lib/invoices/service.ts) — a
+    // Only USDC settles onchain today (see lib/invoices/service.ts) - a
     // payment link for a currency we can't actually settle would be
     // actively misleading, so skip it rather than create a broken link.
     return null;
@@ -233,7 +233,7 @@ export async function createPaymentLinkForInvoice(input: {
   const receivingLedgerAccountId = await resolveOrgDefaultLedgerAccountId(input.orgId);
   if (!receivingLedgerAccountId) {
     console.error(
-      `[paymentLinks] Org ${input.orgId} has no default/Operating ledger account — cannot create ` +
+      `[paymentLinks] Org ${input.orgId} has no default/Operating ledger account - cannot create ` +
         `payment link for invoice ${input.invoiceId}.`
     );
     return null;
@@ -281,7 +281,7 @@ export async function resumePaymentLink(orgId: string, id: string): Promise<Paym
 
   // Resuming a link whose expiresAt has already passed would just have it
   // get swept back to EXPIRED on the next run of
-  // jobs/paymentLinkExpiry.worker.ts — reject explicitly instead of
+  // jobs/paymentLinkExpiry.worker.ts - reject explicitly instead of
   // giving false confidence that the link is payable right now.
   if (link.expiresAt && link.expiresAt <= new Date()) {
     throw new PaymentLinkStateError("This link's expiry date has passed. Create a new one instead.");

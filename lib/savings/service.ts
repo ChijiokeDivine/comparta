@@ -3,14 +3,14 @@
 // CRUD + validation for SavingsRule, plus enabling/configuring yield on a
 // bucket (LedgerAccount.isYieldEnabled / yieldAllocationPct /
 // minimumBalanceFloor). Execution (actually sweeping money, deploying to
-// USYC) lives in lib/savings/sweep.ts and lib/savings/yield.ts — this
+// USYC) lives in lib/savings/sweep.ts and lib/savings/yield.ts - this
 // module only ever reads/writes rule and bucket-config rows.
 //
 // Side-effect registration below: this feature's bucket-archive
 // dependency checks (active SavingsRule referencing the bucket as
 // source/target, ACTIVE YieldPosition still holding deployed capital)
 // are registered against the shared registry in
-// lib/buckets/dependencies.ts — same pattern
+// lib/buckets/dependencies.ts - same pattern
 // lib/buckets/builtinDependencyCheckers.ts uses for its own checks (see
 // that file's header for why the registration lives here instead of in
 // lib/buckets/ itself: buckets/service.ts should never need to import
@@ -36,7 +36,7 @@ registerBucketDependencyChecker(async (orgId, ledgerAccountId) => {
 registerBucketDependencyChecker(async (_orgId, ledgerAccountId) => {
   const count = await prisma.yieldPosition.count({ where: { ledgerAccountId, status: "ACTIVE" } });
   return count > 0
-    ? { label: `${count} active USYC position(s) still deployed — redeem to USDC first`, count }
+    ? { label: `${count} active USYC position(s) still deployed - redeem to USDC first`, count }
     : null;
 });
 
@@ -62,7 +62,7 @@ export interface SetBucketYieldConfigInput {
   isYieldEnabled: boolean;
   /** "80" = deploy 80% of every fresh sweep into USYC, keep 20% liquid. Required iff isYieldEnabled=true. */
   yieldAllocationPct?: string;
-  /** Decimal USDC string — the floor this bucket must never be swept below by a savings/allocation rule. Optional; omit to leave unchanged. */
+  /** Decimal USDC string - the floor this bucket must never be swept below by a savings/allocation rule. Optional; omit to leave unchanged. */
   minimumBalanceFloor?: string;
 }
 
@@ -81,7 +81,7 @@ function parsePercentageToBps(raw: string): number {
 /**
  * Enables/disables yield on a bucket and/or updates its target USYC
  * allocation percentage and minimum balance floor. A bucket must have
- * yield enabled before any SavingsRule can target it — see
+ * yield enabled before any SavingsRule can target it - see
  * createSavingsRule below.
  */
 export async function setBucketYieldConfig(
@@ -228,7 +228,7 @@ export async function createSavingsRule(input: CreateSavingsRuleInput): Promise<
 // ── update ──────────────────────────────────────────────────────────────
 
 export interface UpdateSavingsRuleInput {
-  value?: string; // re-parsed against the rule's existing trigger — trigger itself is immutable
+  value?: string; // re-parsed against the rule's existing trigger - trigger itself is immutable
   active?: boolean;
   scheduleCron?: string;
   name?: string;
@@ -259,7 +259,7 @@ export async function updateSavingsRule(
   });
 }
 
-/** Convenience wrapper — the common case of turning a rule off without deleting its history. */
+/** Convenience wrapper - the common case of turning a rule off without deleting its history. */
 export async function deactivateSavingsRule(orgId: string, ruleId: string): Promise<SavingsRule> {
   return updateSavingsRule(orgId, ruleId, { active: false });
 }
@@ -268,7 +268,7 @@ export async function deactivateSavingsRule(orgId: string, ruleId: string): Prom
 
 /**
  * Hard-deletes a rule that has never fired. A rule with execution history
- * is kept for audit purposes — deactivate it instead (SavingsRuleExecution
+ * is kept for audit purposes - deactivate it instead (SavingsRuleExecution
  * rows FK to SavingsRule and are themselves append-only, mirroring
  * lib/allocationRules/service.ts#deleteAllocationRule's exact reasoning).
  */

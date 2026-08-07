@@ -3,7 +3,7 @@
 // Minimal fixed-window rate limiter backed by Redis (reuses the same
 // connection jobs/queue.ts already maintains). Good enough to blunt
 // automated username-squatting attempts without pulling in a dedicated
-// rate-limiting service — one INCR + one conditional EXPIRE per check.
+// rate-limiting service - one INCR + one conditional EXPIRE per check.
 
 import { getRawRedisClient } from "@/jobs/queue";
 
@@ -30,7 +30,7 @@ export async function checkRateLimit(
 
   const count = await redis.incr(redisKey);
   if (count === 1) {
-    // First hit in this window — set expiry. A race here (two first-hits
+    // First hit in this window - set expiry. A race here (two first-hits
     // both calling EXPIRE) is harmless since both set the same TTL.
     await redis.expire(redisKey, windowSeconds);
   }

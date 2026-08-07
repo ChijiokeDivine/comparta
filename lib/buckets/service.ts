@@ -1,15 +1,15 @@
 // lib/buckets/service.ts
 //
-// Business logic for "buckets" — the product-facing name for LedgerAccount
+// Business logic for "buckets" - the product-facing name for LedgerAccount
 // rows. This module owns CRUD and read-model shaping (balances,
-// sparklines); it never mutates balances itself — every balance change
+// sparklines); it never mutates balances itself - every balance change
 // still goes through lib/ledger/engine.ts's recordEntry() /
 // transferBetweenLedgerAccounts(), same as before this phase.
 //
 // Design note for the UI layer: every exported function here returns
 // plain, JSON-serializable-once-bigints-are-stringified data (see
 // serialize.ts) shaped exactly as a dashboard/list/detail view would want
-// it — callers shouldn't need to reshape anything, just serialize and
+// it - callers shouldn't need to reshape anything, just serialize and
 // return it from an API route.
 
 import { prisma } from "@/lib/db/prisma";
@@ -21,7 +21,7 @@ import type { LedgerAccount, LedgerAccountType } from "@/app/generated/prisma/cl
 // Side-effect import: registers the built-in archive-blocking checks
 // (default-bucket, active allocation rules, live payment links) against
 // the shared registry in dependencies.ts. Must run before archiveBucket()
-// is ever called — importing this module anywhere guarantees that.
+// is ever called - importing this module anywhere guarantees that.
 import "./builtinDependencyCheckers";
 
 export class BucketValidationError extends Error {
@@ -74,7 +74,7 @@ const RESERVED_TYPE_NAMES: Record<Exclude<LedgerAccountType, "CUSTOM">, string> 
 
 // ── ownership / lookup helpers ─────────────────────────────────────────
 
-/** Ownership-scoped lookup — never trust a bare id from a client without this. */
+/** Ownership-scoped lookup - never trust a bare id from a client without this. */
 export async function getBucket(orgId: string, ledgerAccountId: string): Promise<LedgerAccount> {
   const bucket = await prisma.ledgerAccount.findFirst({ where: { id: ledgerAccountId, orgId } });
   if (!bucket) throw new BucketNotFoundError();
@@ -99,11 +99,11 @@ async function resolveOrgWalletId(orgId: string, explicitWalletId?: string): Pro
 
   const wallets = await prisma.wallet.findMany({ where: { orgId }, select: { id: true } });
   if (wallets.length === 0) {
-    throw new BucketValidationError("This organization has no wallet yet — a bucket needs one to attach to.");
+    throw new BucketValidationError("This organization has no wallet yet - a bucket needs one to attach to.");
   }
   if (wallets.length > 1) {
     throw new BucketValidationError(
-      "This organization has more than one wallet — pass walletId explicitly to choose which one this bucket attaches to."
+      "This organization has more than one wallet - pass walletId explicitly to choose which one this bucket attaches to."
     );
   }
   return wallets[0].id;
@@ -115,7 +115,7 @@ export interface CreateBucketInput {
   orgId: string;
   name: string;
   type?: LedgerAccountType; // defaults to CUSTOM
-  walletId?: string; // optional — auto-resolved if the org has exactly one wallet
+  walletId?: string; // optional - auto-resolved if the org has exactly one wallet
 }
 
 export async function createBucket(input: CreateBucketInput): Promise<LedgerAccount> {
@@ -186,7 +186,7 @@ export async function archiveBucket(
   });
 }
 
-/** Not in the original spec, but the natural inverse of archive — a bucket archived by mistake shouldn't require support intervention to restore. */
+/** Not in the original spec, but the natural inverse of archive - a bucket archived by mistake shouldn't require support intervention to restore. */
 export async function unarchiveBucket(orgId: string, ledgerAccountId: string): Promise<LedgerAccount> {
   const bucket = await getBucket(orgId, ledgerAccountId);
   if (!bucket.archived) return bucket; // idempotent

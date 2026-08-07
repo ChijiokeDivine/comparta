@@ -103,7 +103,7 @@ export default function BucketActions({
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
             <p className="text-sm text-amber-800">
               {Number(balance) > 0
-                ? "This bucket still holds a balance — archiving will be blocked until it's moved out."
+                ? "This bucket still holds a balance - archiving will be blocked until it's moved out."
                 : "Archiving hides this bucket from new transfers. This can't be undone from here."}
             </p>
             <div className="flex gap-2">

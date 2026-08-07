@@ -24,7 +24,7 @@ export async function runNaturalLanguageQuery(
 ): Promise<RunNlQueryResult> {
   const trimmed = question.trim();
   if (!trimmed) {
-    throw new NlQueryTranslationError("Type a question first — e.g. \"payments to Sarah over $500 last quarter.\"");
+    throw new NlQueryTranslationError("Type a question first - e.g. \"payments to Sarah over $500 last quarter.\"");
   }
 
   const categories = await listActiveCategories(orgId);

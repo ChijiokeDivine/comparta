@@ -150,7 +150,7 @@ export default function PayrollRunDetailPage() {
 
         {insufficientFunds && shortfall && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            Insufficient funds — short by {formatMoney(shortfall)}. Add funds to {sourceBucketName} before approving.
+            Insufficient funds - short by {formatMoney(shortfall)}. Add funds to {sourceBucketName} before approving.
           </div>
         )}
 

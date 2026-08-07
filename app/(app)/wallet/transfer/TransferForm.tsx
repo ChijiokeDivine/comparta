@@ -31,7 +31,7 @@ export default function TransferForm({ buckets, disabled }: { buckets: Bucket[];
 
   // Stable per-mount idempotency key, reused across retries within this
   // session so a double-submit (or a retry after a network blip) can
-  // never double-send — see app/api/transfers/send/route.ts.
+  // never double-send - see app/api/transfers/send/route.ts.
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
 
   async function handleIdentifierBlur() {

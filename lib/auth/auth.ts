@@ -16,21 +16,21 @@ import { getEnv } from "@/lib/env";
 /**
  * Custom PrismaAdapter wrapper. The User model has a required `orgId` FK,
  * so a raw OAuth sign-in would fail the PrismaAdapter to create a User
- * without orgId. This override intercepts `createUser` and — for brand-new
- * OAuth-created users — creates a PENDING Organization first and links the
+ * without orgId. This override intercepts `createUser` and - for brand-new
+ * OAuth-created users - creates a PENDING Organization first and links the
  * new User to it (role OWNER), then proceeds with standard user creation.
  *
  * Credential-signed-up users already go through POST /api/auth/register which
- * creates the Org + User explicitly — never hit this code path.
+ * creates the Org + User explicitly - never hit this code path.
  *
  * NOTE on typing: `createUser`'s param is typed with only the fields this
  * function actually reads (email/name/emailVerified), rather than the
- * library's `AdapterUser` type. That's deliberate — our own module
+ * library's `AdapterUser` type. That's deliberate - our own module
  * augmentation in types/next-auth.d.ts adds orgId/role to `AdapterUser`,
  * and because `DefaultAdapterUser` extends `User` (which we also augmented
  * with kybStatus), that requirement leaks transitively into `AdapterUser`
  * too. `@auth/prisma-adapter`'s internal `AdapterUser` reference doesn't
- * see that same augmentation, so the two don't structurally unify — hence
+ * see that same augmentation, so the two don't structurally unify - hence
  * the "missing kybStatus, orgId, role" error. Using a minimal structural
  * type here avoids relying on either flavor of `AdapterUser`, and the
  * final cast to `Adapter["createUser"]` reflects the real contract: this
@@ -111,7 +111,7 @@ function buildProviders() {
     }),
   ];
 
-  // Only register Google provider only when the user has configured it —
+  // Only register Google provider only when the user has configured it -
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
     providers.push(
       GoogleProvider({

@@ -8,7 +8,7 @@
 //                                      Payments API)
 //
 // Both start*Checkout functions create a PENDING PaymentLinkPayment row
-// BEFORE any money moves — this is the correlation anchor the two
+// BEFORE any money moves - this is the correlation anchor the two
 // settlement paths use to close the loop (see lib/paymentLinks/
 // reconciliation.ts for the wallet path, app/api/webhooks/circle-payments/
 // route.ts for the card path).
@@ -35,7 +35,7 @@ export class CheckoutValidationError extends Error {
   }
 }
 
-// Minimum for an open-amount payer-entered amount — same floor as
+// Minimum for an open-amount payer-entered amount - same floor as
 // payment link creation, prevents a $0.00/negative "payment".
 const MIN_AMOUNT_SMALLEST_UNIT = 1n;
 
@@ -52,13 +52,13 @@ export interface PublicPaymentLinkView {
 
 /**
  * Loads the checkout page's data. Never throws for an unpayable link
- * (paused/expired/used-up/not-found) — those are ordinary states the
+ * (paused/expired/used-up/not-found) - those are ordinary states the
  * checkout page renders a friendly message for, not an error condition.
  * Only genuinely malformed input (nonexistent slug format issues aren't a
- * thing — slugs are opaque) or infra failures throw.
+ * thing - slugs are opaque) or infra failures throw.
  *
  * Lazily flips a time-expired ACTIVE link to EXPIRED on read, same
- * self-healing pattern as lib/invoices/service.ts#recordInvoiceViewed —
+ * self-healing pattern as lib/invoices/service.ts#recordInvoiceViewed -
  * the periodic sweep (jobs/paymentLinkExpiry.worker.ts) exists for links
  * nobody ever visits again, not as the only mechanism.
  */
@@ -110,7 +110,7 @@ async function lazilyExpireIfNeeded(link: PaymentLink): Promise<PaymentLink["sta
   if (!timeExpired) return link.status;
 
   await prisma.paymentLink.update({ where: { id: link.id }, data: { status: "EXPIRED" } }).catch(() => {
-    // Best-effort — a concurrent request may have already flipped it, or
+    // Best-effort - a concurrent request may have already flipped it, or
     // the sweep job beat us to it. Either way the caller treats it as
     // expired regardless of whether this particular write landed.
   });
@@ -135,12 +135,12 @@ async function loadPayableLink(slug: string, amountInput: string | undefined): P
 
   if (link.type === "FIXED_AMOUNT") {
     // amount is guaranteed non-null for FIXED_AMOUNT by createPaymentLink's
-    // validation — non-null assertion documents that invariant rather
+    // validation - non-null assertion documents that invariant rather
     // than silently coalescing.
     return { link, amountExpected: link.amount! };
   }
 
-  // OPEN_AMOUNT: payer supplies the amount, validated here — this is the
+  // OPEN_AMOUNT: payer supplies the amount, validated here - this is the
   // "payer enters $0 or a negative number" edge case from the spec.
   if (!amountInput || !amountInput.trim()) {
     throw new CheckoutValidationError("Enter an amount to pay.");
@@ -161,7 +161,7 @@ export interface StartWalletCheckoutInput {
   slug: string;
   /** Required for OPEN_AMOUNT links; ignored (link.amount is authoritative) for FIXED_AMOUNT. */
   amount?: string;
-  /** Optional — the payer's wallet address, if the client already knows it pre-signature. */
+  /** Optional - the payer's wallet address, if the client already knows it pre-signature. */
   payerIdentifier?: string;
 }
 
@@ -178,7 +178,7 @@ export async function startWalletCheckout(input: StartWalletCheckoutInput): Prom
   const wallet = await prisma.wallet.findFirst({ where: { orgId: link.orgId } });
   if (!wallet) {
     throw new PaymentLinkNotPayableError(
-      "This merchant's wallet isn't set up yet — try again later.",
+      "This merchant's wallet isn't set up yet - try again later.",
       "NOT_FOUND"
     );
   }
@@ -218,7 +218,7 @@ export interface CardCheckoutSession {
  * Starts the card/bank path: reserves a PaymentLinkPayment row, then asks
  * Circle's Payments API for a hosted checkout session that ultimately
  * settles as USDC into this org's Arc wallet. Idempotency here is on
- * PaymentLinkPayment.id itself (generated server-side, one per attempt) —
+ * PaymentLinkPayment.id itself (generated server-side, one per attempt) -
  * every retry from a slow/flaky client is a fresh session by design,
  * exactly like abandoning a checkout tab and reopening it.
  */
@@ -228,7 +228,7 @@ export async function startCardCheckout(input: StartCardCheckoutInput): Promise<
   const wallet = await prisma.wallet.findFirst({ where: { orgId: link.orgId } });
   if (!wallet) {
     throw new PaymentLinkNotPayableError(
-      "This merchant's wallet isn't set up yet — try again later.",
+      "This merchant's wallet isn't set up yet - try again later.",
       "NOT_FOUND"
     );
   }

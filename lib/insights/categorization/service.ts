@@ -7,7 +7,7 @@
 // per transaction (see the model's schema comment for why this is an
 // upsert-style "current state" row rather than an append-only log).
 //
-// This module is the ONLY place that writes TransactionCategorization —
+// This module is the ONLY place that writes TransactionCategorization -
 // mirrors every other "one module owns one table" convention in this
 // codebase (lib/ledger/engine.ts for LedgerEntry, lib/savings/yield.ts
 // for YieldPosition, etc.).
@@ -36,18 +36,18 @@ export class CategorizationNotFoundError extends Error {
 
 // LLM suggestions at or above this confidence auto-apply with no user
 // action needed; below it, the suggestion is still applied (so every
-// transaction has SOME category the moment it's processed — the
+// transaction has SOME category the moment it's processed - the
 // dashboard is never missing data) but flagged needsConfirmation=true
 // for one-tap accept/override, per the spec's "surface low-confidence
 // suggestions... rather than silently auto-applying them."
 export const CONFIDENCE_THRESHOLD_BPS = 7000; // 70%
 
 /**
- * Categorizes ONE OnchainTransaction. Idempotent by default — if it
+ * Categorizes ONE OnchainTransaction. Idempotent by default - if it
  * already has a categorization, returns the existing row unchanged
  * unless `force` is true (e.g. an admin "re-run categorization" action).
  * Never throws for a categorization-quality reason (LLM failure falls
- * back to "Other"/0% via llmCategorize.ts's own fallback) — only throws
+ * back to "Other"/0% via llmCategorize.ts's own fallback) - only throws
  * if the transaction itself doesn't exist.
  */
 export async function categorizeTransaction(
@@ -114,7 +114,7 @@ async function getOrCreateNamedCategory(orgId: string, name: string): Promise<Tr
   const existing = await prisma.transactionCategory.findFirst({ where: { orgId, name } });
   if (existing) return existing;
   // A category name outside the curated set that doesn't exist yet as a
-  // CUSTOM category either — shouldn't happen given llmCategorize.ts's
+  // CUSTOM category either - shouldn't happen given llmCategorize.ts's
   // allow-list enforcement, but create it defensively rather than crash
   // a categorization run over a naming edge case.
   return prisma.transactionCategory.create({ data: { orgId, name, kind: "CUSTOM" } });
@@ -144,7 +144,7 @@ async function upsertCategorization(
       needsConfirmation: fields.needsConfirmation,
       // Preserve the ORIGINAL llm suggestion fields on every update
       // except when this update itself IS a fresh LLM run (force
-      // re-categorization) — a MANUAL override should never blank out
+      // re-categorization) - a MANUAL override should never blank out
       // what the LLM originally said, since that's the audit trail
       // lib/insights/categorization for eval purposes depends on.
       ...(fields.source === "LLM"
@@ -165,7 +165,7 @@ export async function listPendingCategorizations(orgId: string) {
   });
 }
 
-/** One-tap accept: the LLM's suggested category is correct as-is — clears needsConfirmation, no category change. */
+/** One-tap accept: the LLM's suggested category is correct as-is - clears needsConfirmation, no category change. */
 export async function confirmCategorization(
   orgId: string,
   categorizationId: string
@@ -181,7 +181,7 @@ export async function confirmCategorization(
   });
 }
 
-/** Override by categorization id — used from the pending-confirmation queue when the LLM's suggestion was wrong. */
+/** Override by categorization id - used from the pending-confirmation queue when the LLM's suggestion was wrong. */
 export async function overrideCategorization(
   orgId: string,
   categorizationId: string,
@@ -202,7 +202,7 @@ export async function overrideCategorization(
 
 /**
  * Sets/changes the category for ANY already-categorized transaction
- * directly by transaction id — the general "change category" action a
+ * directly by transaction id - the general "change category" action a
  * UI would wire to a dropdown on any transaction row, independent of
  * whether it was ever pending confirmation.
  */
@@ -241,7 +241,7 @@ async function assertCategoryBelongsToOrg(orgId: string, categoryId: string): Pr
   }
 }
 
-// ── category CRUD (custom categories only — SYSTEM ones are seed-managed) ──
+// ── category CRUD (custom categories only - SYSTEM ones are seed-managed) ──
 
 export async function createCustomCategory(orgId: string, name: string): Promise<TransactionCategory> {
   const trimmed = name.trim();

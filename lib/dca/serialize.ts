@@ -14,7 +14,7 @@ export function serializeRecurringTransfer(transfer: RecurringTransfer) {
 }
 
 // No bigint fields on RecurringTransferExecution (the amount is fixed on
-// the parent RecurringTransfer) — this exists mainly so callers have one
+// the parent RecurringTransfer) - this exists mainly so callers have one
 // consistent serialize* entry point per model, matching every other
 // phase's convention, and as a stable seam if a per-execution amount
 // override is ever added later.

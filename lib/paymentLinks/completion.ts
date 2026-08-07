@@ -8,7 +8,7 @@
 //     Circle reports the payment (and its USDC settlement) as complete
 //
 // Must be called from WITHIN the same DB transaction that creates/confirms
-// the settling OnchainTransaction row — same invariant as
+// the settling OnchainTransaction row - same invariant as
 // lib/invoices/reconciliation.ts, for the same reason: a checkout session
 // (and any invoice it settles) must never flip to CONFIRMED/PAID off a
 // transfer whose own write later rolls back.
@@ -22,7 +22,7 @@ type Tx = Prisma.TransactionClient;
 export interface ConfirmPaymentLinkPaymentInput {
   paymentLinkPaymentId: string;
   onchainTransactionId: string;
-  /** Amount actually settled, in smallest USDC unit — credited verbatim. */
+  /** Amount actually settled, in smallest USDC unit - credited verbatim. */
   amountPaid: bigint;
   /** Overwrites payerIdentifier if the settlement path learned a better one (e.g. the sending wallet address) and none was recorded at session-start. */
   payerIdentifier?: string;

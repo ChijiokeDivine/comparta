@@ -3,11 +3,11 @@
 // Sweep: finds every ACTIVE RecurringTransfer whose nextExecutionDate is
 // due, executes it via lib/dca/execution.ts#executeSingleRecurringTransfer,
 // and ALWAYS advances nextExecutionDate by one frequency interval
-// afterward — regardless of whether that execution succeeded, failed
+// afterward - regardless of whether that execution succeeded, failed
 // for insufficient funds, or failed for any other reason. A failed cycle
 // is surfaced via RecurringTransferExecution + lib/notifications/dcaNotify.ts,
 // never retried immediately, and never blocks the next scheduled cycle.
-// Run this AT LEAST hourly (a repeatable BullMQ job or external cron) —
+// Run this AT LEAST hourly (a repeatable BullMQ job or external cron) -
 // see the spec's own requirement; nothing here assumes a particular
 // interval beyond "frequently enough that DAILY transfers stay
 // reasonably on-time."
@@ -16,7 +16,7 @@
 // (status: "ACTIVE"). This is also the resolution for the "pausing
 // mid-cycle" edge case: even a transfer whose nextExecutionDate is far
 // in the past (paused for a while, never resumed) simply never matches
-// this query until it's ACTIVE again — nothing outside this sweep ever
+// this query until it's ACTIVE again - nothing outside this sweep ever
 // executes a transfer, so there's no second code path that could
 // accidentally skip the status check.
 //
@@ -24,7 +24,7 @@
 // falls after endDate (a schedule that should have already retired), it
 // is marked COMPLETED without executing at all. Otherwise, if executing
 // this cycle and advancing nextExecutionDate would land past endDate,
-// the transfer is marked COMPLETED right after this cycle runs — so the
+// the transfer is marked COMPLETED right after this cycle runs - so the
 // very last in-range cycle still executes, and the transfer retires
 // cleanly afterward. COMPLETED is deliberately distinct from CANCELLED
 // (user-initiated) so the two are distinguishable in execution history.
@@ -65,7 +65,7 @@ export async function runRecurringTransferSweep(
   for (const transfer of dueTransfers) {
     const scheduledDate = transfer.nextExecutionDate;
 
-    // Already past its end date entirely — retire without executing.
+    // Already past its end date entirely - retire without executing.
     // (Shouldn't normally happen since the sweep runs at least hourly,
     // but guards against a long gap in sweep execution, e.g. the worker
     // being down for a while.)
@@ -77,7 +77,7 @@ export async function runRecurringTransferSweep(
 
     const result = await executeSingleRecurringTransfer(transfer, scheduledDate).catch((err) => {
       // executeSingleRecurringTransfer is designed to never throw (every
-      // outcome is captured on the execution row) — this catch is a
+      // outcome is captured on the execution row) - this catch is a
       // last-resort safety net so a truly unexpected error still lets
       // nextExecutionDate advance rather than wedging the schedule.
       console.error(
@@ -98,8 +98,8 @@ export async function runRecurringTransferSweep(
 }
 
 /**
- * Advances nextExecutionDate by one frequency interval, or — if that
- * would land past endDate — marks the transfer COMPLETED instead.
+ * Advances nextExecutionDate by one frequency interval, or - if that
+ * would land past endDate - marks the transfer COMPLETED instead.
  * Guarded so this only applies if nextExecutionDate still equals the
  * cycle we just handled (avoids clobbering a date/status some other
  * process already changed, e.g. a concurrent sweep invocation or the
@@ -126,7 +126,7 @@ async function advanceOrComplete(
   return false;
 }
 
-/** Used for the "already past endDate, never executed" branch above — same guard posture as advanceOrComplete. */
+/** Used for the "already past endDate, never executed" branch above - same guard posture as advanceOrComplete. */
 async function completeIfStillDue(transfer: RecurringTransfer, scheduledDate: Date): Promise<void> {
   const { count } = await prisma.recurringTransfer.updateMany({
     where: { id: transfer.id, nextExecutionDate: scheduledDate, status: "ACTIVE" },

@@ -2,7 +2,7 @@
 //
 // Mirrors a resolved OnchainTransaction (CONFIRMED or FAILED) back onto
 // the PayrollRunItem it belongs to. Called from jobs/confirmTransaction.ts
-// after it updates OnchainTransaction.status — same "best-effort,
+// after it updates OnchainTransaction.status - same "best-effort,
 // post-commit follow-up" posture as
 // lib/paymentLinks/reconciliation.ts/lib/invoices/reconciliation.ts:
 // never let a hook failure here affect the underlying transaction
@@ -17,7 +17,7 @@ import type { OnchainTransaction } from "@/app/generated/prisma/client";
  * onchainTx.status to a terminal state. No-op for any transaction that
  * isn't a payroll disbursement (referenceType !== "PAYROLL_RUN") or that
  * doesn't match a known PayrollRunItem (e.g. txId was already cleared by
- * a manual retry). Never throws — logs and returns instead, since a
+ * a manual retry). Never throws - logs and returns instead, since a
  * missed update here just means the item's status lags the onchain
  * truth until the next reconciliation pass, not a lost payment (the
  * ledger reversal in confirmTransaction.ts already happened
@@ -30,7 +30,7 @@ export async function handlePayrollTransactionResolved(onchainTx: OnchainTransac
   try {
     const item = await prisma.payrollRunItem.findUnique({ where: { txId: onchainTx.id } });
     if (!item) return; // not (or no longer) linked to a payroll run item
-    if (item.status !== "SENT") return; // already handled, or moved on via retry — idempotent
+    if (item.status !== "SENT") return; // already handled, or moved on via retry - idempotent
 
     if (onchainTx.status === "CONFIRMED") {
       await prisma.payrollRunItem.update({

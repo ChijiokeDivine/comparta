@@ -3,13 +3,13 @@
 // Calls Groq to suggest a category for one transaction that has no
 // deterministic rule match (lib/insights/categorization/rules.ts).
 // Output is STRICTLY constrained to the org's actual category name list
-// — the LLM cannot invent a category that silently gets applied; any
+// - the LLM cannot invent a category that silently gets applied; any
 // response outside the allow-list is clamped to "Other" with zero
 // confidence, which routes it to the manual-confirmation queue rather
 // than auto-applying a made-up label.
 //
 // PRIVACY: the only fields ever sent are amount, direction, a resolved
-// DISPLAY NAME (never the raw address — see lib/insights/counterparty.ts),
+// DISPLAY NAME (never the raw address - see lib/insights/counterparty.ts),
 // memo text, and date. No wallet addresses, no account numbers, no
 // entity secrets, no other transactions' data.
 
@@ -17,7 +17,7 @@ import { z } from "zod";
 import { getGroqClient, GROQ_JSON_COMPLETION_DEFAULTS } from "@/lib/groq/client";
 
 export interface CategorizationLlmInput {
-  /** Resolved display name — NEVER a raw wallet address. */
+  /** Resolved display name - NEVER a raw wallet address. */
   counterpartyDisplayName: string;
   memo: string | null;
   /** Decimal string, e.g. "1250.00". */
@@ -25,7 +25,7 @@ export interface CategorizationLlmInput {
   direction: "IN" | "OUT";
   /** ISO date string. */
   date: string;
-  /** The org's current category names — the LLM must choose exactly one of these. */
+  /** The org's current category names - the LLM must choose exactly one of these. */
   availableCategories: string[];
 }
 
@@ -53,7 +53,7 @@ export async function suggestCategoryViaLLM(
 ): Promise<CategorizationLlmResult> {
   const systemPrompt =
     `You categorize a small business's USDC payment transactions for a spend-analytics dashboard. ` +
-    `Choose EXACTLY ONE category from this fixed list — never invent a new one: ` +
+    `Choose EXACTLY ONE category from this fixed list - never invent a new one: ` +
     `${input.availableCategories.map((c) => `"${c}"`).join(", ")}. ` +
     `If nothing else fits, use "Other". ` +
     `Respond with ONLY a JSON object, no other text, in exactly this shape: ` +
@@ -83,7 +83,7 @@ export async function suggestCategoryViaLLM(
 
     const parsed = llmResponseSchema.parse(JSON.parse(raw));
 
-    // Hard allow-list enforcement — never trust the model to have
+    // Hard allow-list enforcement - never trust the model to have
     // actually followed the prompt's constraint.
     const categoryName = input.availableCategories.includes(parsed.category)
       ? parsed.category

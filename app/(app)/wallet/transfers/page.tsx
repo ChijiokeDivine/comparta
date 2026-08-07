@@ -60,7 +60,7 @@ export default function TransfersListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [direction, counterparty]);
 
-  // Status has no server-side filter param on GET /api/transfers today —
+  // Status has no server-side filter param on GET /api/transfers today -
   // filtered client-side over whatever page(s) have been loaded so far.
   const visible = status === "ALL" ? transactions : transactions.filter((t) => t.status === status);
 

@@ -1,7 +1,7 @@
 // lib/dca/service.ts
 //
-// CRUD for RecurringTransfer (DCA). Execution logic — actually moving
-// money on the scheduled cadence — lives in lib/dca/execution.ts and
+// CRUD for RecurringTransfer (DCA). Execution logic - actually moving
+// money on the scheduled cadence - lives in lib/dca/execution.ts and
 // jobs/processRecurringTransfers.ts; this module only ever
 // creates/reads/updates the schedule rows themselves.
 
@@ -40,9 +40,9 @@ export interface CreateRecurringTransferInput {
    *   - destinationIdentifier: a Comparta username or raw Arc address
    *     (same Address Book flow as a manual send). Validated here by
    *     resolving it once (fail fast on a typo/unclaimed username at
-   *     setup time) — but the resolution result is discarded, NEVER
+   *     setup time) - but the resolution result is discarded, NEVER
    *     cached. Every execution re-resolves fresh (see
-   *     lib/dca/execution.ts) — that's the whole point.
+   *     lib/dca/execution.ts) - that's the whole point.
    *   - destinationLedgerAccountId: another bucket THIS SAME ORG owns.
    */
   destinationIdentifier?: string;
@@ -50,7 +50,7 @@ export interface CreateRecurringTransferInput {
   /** Decimal string, e.g. "500.00". Fixed every cycle. */
   amount: string;
   frequency: RecurringTransferFrequency;
-  /** ISO date(-time) string, UTC — the first scheduled execution. */
+  /** ISO date(-time) string, UTC - the first scheduled execution. */
   startDate: string;
   /** ISO date(-time) string, UTC, or omit/null for "run forever". */
   endDate?: string | null;
@@ -65,7 +65,7 @@ export async function createRecurringTransfer(
   if (hasIdentifier === hasBucket) {
     throw new DcaValidationError(
       "Provide exactly one destination: either destinationIdentifier (username/address) or " +
-        "destinationLedgerAccountId (another bucket) — not both, not neither."
+        "destinationLedgerAccountId (another bucket) - not both, not neither."
     );
   }
 
@@ -91,7 +91,7 @@ export async function createRecurringTransfer(
     }
     destinationLedgerAccountId = destBucket.id;
   } else {
-    // Fail fast on a malformed/unresolvable identifier at setup time —
+    // Fail fast on a malformed/unresolvable identifier at setup time -
     // purely a UX nicety. lib/dca/execution.ts resolves fresh at every
     // execution regardless of what happens here.
     try {
@@ -176,7 +176,7 @@ export async function listRecurringTransfers(
   });
 }
 
-// ── update (editable fields only — source/destination are immutable;
+// ── update (editable fields only - source/destination are immutable;
 // cancel and recreate if either needs to change) ────────────────────────
 
 export interface UpdateRecurringTransferInput {
@@ -252,7 +252,7 @@ export async function pauseRecurringTransfer(
 /**
  * Resumes a PAUSED transfer. Deliberately does NOT adjust
  * nextExecutionDate: if it fell in the past while paused, resuming makes
- * it immediately due on the very next sweep — a simple, predictable
+ * it immediately due on the very next sweep - a simple, predictable
  * "catch up once, then continue on cadence" behavior rather than trying
  * to guess how many missed cycles to silently skip or replay.
  */

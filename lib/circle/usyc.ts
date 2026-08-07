@@ -1,26 +1,26 @@
 // lib/circle/usyc.ts
 //
-// Thin wrapper over Circle's USYC (tokenized money-market fund) API — a
+// Thin wrapper over Circle's USYC (tokenized money-market fund) API - a
 // DIFFERENT product surface from the Developer-Controlled Wallets SDK
 // (lib/circle/wallets.ts) and the Payments API (lib/circle/payments.ts).
 // USYC lets a Comparta-custodied wallet convert idle USDC into USYC
-// (which earns yield via NAV appreciation, not rebasing — see
+// (which earns yield via NAV appreciation, not rebasing - see
 // YieldPosition's schema comment) and redeem back to USDC on demand.
 //
 // NOTE ON API SHAPE: this targets Circle's USYC conversion/order and
 // NAV/yield-rate endpoints. Adjust the request bodies / response parsing
 // below if your Circle account is provisioned against a different USYC
-// integration surface — this file is the one place that request/response
+// integration surface - this file is the one place that request/response
 // shape is assembled, matching the posture of lib/circle/payments.ts.
 //
 // Idempotency: every conversion call takes an idempotencyKey, deduplicated
 // by Circle the same way createTransaction and hosted-checkout creation
-// are deduplicated elsewhere in this codebase — safe to retry a timed-out
+// are deduplicated elsewhere in this codebase - safe to retry a timed-out
 // request with the same key.
 //
 // Caching: getUsycNav() / getUsycYieldRate() hit Circle's API directly on
 // every call. NEVER call them from a request handler or a per-page-load
-// code path — always go through lib/savings/yieldRate.ts's short-TTL
+// code path - always go through lib/savings/yieldRate.ts's short-TTL
 // Redis-backed cache instead, or a busy dashboard will hammer Circle's
 // API on every single page load.
 
@@ -41,7 +41,7 @@ export interface CreateUsycConversionInput {
   /** Circle wallet id holding the funds. */
   walletId: string;
   direction: UsycConversionDirection;
-  /** Decimal string, in the SOURCE token's units — USDC for USDC_TO_USYC, USYC for USYC_TO_USDC. */
+  /** Decimal string, in the SOURCE token's units - USDC for USDC_TO_USYC, USYC for USYC_TO_USDC. */
   amount: string;
   idempotencyKey: string;
 }
@@ -51,7 +51,7 @@ export interface UsycConversionResult {
   state: string; // e.g. PENDING | PROCESSING | COMPLETE | FAILED
 }
 
-/** Submits a USDC<->USYC conversion order. Does not wait for settlement — poll getUsycConversionStatus (or let jobs/confirmYieldRedemption.ts do it) for the terminal outcome. */
+/** Submits a USDC<->USYC conversion order. Does not wait for settlement - poll getUsycConversionStatus (or let jobs/confirmYieldRedemption.ts do it) for the terminal outcome. */
 export async function createUsycConversion(
   input: CreateUsycConversionInput
 ): Promise<UsycConversionResult> {
@@ -91,13 +91,13 @@ export async function createUsycConversion(
 export interface UsycConversionStatus {
   circleConversionId: string;
   state: string;
-  /** Populated once settled — decimal string, the DESTINATION token amount actually delivered. */
+  /** Populated once settled - decimal string, the DESTINATION token amount actually delivered. */
   settledAmount?: string;
   /** NAV applied to this conversion (USDC per whole USYC), decimal string. */
   navApplied?: string;
 }
 
-/** Fetches current status directly — used by jobs/confirmYieldRedemption.ts's poller and as a fallback if a webhook is missed/delayed. */
+/** Fetches current status directly - used by jobs/confirmYieldRedemption.ts's poller and as a fallback if a webhook is missed/delayed. */
 export async function getUsycConversionStatus(
   circleConversionId: string
 ): Promise<UsycConversionStatus> {
@@ -138,7 +138,7 @@ export interface UsycNav {
   asOf: Date;
 }
 
-/** Current NAV. Callers: lib/savings/yieldRate.ts's cache ONLY — see file header. */
+/** Current NAV. Callers: lib/savings/yieldRate.ts's cache ONLY - see file header. */
 export async function getUsycNav(): Promise<UsycNav> {
   const env = getEnv();
 
@@ -167,7 +167,7 @@ export interface UsycYieldRate {
   asOf: Date;
 }
 
-/** Current published yield rate. Callers: lib/savings/yieldRate.ts's cache ONLY — see file header. */
+/** Current published yield rate. Callers: lib/savings/yieldRate.ts's cache ONLY - see file header. */
 export async function getUsycYieldRate(): Promise<UsycYieldRate> {
   const env = getEnv();
 

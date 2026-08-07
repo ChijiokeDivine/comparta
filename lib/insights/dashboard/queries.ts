@@ -1,8 +1,8 @@
 // lib/insights/dashboard/queries.ts
 //
 // Read-only aggregation queries for the spending-insights dashboard.
-// Every function returns data already shaped for a chart/table — decimal
-// strings for money, pre-sorted, pre-bucketed — so a UI layer can render
+// Every function returns data already shaped for a chart/table - decimal
+// strings for money, pre-sorted, pre-bucketed - so a UI layer can render
 // directly from the response with no further reshaping. Nothing here
 // mutates anything.
 
@@ -65,7 +65,7 @@ export interface SpendByCategoryResult {
   uncategorizedCount: number;
 }
 
-/** Sums CONFIRMED transaction amounts in `range`, grouped by category. Defaults to OUT (spend) — pass direction: "IN" for a revenue-by-category breakdown of the same shape. */
+/** Sums CONFIRMED transaction amounts in `range`, grouped by category. Defaults to OUT (spend) - pass direction: "IN" for a revenue-by-category breakdown of the same shape. */
 export async function getSpendByCategory(
   orgId: string,
   range: DateRange,
@@ -162,7 +162,7 @@ export async function getInflowOutflowTrend(
 function bucketKeyFor(date: Date, granularity: TrendGranularity): string {
   if (granularity === "day") return date.toISOString().slice(0, 10);
   if (granularity === "month") return date.toISOString().slice(0, 7); // YYYY-MM
-  // week: ISO-ish — key by the Monday of that week (UTC), so buckets are stable and sortable as strings.
+  // week: ISO-ish - key by the Monday of that week (UTC), so buckets are stable and sortable as strings.
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const day = d.getUTCDay(); // 0 = Sunday
   const diffToMonday = day === 0 ? -6 : 1 - day;
@@ -174,17 +174,17 @@ function bucketKeyFor(date: Date, granularity: TrendGranularity): string {
 
 export interface BalanceTrendPoint {
   date: string; // ISO date
-  balance: string; // decimal string — the last known balance as of end-of-day
+  balance: string; // decimal string - the last known balance as of end-of-day
 }
 
-/** Reconstructs a bucket's balance over time from LedgerEntry.balanceAfter (already denormalized on write — see lib/ledger/engine.ts), downsampled to one point per day (the last entry of each day). */
+/** Reconstructs a bucket's balance over time from LedgerEntry.balanceAfter (already denormalized on write - see lib/ledger/engine.ts), downsampled to one point per day (the last entry of each day). */
 export async function getBucketBalanceTrend(
   orgId: string,
   ledgerAccountId: string,
   range: DateRange
 ): Promise<BalanceTrendPoint[]> {
   // Ownership check via a direct query rather than importing
-  // lib/buckets/service.ts here, to keep this module dependency-light —
+  // lib/buckets/service.ts here, to keep this module dependency-light -
   // callers (API routes) are expected to have already verified ownership
   // via getBucket() before calling this, same as every other insights
   // query in this file takes orgId-scoped input on faith from its caller.

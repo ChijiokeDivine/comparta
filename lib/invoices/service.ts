@@ -5,7 +5,7 @@
 // of lib/invoices/reconciliation.ts (which owns the PAID transition).
 //
 // Money invariant: subtotal/total are ALWAYS computed server-side from
-// lineItems via lib/invoices/money.ts — a client-submitted total is
+// lineItems via lib/invoices/money.ts - a client-submitted total is
 // never trusted or persisted verbatim.
 
 import { prisma } from "@/lib/db/prisma";
@@ -70,7 +70,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
   const currency = input.currency?.trim().toUpperCase() || "USDC";
   if (!SUPPORTED_CREATION_CURRENCIES.has(currency)) {
     throw new InvoiceValidationError(
-      `Invoices in ${currency} aren't supported yet — only USDC, for now.`
+      `Invoices in ${currency} aren't supported yet - only USDC, for now.`
     );
   }
 
@@ -79,7 +79,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
     throw new InvoiceValidationError("A recipient (username, address, or email) is required.");
   }
 
-  // Server-computed totals — never trust client-submitted numbers.
+  // Server-computed totals - never trust client-submitted numbers.
   const { items, subtotal } = computeLineItems(input.lineItems);
   const taxAmount = parseTaxAmount(input.taxAmount);
   const total = subtotal + taxAmount;
@@ -157,7 +157,7 @@ export async function listInvoices(orgId: string, filter: ListInvoicesFilter = {
 /**
  * Transitions DRAFT -> SENT: stamps sentAt, logs the SENT event, and
  * fires the recipient email (+ in-app notification if the recipient
- * resolves to an existing Comparta org). Only DRAFT invoices can be sent —
+ * resolves to an existing Comparta org). Only DRAFT invoices can be sent -
  * resending an already-SENT invoice is POST /api/invoices/:id/remind
  * territory, not this.
  */
@@ -165,7 +165,7 @@ export async function sendInvoice(orgId: string, invoiceId: string, publicBaseUr
   const invoice = await prisma.invoice.findFirst({ where: { id: invoiceId, orgId } });
   if (!invoice) throw new InvoiceNotFoundError();
   if (invoice.status !== "DRAFT") {
-    throw new InvoiceStateError(`Invoice is ${invoice.status}, not DRAFT — it may already have been sent.`);
+    throw new InvoiceStateError(`Invoice is ${invoice.status}, not DRAFT - it may already have been sent.`);
   }
 
   const org = await prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
@@ -179,7 +179,7 @@ export async function sendInvoice(orgId: string, invoiceId: string, publicBaseUr
     return result;
   });
 
-  // Delivery is best-effort and never rolls back the SENT transition —
+  // Delivery is best-effort and never rolls back the SENT transition -
   // the invoice exists and is viewable via its public link regardless of
   // whether the email actually lands.
   const recipientEmail = resolveRecipientEmail(invoice.recipientIdentifier, invoice.recipientEmail);
@@ -216,13 +216,13 @@ async function resolveRecipientOrgId(recipientIdentifier: string): Promise<strin
     const resolved = await resolve(recipientIdentifier);
     return resolved.orgId;
   } catch (err) {
-    if (err instanceof ResolverError) return undefined; // email or unclaimed identifier — not an org
+    if (err instanceof ResolverError) return undefined; // email or unclaimed identifier - not an org
     throw err;
   }
 }
 
 /**
- * Blocks voiding an already-PAID invoice — contradictory states aren't
+ * Blocks voiding an already-PAID invoice - contradictory states aren't
  * allowed. Voiding any other non-terminal status (DRAFT/SENT/VIEWED/
  * OVERDUE) is fine.
  */
@@ -269,7 +269,7 @@ export async function getPublicInvoice(invoiceId: string): Promise<PublicInvoice
     include: { organization: { include: { wallets: { take: 1 } } } },
   });
   if (!invoice || invoice.status === "DRAFT") {
-    // DRAFT invoices aren't public yet — treat as not-found rather than
+    // DRAFT invoices aren't public yet - treat as not-found rather than
     // leaking an unsent invoice's contents to anyone who guesses its id.
     throw new InvoiceNotFoundError();
   }
@@ -291,12 +291,12 @@ export async function getPublicInvoice(invoiceId: string): Promise<PublicInvoice
   };
 }
 
-const VIEW_DEDUPE_WINDOW_MS = 30 * 60 * 1000; // 30 minutes — collapses page refreshes, not genuine re-visits
+const VIEW_DEDUPE_WINDOW_MS = 30 * 60 * 1000; // 30 minutes - collapses page refreshes, not genuine re-visits
 
 /**
  * Logs a VIEWED event on public page load, deduped so a refresh spam
  * doesn't flood the timeline. Also transitions SENT -> VIEWED (only ever
- * forward — never downgrades PAID/OVERDUE/VOID back to VIEWED).
+ * forward - never downgrades PAID/OVERDUE/VOID back to VIEWED).
  */
 export async function recordInvoiceViewed(invoiceId: string): Promise<void> {
   const invoice = await prisma.invoice.findUnique({

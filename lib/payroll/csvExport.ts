@@ -1,6 +1,6 @@
 // lib/payroll/csvExport.ts
 //
-// Payroll history CSV export for bookkeeping/tax purposes — per run, per
+// Payroll history CSV export for bookkeeping/tax purposes - per run, per
 // payee, or per date range. All three share one row shape and one CSV
 // builder so the columns are identical regardless of which slice was
 // requested; only the underlying query differs.
@@ -91,7 +91,7 @@ export async function exportPayeeCsv(
   return buildCsv(items);
 }
 
-/** CSV of every line item across every run for the org within a date range — the general bookkeeping export. */
+/** CSV of every line item across every run for the org within a date range - the general bookkeeping export. */
 export async function exportOrgPayrollCsv(orgId: string, range?: { from?: Date; to?: Date }): Promise<string> {
   const items = await prisma.payrollRunItem.findMany({
     where: {

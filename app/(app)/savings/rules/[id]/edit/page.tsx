@@ -76,7 +76,7 @@ export default function EditSavingsRulePage() {
       if (!res.ok) {
         const data = await res.json();
         // The API blocks deleting a rule that's already fired at least
-        // once (422) — the error message explains that; deactivating is
+        // once (422) - the error message explains that; deactivating is
         // the intended path for those.
         setError(data.error ?? "Could not delete rule");
         return;
@@ -177,7 +177,7 @@ export default function EditSavingsRulePage() {
         ) : (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
             <p className="text-sm text-amber-800">
-              Rules that have already run at least once can&apos;t be deleted — deactivate instead.
+              Rules that have already run at least once can&apos;t be deleted - deactivate instead.
             </p>
             <div className="flex gap-2">
               <button

@@ -3,7 +3,7 @@
 // Generates the short, URL-safe slug used in /pay/[slug]. Same posture as
 // the username claim flow (lib/identity/username.ts +
 // app/api/username/claim/route.ts): the real uniqueness guarantee is the
-// database's unique constraint on PaymentLink.slug, not a pre-check —
+// database's unique constraint on PaymentLink.slug, not a pre-check -
 // this module just picks a good candidate and retries on collision.
 
 import { customAlphabet } from "nanoid";
@@ -23,7 +23,7 @@ const MAX_SLUG_ATTEMPTS = 5;
 
 /**
  * Runs `attempt(slug)` with fresh candidate slugs until it succeeds,
- * retrying only on a unique-constraint violation (P2002) — any other
+ * retrying only on a unique-constraint violation (P2002) - any other
  * error from `attempt` propagates immediately. At 10 chars over a
  * 55-character alphabet the birthday-bound collision odds are
  * astronomically small; MAX_SLUG_ATTEMPTS exists purely to fail loudly
