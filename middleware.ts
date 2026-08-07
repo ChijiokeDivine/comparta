@@ -39,8 +39,9 @@ export const config = {
     "/payment-links/:path*",
     "/allocation-rules/:path*",
     "/recurring/:path*",
+    "/insights/:path*",
     "/api/wallet/:path*",
     "/api/ledger/:path*",
     "/api/org/:path*",
   ],
-};   
+};
