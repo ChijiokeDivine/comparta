@@ -38,10 +38,16 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.orgId) redirect("/login");
 
-  const org = await prisma.organization.findUnique({
-    where: { id: session.user.orgId },
-    select: { kybStatus: true },
-  });
+  const [org, wallet] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: session.user.orgId },
+      select: { kybStatus: true },
+    }),
+    prisma.wallet.findFirst({
+      where: { orgId: session.user.orgId },
+      select: { arcAddress: true, chain: true },
+    }),
+  ]);
   if (!org) redirect("/login");
 
   const { kpis, buckets, activity } = await getDashboardSummary(session.user.orgId);
@@ -62,7 +68,7 @@ export default async function DashboardPage() {
         </p> */}
       </div>
 
-      <QuickActions disabled={financialActionsDisabled} />
+      <QuickActions disabled={financialActionsDisabled} wallet={wallet} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <KpiCards kpis={kpis} />
