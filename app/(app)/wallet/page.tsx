@@ -12,6 +12,7 @@ import { StatusPill } from "@/app/components/StatusPill";
 import { formatMoney } from "@/app/invoices/_components/format";
 import CopyAddressButton from "./_components/CopyAddressButton";
 import type { Metadata } from "next";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Wallet",
@@ -82,13 +83,27 @@ export default async function WalletPage() {
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#F2F4F8]">
             <div>
               <p className="text-xs font-medium text-[#7C8CA6] mb-1">Ledger total (buckets)</p>
-              <p className="text-lg font-semibold text-[#0B1E3F] tabular-nums">
+              <p className="text-lg font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
+                <Image
+                  src="/usdc.png"
+                  alt="USDC"
+                  width={20}
+                  height={20}
+                  className="rounded-full shrink-0"
+                />
                 {formatMoney(ledgerTotal.toFixed(6))}
               </p>
             </div>
             <div>
               <p className="text-xs font-medium text-[#7C8CA6] mb-1">Onchain USDC balance</p>
-              <p className="text-lg font-semibold text-[#0B1E3F] tabular-nums">
+              <p className="text-lg font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
+                <Image
+                  src="/usdc.png"
+                  alt="USDC"
+                  width={20}
+                  height={20}
+                  className="rounded-full shrink-0"
+                />
                 {onchainUsdc !== null ? formatMoney(onchainUsdc) : "—"}
               </p>
               {!isApproved && (

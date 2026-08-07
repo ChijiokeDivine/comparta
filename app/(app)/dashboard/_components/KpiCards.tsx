@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock3,
 } from "lucide-react";
+import Image from "next/image"; 
 
 export default function KpiCards({
   kpis,
@@ -45,7 +46,7 @@ export default function KpiCards({
           </p>
 
           <h2
-            className={`mt-1 text-2xl font-semibold tabular-nums ${
+            className={`mt-1 text-2xl font-semibold tabular-nums inline-flex items-center gap-1.5 ${
               netCashflow > 0
                 ? "text-emerald-600"
                 : netCashflow === 0
@@ -54,6 +55,13 @@ export default function KpiCards({
             }`}
           >
             {netCashflow > 0 ? "+" : ""}
+            <Image
+              src="/usdc.png"
+              alt="USDC"
+              width={22}
+              height={22}
+              className="rounded-3xl shrink-0"
+            />
             {formatMoney(netCashflow.toString())}
           </h2>
           
@@ -83,7 +91,14 @@ export default function KpiCards({
               Yield Earned
             </p>
 
-            <p className="mt-1 text-2xl font-semibold text-[#0B1E3F] tabular-nums">
+            <p className="mt-1 text-2xl font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
+              <Image
+                src="/usdc.png"
+                alt="USDC"
+                width={22}
+                height={22}
+                className="rounded-3xl shrink-0"
+              />
               {formatMoney(kpis.netYieldAccrued)}
             </p>
           </div>

@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { 
   Wallet as WalletIcon, 
   FileText as InvoicesIcon, 
@@ -24,10 +25,15 @@ const ACTIONS: QuickAction[] = [
 ];
 
 export default function QuickActions({ disabled }: { disabled: boolean }) {
+  const [hoveredHref, setHoveredHref] = useState<string | null>(null);
+
   return (
     <div className="flex flex-wrap gap-3">
-      {ACTIONS.map((action) => {
+      {ACTIONS.map((action, idx) => {
         const Icon = action.icon;
+        const isActive = idx === 0 && hoveredHref === null;
+        const isHighlighted = hoveredHref === action.href || isActive;
+
         return disabled ? (
           <div
             key={action.href}
@@ -45,12 +51,20 @@ export default function QuickActions({ disabled }: { disabled: boolean }) {
         <Link
           key={action.href}
           href={action.href}
-          className="flex flex-row items-center justify-center rounded-3xl border border-[#E5E9F2] bg-white pl-1 pr-5 py-1 text-left hover:border-[#FFFFFF] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] w-fit "
+          onMouseEnter={() => setHoveredHref(action.href)}
+          onMouseLeave={() => setHoveredHref(null)}
+          className={`flex flex-row items-center justify-center rounded-3xl border pl-1 pr-5 py-1 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] w-fit ${
+            isHighlighted
+              ? "bg-[#2a5ce6] border-[#2a5ce6]"
+              : "bg-white border-[#E5E9F2]"
+          }`}
         >
           <span className="w-9 h-9 rounded-full flex items-center justify-center">
-            <Icon className="w-3 h-3 text-[#2A5CE6]" />
+            <Icon className={`w-3 h-3 ${isHighlighted ? "text-white" : "text-[#2A5CE6]"}`} />
           </span>
-          <span className="text-xs font-semibold text-[#0B1E3F]">{action.label}</span>
+          <span className={`text-xs font-semibold ${isHighlighted ? "text-white" : "text-[#0B1E3F]"}`}>
+            {action.label}
+          </span>
         </Link>
 
 

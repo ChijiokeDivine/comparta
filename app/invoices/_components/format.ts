@@ -23,10 +23,11 @@ export const STATUS_CLASSES: Record<InvoiceStatus, string> = {
   VOID: "bg-zinc-100 text-zinc-400 border-zinc-200 line-through decoration-1",
 };
 
-export function formatMoney(decimalString: string, currency: string = "USDC"): string {
+export function formatMoney(decimalString: string): string {
   const [whole, frac = ""] = decimalString.split(".");
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return `${grouped}.${frac.padEnd(2, "0").slice(0, 2)} ${currency}`;
+
+  return `${grouped}.${frac.padEnd(2, "0").slice(0, 2)}`;
 }
 
 export function formatDate(iso: string | Date): string {
