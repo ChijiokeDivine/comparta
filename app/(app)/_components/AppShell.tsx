@@ -202,7 +202,7 @@ export default function AppShell({
               onClick={toggleHideBalances}
               aria-label={hideBalances ? "Show balances" : "Hide balances"}
               title={hideBalances ? "Show balances" : "Hide balances"}
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#F2F4F8] transition-colors text-[#3E4A6B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6]"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-[#F7F8FB] hover:bg-[#F2F4F8] transition-colors text-[#3E4A6B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] p-1 cursor-pointer"
             >
               {hideBalances ? (
                 <EyeOffIcon className="w-5 h-5" />
@@ -284,7 +284,7 @@ function UserMenu({
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 hover:bg-[#F2F4F8] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6]"
+        className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 hover:bg-[#F2F4F8] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] cursor-pointer bg-[#F7F8FB]"
         aria-haspopup="true"
         aria-expanded={open}
       >
