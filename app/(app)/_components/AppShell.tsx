@@ -15,7 +15,10 @@ import {
   ChevronDown as ChevronDownIcon,
   Settings as SettingsIcon,
   Search as SearchIcon,
+  Eye as EyeIcon,
+  EyeOff as EyeOffIcon,
 } from "lucide-react";
+import { useHideBalances } from "./HideBalancesProvider";
 
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -35,6 +38,7 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { hideBalances, toggleHideBalances } = useHideBalances();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -154,7 +158,7 @@ export default function AppShell({
               <MenuIcon className="w-5 h-5 text-[#0B1E3F]" />
             </button>
             <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-[#0B1E3F] leading-none mb-1">
+              <span className="font-semibold text-[#0B1E3F] leading-none mb-1 md:block hidden">
                 {greeting}, {displayName}
               </span>
              
@@ -192,6 +196,19 @@ export default function AppShell({
               className="md:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#F2F4F8]"
             >
               <SearchIcon className="w-5 h-5 text-[#0B1E3F]" />
+            </button>
+            <button
+              type="button"
+              onClick={toggleHideBalances}
+              aria-label={hideBalances ? "Show balances" : "Hide balances"}
+              title={hideBalances ? "Show balances" : "Hide balances"}
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#F2F4F8] transition-colors text-[#3E4A6B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6]"
+            >
+              {hideBalances ? (
+                <EyeOffIcon className="w-5 h-5" />
+              ) : (
+                <EyeIcon className="w-5 h-5" />
+              )}
             </button>
             <UserMenu
               userName={rawUserName}

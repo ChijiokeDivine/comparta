@@ -33,6 +33,8 @@ export default function Home() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const stackSectionRef = useRef<HTMLElement>(null);
+  const stackRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const secondTooltipRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -133,6 +135,90 @@ export default function Home() {
       };
 
       init();
+      return () => ctx?.revert();
+    }, []);
+
+    // GSAP vertical stacking cards
+    useEffect(() => {
+      let ctx: { revert: () => void } | undefined;
+
+      const init = async () => {
+        const { default: gsap } = await import("gsap");
+        const { ScrollTrigger } = await import("gsap/ScrollTrigger");
+        gsap.registerPlugin(ScrollTrigger);
+
+        const section = stackSectionRef.current;
+        const stack = stackRef.current;
+        if (!section || !stack) return;
+
+        const cards = Array.from(
+          stack.querySelectorAll<HTMLElement>(".stack-card")
+        );
+
+        if (cards.length < 3) return;
+
+        ctx = gsap.context(() => {
+          gsap.set(cards[0], {
+            yPercent: 0,
+            scale: 1,
+          });
+
+          gsap.set(cards[1], {
+            yPercent: 155,
+            scale: 1,
+          });
+
+          gsap.set(cards[2], {
+            yPercent: 250,
+            scale: 1,
+          });
+
+          const timeline = gsap.timeline({
+            scrollTrigger: {
+              trigger: stack,
+              start: "top top",
+              end: "bottom bottom",
+              scrub: 2,
+              invalidateOnRefresh: true,
+            },
+          });
+
+          timeline
+            .to(cards[1], {
+              yPercent: 0,
+              duration: 1,
+              ease: "none",
+            })
+            .to(
+              cards[0],
+              {
+                scale: 0.94,
+                y: -24,
+                duration: 1,
+                ease: "none",
+              },
+              "<"
+            )
+            .to(cards[2], {
+              yPercent: 0,
+              duration: 1,
+              ease: "none",
+            })
+            .to(
+              cards[1],
+              {
+                scale: 0.94,
+                y: -24,
+                duration: 1,
+                ease: "none",
+              },
+              "<"
+            );
+        }, section);
+      };
+
+      init();
+
       return () => ctx?.revert();
     }, []);
 
@@ -727,29 +813,54 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="relative w-full min-h-[70vh] md:min-h-[85vh] overflow-visible py-16 sm:py-20 md:py-24">
-      
-
-  
-        {/* Content */}
-        <div className="relative z-10 flex flex-col items-center justify-center text-center h-full px-4 sm:px-6 pt-12 sm:pt-16 md:pt-20" >
+      {/* Vertical stacking cards */}
+      <section
+        ref={stackSectionRef}
+        className="relative w-full bg-white"
+      >
+        <div className="px-4 sm:px-6 pt-20 sm:pt-24 md:pt-32 pb-12 text-center">
           <h1 className="text-black font-normal text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight">
             Freedom to move, instantly
           </h1>
 
-          <p className="mt-5 md:mt-6 text-black/80 text-sm  md:text-xl max-w-md sm:max-w-lg md:max-w-xl">
+          <p className="mt-5 md:mt-6 text-black/80 text-sm md:text-xl max-w-md sm:max-w-lg md:max-w-xl mx-auto">
             No queues. No waiting on a bank. Just money that moves the moment you need it to.
           </p>
+        </div>
 
-          <div className="mt-9 sm:mt-12 md:mt-16 w-full max-w-5xl lg:max-w-6xl mx-auto px-4">
-            <div className="relative w-full md:aspect-[16/9] aspect-[5/4]  rounded-2xl overflow-hidden">
-              <Image
-                src="/joy.webp"
-                alt="Pay team"
-                fill
-                className="object-cover"
-                priority
-              />
+        <div
+          ref={stackRef}
+          className="relative h-[450vh] md:h-[500vh]"
+        >
+          <div className="sticky top-0 h-screen flex items-center justify-center px-4 sm:px-6 md:px-10">
+            <div className="relative w-full max-w-5xl lg:max-w-6xl h-[62vh] sm:h-[68vh] md:h-[72vh]">
+              {[0, 1, 2].map((card) => (
+                <div
+                  key={card}
+                  className="stack-card absolute inset-0 overflow-hidden rounded-2xl md:rounded-3xl bg-neutral-100 shadow-[0_25px_80px_rgba(0,0,0,0.14)] will-change-transform"
+                  style={{ zIndex: card + 1 }}
+                >
+                  <Image
+                    src="/joy.webp"
+                    alt={`Comparta money movement ${card + 1}`}
+                    fill
+                    className="object-cover"
+                    priority={card === 0}
+                  />
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
+
+                  <div className="absolute bottom-5 left-5 sm:bottom-8 sm:left-8 md:bottom-10 md:left-10">
+                    <span className="inline-flex rounded-full bg-white/90 px-3 py-1.5 text-xs sm:text-sm font-medium text-black backdrop-blur">
+                      {card === 0
+                        ? "Move money"
+                        : card === 1
+                          ? "Get paid"
+                          : "Pay your team"}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -221,6 +221,11 @@ export interface BucketSummary {
   sparkline: SparklinePoint[];
 }
 
+export type ListBucketsWithBalancesItem = Pick<
+  BucketSummary,
+  "id" | "orgId" | "walletId" | "name" | "type" | "archived" | "archivedAt" | "createdAt" | "updatedAt" | "balance"
+>;
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function toUtcDayKey(date: Date): string {

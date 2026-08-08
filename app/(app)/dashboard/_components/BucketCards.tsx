@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import type { BucketSummary } from "@/lib/buckets/service";
 import { formatMoney } from "@/app/invoices/_components/format";
+import { useHideBalances, maskBalance } from "@/app/(app)/_components/HideBalancesProvider";
 
 const TYPE_LABEL: Record<string, string> = {
   OPERATING: "Operating",
@@ -15,6 +18,8 @@ export default function BucketCards({
 }: {
   buckets: BucketSummary[];
 }) {
+  const { hideBalances } = useHideBalances();
+
   return (
     <div className="rounded-3xl border border-[#E5E9F2] bg-white p-6">
       <div className="flex items-center justify-between mb-6">
@@ -40,33 +45,33 @@ export default function BucketCards({
       ) : (
         <div className="space-y-4">
           {buckets.slice(0, 5).map((bucket) => (
-            <Link
-              key={bucket.id}
-              href={`/buckets/${bucket.id}`}
-              className="flex items-center justify-between rounded-xl p-2 -mx-2 hover:bg-[#F7F9FC] transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                {/* Icon */}
-                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5E9F2] bg-[#FAFBFD]">
-                  <span className="text-lg">🪣</span>
-                </div>
-
-                <div>
-                  <p className="font-medium text-[#0B1E3F]">
-                    {bucket.name}
-                  </p>
-
-                  <p className="text-sm text-[#7C8CA6]">
-                    {TYPE_LABEL[bucket.type] ?? bucket.type}
-                  </p>
-                </div>
+          <Link
+            key={bucket.id}
+            href={`/buckets/${bucket.id}`}
+            className="flex items-center justify-between rounded-xl p-2 -mx-2 hover:bg-[#F7F9FC] transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              {/* Icon */}
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5E9F2] bg-[#FAFBFD]">
+                <span className="text-lg">🪣</span>
               </div>
 
-              <p className="font-medium text-[#0B1E3F] tabular-nums">
-                {formatMoney(bucket.balance)}
-              </p>
-            </Link>
-          ))}
+              <div>
+                <p className="font-medium text-[#0B1E3F]">
+                  {bucket.name}
+                </p>
+
+                <p className="text-sm text-[#7C8CA6]">
+                  {TYPE_LABEL[bucket.type] ?? bucket.type}
+                </p>
+              </div>
+            </div>
+
+            <p className="font-medium text-[#0B1E3F] tabular-nums">
+              {maskBalance(formatMoney(bucket.balance), hideBalances)}
+            </p>
+          </Link>
+        ))}
 
           {buckets.length > 5 && (
             <Link

@@ -1,4 +1,4 @@
-// app/(app)/dashboard/_components/KpiCards.tsx
+"use client";
 
 import Link from "next/link";
 import type { DashboardKpis } from "@/lib/insights/dashboard/getDashboardSummary";
@@ -9,13 +9,15 @@ import {
   CheckCircle2,
   Clock3,
 } from "lucide-react";
-import Image from "next/image"; 
+import Image from "next/image";
+import { useHideBalances, maskBalance } from "@/app/(app)/_components/HideBalancesProvider"; 
 
 export default function KpiCards({
   kpis,
 }: {
   kpis: DashboardKpis;
 }) {
+  const { hideBalances } = useHideBalances();
   const pendingTotal =
     kpis.pendingPayrollApprovals + kpis.overdueInvoices;
   const inflow = Number(kpis.inflow30d);
@@ -62,19 +64,19 @@ export default function KpiCards({
               height={22}
               className="rounded-3xl shrink-0"
             />
-            {formatMoney(netCashflow.toString())}
+            {maskBalance(formatMoney(netCashflow.toString()), hideBalances)}
           </h2>
           
 
           <div className="mt-4 flex gap-6 text-sm">
             <div className="flex items-center gap-2 text-emerald-600">
               <ArrowUpRight size={18} />
-              <span>{formatMoney(kpis.inflow30d)}</span>
+              <span>{maskBalance(formatMoney(kpis.inflow30d), hideBalances)}</span>
             </div>
 
             <div className="flex items-center gap-2 text-red-500">
               <ArrowDownRight size={18} />
-              <span>{formatMoney(kpis.outflow30d)}</span>
+              <span>{maskBalance(formatMoney(kpis.outflow30d), hideBalances)}</span>
             </div>
           </div>
           
@@ -99,7 +101,7 @@ export default function KpiCards({
                 height={22}
                 className="rounded-3xl shrink-0"
               />
-              {formatMoney(kpis.netYieldAccrued)}
+              {maskBalance(formatMoney(kpis.netYieldAccrued), hideBalances)}
             </p>
           </div>
 

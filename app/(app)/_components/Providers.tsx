@@ -3,6 +3,7 @@
 
 import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
+import { HideBalancesProvider } from "./HideBalancesProvider";
 
 export default function Providers({
   session,
@@ -11,5 +12,9 @@ export default function Providers({
   session: Session | null;
   children: React.ReactNode;
 }) {
-  return <SessionProvider session={session}>{children}</SessionProvider>;
+  return (
+    <SessionProvider session={session}>
+      <HideBalancesProvider>{children}</HideBalancesProvider>
+    </SessionProvider>
+  );
 }

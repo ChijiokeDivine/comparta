@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import {
   X,
   Copy,
@@ -81,7 +82,7 @@ export default function DepositModal({
           color: "#2A5CE6",
           type: "dot",
         },
-        image: "/usdc.png",
+        image: "/small-logo.webp",
       });
     } else {
       qrInstance.current.update({ data: address });
@@ -208,7 +209,7 @@ export default function DepositModal({
               
               </div>
 
-              <div className="grid grid-cols-3 gap-2.5">
+              <div className="md:grid grid-cols-3 gap-2.5   hidden">
                 <div className="rounded-xl bg-[#FAFBFD] border border-[#F2F4F8] p-3 text-center">
                   <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
                     <Network size={14} />
@@ -228,8 +229,14 @@ export default function DepositModal({
                   </p>
                 </div>
                 <div className="rounded-xl bg-[#FAFBFD] border border-[#F2F4F8] p-3 text-center">
-                  <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
-                    <ShieldCheck size={14} />
+                  <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white  flex items-center justify-center">
+                    <Image
+                      src="/usdc.png"
+                      alt="USDC"
+                      width={18}
+                      height={18}
+                      className="rounded-full"
+                    />
                   </div>
                
                   <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
@@ -243,9 +250,7 @@ export default function DepositModal({
        
 
           <div className="mt-1 rounded-xl border border-[#E5EEFF] p-3.5 flex gap-3 md:block hidden">
-            <div className="shrink-0 mt-0.5 w-7 h-7 rounded-full bg-[#2A5CE6]/10 text-[#2A5CE6] flex items-center justify-center">
-              <ShieldCheck size={14} />
-            </div>
+        
             <div className="space-y-1">
               <p className="text-xs font-semibold text-[#0B1E3F]">
                 Send only USDC on the {displayChain} network
