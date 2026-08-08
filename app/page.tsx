@@ -342,15 +342,16 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       {/* Header + Hero shared background wrapper */}
       <div className="relative overflow-hidden">
-        {/* Shared background image */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `url('/VcnS1TWU8Hk2UfNqEK734kaF9VU.webp')`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-          }}
+        {/* Shared background video */}
+        <video
+          src="/9056440-hd_1280_720_50fps.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          className="absolute inset-0 h-full w-full object-cover"
+          // poster="/VcnS1TWU8Hk2UfNqEK734kaF9VU.webp"
         />
         {/* Overlay */}
         <div className="absolute inset-0 bg-black/50" />
@@ -360,7 +361,7 @@ export default function Home() {
           <div className="mx-auto flex max-w-[1920px] items-center justify-between px-4 py-6 sm:px-6 md:px-8">
             {/* Logo */}
             <a href="/" className="flex items-center gap-2">
-              <img src="img5.png" alt="Comparta" height={42} width={135} />
+              <img src="img5.png" alt="Comparta" height={35} width={110} />
             </a>
 
             {/* Nav */}
@@ -374,7 +375,7 @@ export default function Home() {
             <div className="hidden items-center gap-8 md:flex">
               <a
                 href="/login"
-                className="text-[16px] font-semibold text-[#FFFFFF] hover:opacity-80"
+                className="text-[14px] font-semibold text-[#FFFFFF] hover:opacity-80"
               >
                 Log in
               </a>
@@ -576,7 +577,7 @@ export default function Home() {
         <section className="relative"  >
 
           <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-end px-4 pt-20 md:pb-20 pb-36  text-center sm:px-6 md:h-[90vh] h-[80vh]">
-            <h1 className="text-[40px] font-normal leading-[1.05] text-[#FFFFFF] sm:text-[65px] md:text-[70px] lg:text-[70px] xl:text-[80px] pt-12  md:pt-20">
+            <h1 className="text-[40px] font-normal leading-[1.05] text-[#FFFFFF] sm:text-[60px] md:text-[65px] lg:text-[65px] xl:text-[70px] pt-12  md:pt-20">
               Move money like
               <span className="inline max-[349px]:inline">&nbsp;</span>
               <br className="block max-[349px]:hidden" />
@@ -586,12 +587,12 @@ export default function Home() {
             </h1>
             
 
-            <p className="mt-9 max-w-[600px] text-[16px] text-[#FFFFFF] md:text-[21px]">
+            <p className="mt-9 max-w-[540px] text-[16px] text-[#FFFFFF] md:text-[15px]">
               Comparta unifies invoicing, payments, payroll, and savings. instant settlement, all from one account. 
             </p>
             <a
               href="/register"
-              className="mt-10 btn-3d "
+              className="mt-10 btn-3d  "
             >
               <span className="md:block hidden">Create your account</span><span className="md:hidden block">Get started</span>
              
@@ -833,7 +834,7 @@ export default function Home() {
           className="relative h-[450vh] md:h-[500vh]"
         >
           <div className="sticky top-0 h-screen flex items-center justify-center px-4 sm:px-6 md:px-10">
-            <div className="relative w-full max-w-5xl lg:max-w-6xl h-[62vh] sm:h-[68vh] md:h-[72vh]">
+            <div className="relative w-full max-w-4xl lg:max-w-4xl 2xl:max-w-[1100px] h-[62vh] sm:h-[68vh] md:h-[72vh]">
               {[0, 1, 2].map((card) => (
                 <div
                   key={card}

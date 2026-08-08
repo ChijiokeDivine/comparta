@@ -42,7 +42,7 @@ export function NavDropdown({ label }: { label: string }) {
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
     >
-      <button className="flex items-center gap-1.5 text-[16px] font-medium text-[#FFFFFF] hover:text-[#FFFFFF]">
+      <button className="flex items-center gap-1.5 text-[16px] md:text-[14px] font-medium text-[#FFFFFF] hover:text-[#FFFFFF]">
         {label}
         <svg
           width="14"

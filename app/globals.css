@@ -52,14 +52,14 @@ body {
 
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
   color: #0B1E4B;
   text-decoration: none;
 
   background: var(--btn-bg);
   border: none;
   border-radius: 3.75rem;
-  padding: 14px 34px;
+  padding: 12px 30px;
   cursor: pointer;
 
   /* box-shadow: 0 4px 0 0 var(--btn-edge);
@@ -93,8 +93,8 @@ body {
 }
 
 .btn-3d--sm {
-  padding: 11px 22px;
-  font-size: 14px;
+  padding: 9px 18px;
+  font-size: 12px;
   border-radius: 3.75rem;
   /* box-shadow: 0 3px 0 0 var(--btn-edge); */
 }
