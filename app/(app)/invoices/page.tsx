@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { STATUS_LABEL, STATUS_CLASSES, formatUSDC, formatDate, type InvoiceStatus } from "@/app/invoices/_components/format";
+import { STATUS_LABEL, STATUS_CLASSES, formatUSDC, formatMoney , formatDate, type InvoiceStatus } from "@/app/invoices/_components/format";
 import Image from "next/image";
 
 interface Invoice {

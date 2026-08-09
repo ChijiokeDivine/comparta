@@ -173,7 +173,7 @@ export default function PayLinkPage() {
     <div className="min-h-screen bg-[#F7F8FB] flex items-start sm:items-center justify-center px-4 py-10">
       <div className="w-full max-w-lg">
         <div className="flex justify-center mb-6">
-          <img src="/img5.png" alt="Comparta" height={28} width={100} />
+          <img src="/logo.png" alt="Comparta" height={28} width={100} />
         </div>
 
         {loading ? (

@@ -75,9 +75,25 @@ export class ReceiveHandlingError extends Error {
  * later webhook once Circle considers the transfer final.
  */
 export async function handleInboundTransfer(notification: InboundNotification): Promise<void> {
+    console.log("[receive] INBOUND WEBHOOK RECEIVED", {
+    circleTransactionId: notification.circleTransactionId,
+    walletId: notification.walletId,
+    state: notification.state,
+    blockchain: notification.blockchain,
+    sourceBlockchain: notification.sourceBlockchain,
+    destinationAddress: notification.destinationAddress,
+    sourceAddress: notification.sourceAddress,
+    amounts: notification.amounts,
+    txHash: notification.txHash,
+    });
   if (!INBOUND_TERMINAL_SUCCESS_STATES.has(notification.state.toUpperCase())) {
+   console.log("[receive] Ignoring non-terminal webhook", {
+    circleTransactionId: notification.circleTransactionId,
+    state: notification.state,
+   });
     return; // not yet final; ignore until Circle reports a terminal state
   }
+  
 
   // Idempotency: if we've already recorded this Circle transaction, this
   // is a redelivered webhook - no-op.
@@ -90,6 +106,12 @@ export async function handleInboundTransfer(notification: InboundNotification): 
     where: { circleWalletId: notification.walletId },
     include: { organization: true },
   });
+  console.log("[receive] WALLET LOOKUP", {
+  circleWalletId: notification.walletId,
+  found: !!wallet,
+  localWalletId: wallet?.id,
+  orgId: wallet?.orgId,
+});
   if (!wallet) {
     // Not one of ours (or ours but not yet synced locally) - nothing to
     // credit. Logged rather than thrown so an unrelated/foreign webhook

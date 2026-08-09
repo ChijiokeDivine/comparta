@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { StatusPill } from "@/app/components/StatusPill";
-import { formatUSDC, formatDate } from "@/app/invoices/_components/format";
+import { formatDate, formatMoney } from "@/app/invoices/_components/format";
 import Image from "next/image";
 
 interface PaymentLink {
@@ -100,7 +100,7 @@ export default function PaymentLinksPage() {
               className="flex items-center justify-between px-5 py-3.5 hover:bg-[#F7F8FB] transition-colors"
             >
               <div className="min-w-0">
-                <p className="text-sm font-medium text-[#0B1E3F] truncate">
+                <p className="text-sm font-medium text-[#0B1E3F] mb-4 truncate">
                   {link.description || `/pay/${link.slug}`}
                 </p>
                 <p className="text-xs text-[#7C8CA6]">
@@ -109,8 +109,15 @@ export default function PaymentLinksPage() {
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <span className="text-sm font-semibold text-[#0B1E3F] tabular-nums">
-                  {link.amount ? formatUSDC(link.amount) : "Open amount"}
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0B1E3F] tabular-nums shrink-0">
+                  <Image
+                    src="/usdc.png"
+                    alt="USDC"
+                    width={15}
+                    height={15}
+                    className="rounded-full shrink-0"
+                  />
+                  {link.amount ? `${formatMoney(link.amount)}` : "Open amount"}
                 </span>
                 <StatusPill value={link.status} />
               </div>
