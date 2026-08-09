@@ -351,7 +351,7 @@ export default function Home() {
           playsInline
           preload="auto"
           className="absolute inset-0 h-full w-full object-cover"
-          poster="/VcnS1TWU8Hk2UfNqEK734kaF9VU.webp"
+          poster="/9056440-hd_1280_720_50fps.webp"
         />
         {/* Overlay */}
         <div className="absolute inset-0 bg-black/50" />
