@@ -11,7 +11,7 @@ export default function MaskedTotalBalance({ formatted }: MaskedTotalBalanceProp
   const display = maskBalance(`$${formatted}`, hideBalances, true);
 
   return (
-    <p className="text-3xl sm:text-4xl font-semibold text-[#0B1E3F] tabular-nums">
+    <p className="text-2xl md:text-4xl font-semibold text-[#0B1E3F] tabular-nums">
       {display}
     </p>
   );

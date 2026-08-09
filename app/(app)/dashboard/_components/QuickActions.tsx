@@ -17,12 +17,13 @@ interface QuickAction {
   label: string;
   icon: typeof WalletIcon;
   action?: "deposit";
+  hideOnMobile?: boolean;
 }
 
 const ACTIONS: QuickAction[] = [
   { label: "New deposit", icon: DepositIcon, action: "deposit" },
   { href: "/wallet/transfer", label: "New transfer", icon: WalletIcon },
-  { href: "/invoices/new", label: "New invoice", icon: InvoicesIcon },
+  { href: "/invoices/new", label: "New invoice", icon: InvoicesIcon, hideOnMobile: true },
   { href: "/payment-links/new", label: "New payment link", icon: PaymentLinksIcon },
   { href: "/contacts/new", label: "New payee", icon: ContactsIcon },
 ];
@@ -64,7 +65,9 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
             </>
           );
 
-          const baseClass = `flex flex-row items-center justify-center rounded-3xl border pl-1 pr-5 py-1 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] w-fit ${
+          const baseClass = `flex flex-row items-center justify-center rounded-3xl border pl-1 pr-5 py-0 md:py-1 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] w-fit ${
+            action.hideOnMobile ? "hidden md:flex" : ""
+          } ${
             isHighlighted
               ? "bg-[#2A5CE6] border-[#2A5CE6]"
               : "bg-white border-[#E5E9F2]"
@@ -76,7 +79,9 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
                 key={action.label}
                 title="Available once your organization's KYB is approved"
                 aria-disabled="true"
-                className="flex flex-row items-center justify-start gap-3 rounded-2xl border border-[#E5E9F2] bg-white px-4 py-3 text-left opacity-50 cursor-not-allowed w-fit"
+                className={`flex flex-row items-center justify-start gap-3 rounded-2xl border border-[#E5E9F2] bg-white px-4 py-3 text-left opacity-50 cursor-not-allowed w-fit ${
+                  action.hideOnMobile ? "hidden md:flex" : ""
+                }`}
               >
                 <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0">
                   <Icon className="w-4 h-4 text-[#7C8CA6]" />

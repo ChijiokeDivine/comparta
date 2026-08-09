@@ -29,10 +29,10 @@ export default function KpiCards({
     <div className="rounded-3xl border border-[#E5E9F2] bg-white p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-8">
         <div className="flex flex-row justify-between items-baseline w-full">
-          <h3 className="text-lg font-medium text-[#0B1E3F]">
+          <h3 className="md:text-lg text-md font-medium text-[#0B1E3F]">
             Financial Summary
           </h3>
-          <p className="text-sm text-[#7C8CA6] mt-1">
+          <p className="md:text-sm text-xs text-[#7C8CA6] mt-1">
             Last 30 days
           </p>
 
@@ -43,12 +43,12 @@ export default function KpiCards({
       <div className="space-y-6">
         {/* Cash Flow */}
         <section>
-          <p className="text-sm text-[#7C8CA6]">
+          <p className="md:text-sm text-xs text-[#7C8CA6]">
             Net Cash Flow
           </p>
 
           <h2
-            className={`mt-1 text-2xl font-semibold tabular-nums inline-flex items-center gap-1.5 ${
+            className={`mt-1 md:text-2xl text-xl font-semibold tabular-nums inline-flex items-center gap-1.5 ${
               netCashflow > 0
                 ? "text-emerald-600"
                 : netCashflow === 0
@@ -89,11 +89,11 @@ export default function KpiCards({
         {/* Yield */}
         <section className="flex justify-between items-end mt-6">
           <div>
-            <p className="text-sm text-[#7C8CA6]">
+            <p className="md:text-sm text-xs text-[#7C8CA6]">
               Yield Earned
             </p>
 
-            <p className="mt-1 text-2xl font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
+            <p className="mt-1 md:text-2xl text-xl font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
               <Image
                 src="/usdc.png"
                 alt="USDC"

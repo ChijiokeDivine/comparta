@@ -1,4 +1,5 @@
 // app/(app)/dashboard/_components/ActivityFeed.tsx
+import Image from "next/image";
 import type { ActivityItem } from "@/lib/insights/dashboard/getDashboardSummary";
 import { formatMoney, formatRelativeTime } from "@/app/invoices/_components/format";
 
@@ -15,8 +16,17 @@ const KIND_STYLES: Record<ActivityItem["kind"], { bg: string; fg: string; glyph:
 export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-2xl border border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6]">
-        No activity yet. Once money moves, it&apos;ll show up here.
+      <div className="rounded-2xl border border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6] flex flex-col items-center justify-center min-h-[300px] ">
+         No activity yet. Once money moves, it&apos;ll show up here.
+        <div className="relative w-24 h-24 mt-4 flex items-center justify-center">
+          <Image
+            src="/coins.webp"
+            alt="No activity"
+            fill
+            className="object-contain"
+          />
+        </div>
+       
       </div>
     );
   }

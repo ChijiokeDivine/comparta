@@ -115,7 +115,7 @@ export default function TransferForm({ buckets, disabled }: { buckets: Bucket[];
         >
           {buckets.map((b) => (
             <option key={b.id} value={b.id}>
-              {b.name} — {b.balance} USDC
+              {b.name} - {b.balance} USDC
             </option>
           ))}
         </select>

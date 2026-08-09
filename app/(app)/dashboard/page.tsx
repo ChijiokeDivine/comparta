@@ -60,7 +60,7 @@ export default async function DashboardPage() {
 
       {/* Balance hero */}
       <div className="md:mt-5">
-        <p className="text-sm font-medium text-[#7C8CA6] mb-1">Total balance</p>
+        <p className="md:text-sm text-xs  font-medium text-[#7C8CA6] mb-1">Total balance</p>
         <MaskedTotalBalance formatted={formatBalanceHero(kpis.totalBalance)} />
         {/* <p className="text-sm text-[#7C8CA6] mt-1">
           {formatMoney(kpis.liquidBalance)} liquid · {formatMoney(kpis.deployedBalance)} in savings

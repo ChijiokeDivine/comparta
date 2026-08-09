@@ -834,16 +834,20 @@ export default function Home() {
           className="relative h-[450vh] md:h-[500vh]"
         >
           <div className="sticky top-0 h-screen flex items-center justify-center px-4 sm:px-6 md:px-10">
-            <div className="relative w-full max-w-4xl lg:max-w-4xl 2xl:max-w-[1100px] h-[62vh] sm:h-[68vh] md:h-[72vh]">
-              {[0, 1, 2].map((card) => (
+            <div className="relative w-full max-w-4xl lg:max-w-4xl 2xl:max-w-[1000px] h-[62vh] sm:h-[68vh] md:h-[72vh]">
+              {[
+                { src: "/money.webp", label: "Move money", alt: "Comparta move money" },
+                { src: "/VcnS1TWU8Hk2UfNqEK734kaF9VU.webp", label: "Get paid", alt: "Comparta get paid" },
+                { src: "/pexels-cottonbro-6594308.avif", label: "Pay your team", alt: "Comparta pay your team" },
+              ].map((item, card) => (
                 <div
                   key={card}
                   className="stack-card absolute inset-0 overflow-hidden rounded-2xl md:rounded-3xl bg-neutral-100 shadow-[0_25px_80px_rgba(0,0,0,0.14)] will-change-transform"
                   style={{ zIndex: card + 1 }}
                 >
                   <Image
-                    src="/joy.webp"
-                    alt={`Comparta money movement ${card + 1}`}
+                    src={item.src}
+                    alt={item.alt}
                     fill
                     className="object-cover"
                     priority={card === 0}
@@ -853,11 +857,7 @@ export default function Home() {
 
                   <div className="absolute bottom-5 left-5 sm:bottom-8 sm:left-8 md:bottom-10 md:left-10">
                     <span className="inline-flex rounded-full bg-white/90 px-3 py-1.5 text-xs sm:text-sm font-medium text-black backdrop-blur">
-                      {card === 0
-                        ? "Move money"
-                        : card === 1
-                          ? "Get paid"
-                          : "Pay your team"}
+                      {item.label}
                     </span>
                   </div>
                 </div>

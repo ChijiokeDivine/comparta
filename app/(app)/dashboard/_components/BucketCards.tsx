@@ -23,12 +23,12 @@ export default function BucketCards({
   return (
     <div className="rounded-3xl border border-[#E5E9F2] bg-white p-6">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-medium text-[#0B1E3F]">Buckets</h3>
+        <h3 className="md:text-xl text-lg font-medium text-[#0B1E3F]">Buckets</h3>
 
         {buckets.length > 0 && (
           <Link
             href="/buckets"
-            className="text-sm font-medium text-[#2A5CE6] hover:underline"
+            className="md:text-sm text-xs font-medium text-[#2A5CE6] hover:underline"
           >
             View all
           </Link>
@@ -57,17 +57,17 @@ export default function BucketCards({
               </div>
 
               <div>
-                <p className="font-medium text-[#0B1E3F]">
+                <p className="md:text-md text-sm font-medium text-[#0B1E3F]">
                   {bucket.name}
                 </p>
 
-                <p className="text-sm text-[#7C8CA6]">
+                <p className="md:text-sm text-xs text-[#7C8CA6]">
                   {TYPE_LABEL[bucket.type] ?? bucket.type}
                 </p>
               </div>
             </div>
 
-            <p className="font-medium text-[#0B1E3F] tabular-nums">
+            <p className="md:text-md text-sm font-medium text-[#0B1E3F] tabular-nums">
               {maskBalance(formatMoney(bucket.balance), hideBalances)}
             </p>
           </Link>
@@ -78,7 +78,7 @@ export default function BucketCards({
               href="/buckets"
               className="flex items-center gap-3 rounded-xl p-2 -mx-2 hover:bg-[#F7F9FC] transition-colors"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F2F5FA] text-sm font-medium text-[#5F6B7A]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F2F5FA] md:text-sm text-xs font-medium text-[#5F6B7A]">
                 +{buckets.length - 5}
               </div>
 

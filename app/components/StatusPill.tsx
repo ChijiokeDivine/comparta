@@ -34,7 +34,7 @@ const STYLES: Record<string, string> = {
 export function StatusPill({ value, label }: { value: string; label?: string }) {
   const style = STYLES[value] ?? "bg-[#F2F4F8] text-[#3E4A6B] border-[#E5E9F2]";
   return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${style}`}>
+    <span className={`md:inline-flex items-center rounded-full border px-2.5 py-1 hidden  text-[10px] font-semibold ${style}`}>
       {label ?? value}
     </span>
   );

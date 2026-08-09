@@ -71,43 +71,43 @@ export default async function WalletPage() {
         <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <p className="text-xs font-medium text-[#7C8CA6] mb-1">Arc address</p>
-              <p className="text-sm font-mono text-[#0B1E3F] break-all">{wallet.arcAddress}</p>
+              <p className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-2">Arc address</p>
+              <p className="md:text-sm text-sm font-mono text-[#0B1E3F] break-all">{wallet.arcAddress}</p>
             </div>
             <div className="flex items-center gap-2">
-              <StatusPill value={wallet.chain} label={wallet.chain.replace(/_/g, " ")} />
+              {/* <StatusPill value={wallet.chain} label={wallet.chain.replace(/_/g, " ")} /> */}
               <CopyAddressButton address={wallet.arcAddress} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#F2F4F8]">
             <div>
-              <p className="text-xs font-medium text-[#7C8CA6] mb-1">Ledger total (buckets)</p>
-              <p className="text-lg font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
+              <p className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-2">Ledger total (buckets)</p>
+              <p className="md:text-lg text-sm font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
                 <Image
                   src="/usdc.png"
                   alt="USDC"
-                  width={20}
-                  height={20}
+                  width={15}
+                  height={15}
                   className="rounded-full shrink-0"
                 />
                 {formatMoney(ledgerTotal.toFixed(6))}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium text-[#7C8CA6] mb-1">Onchain USDC balance</p>
-              <p className="text-lg font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
+              <p className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-2">Onchain USDC balance</p>
+              <p className="md:text-lg text-sm font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
                 <Image
                   src="/usdc.png"
                   alt="USDC"
-                  width={20}
-                  height={20}
+                  width={15}
+                  height={15}
                   className="rounded-full shrink-0"
                 />
                 {onchainUsdc !== null ? formatMoney(onchainUsdc) : "-"}
               </p>
               {!isApproved && (
-                <p className="text-xs text-[#7C8CA6] mt-1">Visible once KYB is approved</p>
+                <p className="md:text-sm text-xs text-[#7C8CA6] mt-2">Visible once KYB is approved</p>
               )}
             </div>
           </div>
@@ -138,10 +138,10 @@ export default async function WalletPage() {
                 className="flex items-center justify-between px-5 py-3.5 hover:bg-[#F7F8FB] transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#0B1E3F]">{b.name}</span>
+                  <span className="md:text-sm text-xs font-medium text-[#0B1E3F]">{b.name}</span>
                   <StatusPill value={b.type} />
                 </div>
-                <span className="text-sm font-semibold text-[#0B1E3F] tabular-nums">
+                <span className="md:text-sm text-sm font-semibold text-[#0B1E3F] tabular-nums">
                   {formatMoney(b.balance)}
                 </span>
               </Link>
