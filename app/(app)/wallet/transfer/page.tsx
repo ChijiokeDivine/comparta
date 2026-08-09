@@ -9,13 +9,19 @@ import { KybBanner } from "../../_components/Kyb";
 import TransferForm from "./TransferForm";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "New transfer",
 };
 
-export default async function NewTransferPage() {
+export default async function NewTransferPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ to?: string }>;
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.orgId) redirect("/login");
+
+  const { to: prefillTo } = await searchParams;
 
   const [org, ledgerAccounts] = await Promise.all([
     prisma.organization.findUnique({ where: { id: session.user.orgId }, select: { kybStatus: true } }),
@@ -35,7 +41,11 @@ export default async function NewTransferPage() {
     <div className="max-w-lg space-y-6">
       <KybBanner status={org.kybStatus} />
       <h1 className="text-xl font-semibold text-[#0B1E3F]">New transfer</h1>
-      <TransferForm buckets={buckets} disabled={org.kybStatus !== "APPROVED"} />
+      <TransferForm
+        buckets={buckets}
+        disabled={org.kybStatus !== "APPROVED"}
+        initialTo={prefillTo}
+      />
     </div>
   );
 }

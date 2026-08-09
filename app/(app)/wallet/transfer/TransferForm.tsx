@@ -1,13 +1,22 @@
 // app/(app)/wallet/transfer/TransferForm.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Search as SearchIcon } from "lucide-react";
 
 interface Bucket {
   id: string;
   name: string;
   balance: string;
+}
+
+interface Contact {
+  id: string;
+  displayName: string;
+  identifier: string;
+  identifierType: "USERNAME" | "ADDRESS";
 }
 
 interface ResolveResult {
@@ -17,10 +26,18 @@ interface ResolveResult {
   username: string | null;
 }
 
-export default function TransferForm({ buckets, disabled }: { buckets: Bucket[]; disabled: boolean }) {
+export default function TransferForm({
+  buckets,
+  disabled,
+  initialTo,
+}: {
+  buckets: Bucket[];
+  disabled: boolean;
+  initialTo?: string;
+}) {
   const router = useRouter();
   const [fromLedgerAccountId, setFromLedgerAccountId] = useState(buckets[0]?.id ?? "");
-  const [toIdentifier, setToIdentifier] = useState("");
+  const [toIdentifier, setToIdentifier] = useState(initialTo ?? "");
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
   const [resolving, setResolving] = useState(false);
@@ -29,12 +46,40 @@ export default function TransferForm({ buckets, disabled }: { buckets: Bucket[];
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Stable per-mount idempotency key, reused across retries within this
-  // session so a double-submit (or a retry after a network blip) can
-  // never double-send - see app/api/transfers/send/route.ts.
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+
+  useEffect(() => {
+    if (!toIdentifier.trim()) return;
+    void handleResolve();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!pickerOpen || contactsLoading) return;
+    setContactsLoading(true);
+    fetch("/api/contacts")
+      .then((res) => res.json())
+      .then((data) => setContacts(data.contacts ?? []))
+      .catch(() => setContacts([]))
+      .finally(() => setContactsLoading(false));
+  }, [pickerOpen, contactsLoading]);
+
+  const filteredContacts = useMemo(() => {
+    const q = pickerQuery.trim().toLowerCase();
+    if (!q) return contacts;
+    return contacts.filter(
+      (c) =>
+        c.displayName.toLowerCase().includes(q) ||
+        c.identifier.toLowerCase().includes(q)
+    );
+  }, [contacts, pickerQuery]);
+
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
 
-  async function handleIdentifierBlur() {
+  async function handleResolve() {
     setResolved(null);
     setResolveError(null);
     if (!toIdentifier.trim()) return;
@@ -53,6 +98,19 @@ export default function TransferForm({ buckets, disabled }: { buckets: Bucket[];
     } finally {
       setResolving(false);
     }
+  }
+
+  async function handleIdentifierBlur() {
+    await handleResolve();
+  }
+
+  function pickContact(contact: Contact) {
+    setToIdentifier(contact.identifier);
+    setPickerOpen(false);
+    setPickerQuery("");
+    setResolved(null);
+    setResolveError(null);
+    setTimeout(() => handleResolve(), 0);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -121,9 +179,77 @@ export default function TransferForm({ buckets, disabled }: { buckets: Bucket[];
         </select>
       </div>
 
-      <div>
-        <label htmlFor="to" className="block text-sm font-semibold text-[#0B1E3F] mb-2">
-          To (@username or 0x address)
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label htmlFor="to" className="block text-sm font-semibold text-[#0B1E3F] mb-2">
+            To
+          </label>
+          <button
+            type="button"
+            onClick={() => setPickerOpen((o) => !o)}
+            disabled={disabled}
+            className="text-xs font-semibold text-[#2A5CE6] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {pickerOpen ? "Hide contacts" : "Pick from contacts"}
+          </button>
+        </div>
+
+        {pickerOpen && (
+          <div className="rounded-xl border border-[#E5E9F2] bg-white overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#F2F4F8] bg-[#FBFBFD]">
+              <SearchIcon className="w-4 h-4 text-[#7C8CA6] shrink-0" />
+              <input
+                type="text"
+                value={pickerQuery}
+                onChange={(e) => setPickerQuery(e.target.value)}
+                placeholder="Search contacts by name or address…"
+                className="w-full bg-transparent text-sm text-[#0B1E3F] placeholder:text-[#7C8CA6] focus:outline-none"
+              />
+            </div>
+            <div className="max-h-56 overflow-y-auto">
+              {contactsLoading ? (
+                <div className="px-4 py-6 text-center text-xs text-[#7C8CA6]">Loading contacts…</div>
+              ) : filteredContacts.length === 0 ? (
+                <div className="px-4 py-6 text-center space-y-2">
+                  <p className="text-xs text-[#7C8CA6]">
+                    {contacts.length === 0 ? "No saved contacts yet." : "No contacts match your search."}
+                  </p>
+                  {contacts.length === 0 && (
+                    <Link
+                      href="/contacts/new"
+                      className="inline-block text-xs font-semibold text-[#2A5CE6] hover:underline"
+                    >
+                      Add your first contact →
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <ul className="divide-y divide-[#F2F4F8]">
+                  {filteredContacts.map((c) => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => pickContact(c)}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#F7F8FB] transition-colors text-left"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[#0B1E3F] truncate">{c.displayName}</p>
+                          <p className="text-xs font-mono text-[#7C8CA6] truncate">{c.identifier}</p>
+                        </div>
+                        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[#7C8CA6] px-2 py-1 rounded-full bg-[#F2F4F8]">
+                          {c.identifierType === "USERNAME" ? "Username" : "Address"}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
+        <label className="block text-xs font-medium text-[#7C8CA6] mb-2">
+          @username or 0x address
         </label>
         <input
           id="to"
