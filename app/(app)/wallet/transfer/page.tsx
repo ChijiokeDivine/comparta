@@ -9,7 +9,7 @@ import { KybBanner } from "../../_components/Kyb";
 import TransferForm from "./TransferForm";
 import type { Metadata } from "next";
 
-export const metadata = {
+export const metadata : Metadata = {
   title: "New transfer",
 };
 

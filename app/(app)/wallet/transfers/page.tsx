@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { StatusPill } from "@/app/components/StatusPill";
 import { formatMoney, formatDate } from "@/app/invoices/_components/format";
+import Image from "next/image";
 
 interface Transaction {
   id: string;
@@ -122,8 +123,16 @@ export default function TransfersListPage() {
       )}
 
       {visible.length === 0 && !loading ? (
-        <div className="rounded-2xl border border-dashed border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6]">
+        <div className="rounded-2xl border border-dashed border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6] flex flex-col items-center justify-center min-h-[300px]">
           No transfers found.
+          <div className="relative w-24 h-24 mt-4 flex items-center justify-center">
+            <Image
+                src="/send.png"
+                alt="No activity"
+                fill
+                className="object-contain"
+            />
+          </div>
         </div>
       ) : (
         <div className="rounded-2xl border border-[#E5E9F2] bg-white divide-y divide-[#F2F4F8]">

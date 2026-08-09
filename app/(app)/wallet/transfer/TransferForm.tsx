@@ -51,21 +51,39 @@ export default function TransferForm({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
 
+  // Resolve whatever initialTo was seeded with, once, on mount.
   useEffect(() => {
     if (!toIdentifier.trim()) return;
     void handleResolve();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fetch contacts whenever the picker opens. Depends ONLY on
+  // pickerOpen — depending on contactsLoading here (as a prior version
+  // did) creates a feedback loop: the effect sets contactsLoading(true),
+  // which changes the dependency, which re-runs the effect, which
+  // (once the fetch settles and sets it back to false) changes the
+  // dependency again, forever. `cancelled` guards against a stale
+  // response landing after the panel's been closed/reopened quickly.
   useEffect(() => {
-    if (!pickerOpen || contactsLoading) return;
+    if (!pickerOpen) return;
+    let cancelled = false;
     setContactsLoading(true);
     fetch("/api/contacts")
       .then((res) => res.json())
-      .then((data) => setContacts(data.contacts ?? []))
-      .catch(() => setContacts([]))
-      .finally(() => setContactsLoading(false));
-  }, [pickerOpen, contactsLoading]);
+      .then((data) => {
+        if (!cancelled) setContacts(data.contacts ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setContacts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setContactsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pickerOpen]);
 
   const filteredContacts = useMemo(() => {
     const q = pickerQuery.trim().toLowerCase();
@@ -79,14 +97,19 @@ export default function TransferForm({
 
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
 
-  async function handleResolve() {
+  // Accepts an optional override so a caller with a fresh value in hand
+  // (like pickContact, right after calling setToIdentifier) can resolve
+  // that value directly instead of relying on `toIdentifier` state,
+  // which won't have re-rendered yet in the same tick.
+  async function handleResolve(overrideValue?: string) {
+    const value = (overrideValue ?? toIdentifier).trim();
     setResolved(null);
     setResolveError(null);
-    if (!toIdentifier.trim()) return;
+    if (!value) return;
 
     setResolving(true);
     try {
-      const res = await fetch(`/api/resolve/${encodeURIComponent(toIdentifier.trim())}`);
+      const res = await fetch(`/api/resolve/${encodeURIComponent(value)}`);
       const data = await res.json();
       if (!res.ok) {
         setResolveError(data.error ?? "Could not resolve this recipient");
@@ -108,9 +131,7 @@ export default function TransferForm({
     setToIdentifier(contact.identifier);
     setPickerOpen(false);
     setPickerQuery("");
-    setResolved(null);
-    setResolveError(null);
-    setTimeout(() => handleResolve(), 0);
+    handleResolve(contact.identifier);
   }
 
   async function handleSubmit(e: React.FormEvent) {
