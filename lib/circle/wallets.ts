@@ -171,6 +171,15 @@ export async function sendTransaction(
   const tokenId = await resolveUsdcTokenId(circleWalletId);
 
   try {
+    console.log("Circle Payload Dump:", JSON.stringify({
+      walletId: circleWalletId,
+      tokenId: tokenId,
+      destinationAddress: toAddress,
+      amount: [toDecimalString(amount)],
+      fee: { type: "level", config: { feeLevel: "MEDIUM" } },
+      idempotencyKey,
+    }, (_, v) => typeof v === 'bigint' ? v.toString() : v, 2));
+
     const res = await client.createTransaction({
       walletId: circleWalletId,
       tokenId,

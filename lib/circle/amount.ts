@@ -9,14 +9,27 @@
 const USDC_DECIMALS = 6;
 const USDC_SCALE = 10n ** BigInt(USDC_DECIMALS);
 
-/** bigint micro-USDC -> decimal string Circle's API expects, e.g. "12.34" */
+/** bigint micro-USDC -> decimal string Circle's API expects, e.g. "12.34" or "10" */
 export function toDecimalString(amount: bigint): string {
   if (amount < 0n) throw new Error("toDecimalString: amount must be >= 0");
+  
   const whole = amount / USDC_SCALE;
   const frac = amount % USDC_SCALE;
-  const fracStr = frac.toString().padStart(USDC_DECIMALS, "0");
+  
+  // Pad fraction to the native token scale
+  let fracStr = frac.toString().padStart(USDC_DECIMALS, "0");
+  
+  // Remove all trailing zeros from the fractional string
+  fracStr = fracStr.replace(/0+$/, "");
+  
+  // If the fractional component is completely zero, return just the whole number string
+  if (fracStr === "") {
+    return whole.toString(); // "1000000n" safely becomes "1" instead of "1.000000"
+  }
+  
   return `${whole.toString()}.${fracStr}`;
 }
+
 
 /** decimal string ("12.34") or plain integer string -> bigint micro-USDC */
 export function toSmallestUnit(decimal: string): bigint {
