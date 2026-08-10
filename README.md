@@ -38,7 +38,7 @@ Comparta unifies **treasury, payments, payroll, savings, and analytics** on a si
 | **2 · Bucket Mgmt + Allocation Rules** | Custom ledger buckets (rename/archive) · Standing auto-transfer rules (PERCENTAGE / FIXED) · ON_INCOMING_PAYMENT or SCHEDULED (cron) triggers | "Sweep 20% of every invoice payment into Tax Reserve" in one click |
 | **3 · Invoicing** | Line-item invoices · PDF-ready display · Email delivery · Due-date milestones with auto-overdue · Auto-reconciliation against inbound USDC · Audit event log | Send an invoice → counterparty pays to a username/payment-link → marked paid automatically |
 | **4 · Payment Links** | One-off or reusable shareable `/pay/:slug` checkout · FIXED_AMOUNT or OPEN_AMOUNT · Card (Circle Payments API) or wallet (Arc) at checkout · Fraud-resistant amount matching · Expiry + max-uses | Drop a link in Slack, get paid - no integrations required |
-| **5 · Contacts** | Org-scoped address book · CRUD · `lastPaidAt` touch on successful send · Optional back-link to Payee rows | Your team's vendor roster, always up to date |
+| **5 · Contacts** | Org-scoped address book · CRUD · `lastPaidAt` touch on successful send (recent-paid-first ordering) · Optional back-link to Payee rows · **"Send" action deep-links to /wallet/transfer?to=** with auto-prefill · TransferForm has a Pick-from-contacts search panel | Your team's vendor roster, always up to date — never copy/paste an address between Comparta pages |
 | **6 · Payroll** | Payee directory · Standing schedules (WEEKLY/BIWEEKLY/MONTHLY) → auto-generated DRAFT runs · Approval workflow (DRAFT → PENDING_APPROVAL → PROCESSING) · Per-item retry · CSV export · Identifier-resolution flagging at run-creation time | Biweekly payroll in 30 seconds · Failed send? Retry just that one payee |
 | **7 · Smart Savings · Yield** | Per-bucket yield enablement (USYC) · Three savings-rule triggers: `PERCENTAGE_OF_INCOME`, `ROUND_UP` (hooks outbound debits), `FIXED_RECURRING` (cron) · Partial/full redemptions as an async state machine · Liquid-plus-deployed composed view | "Round up every vendor payment to the next $10 into savings" works out of the box |
 | **8 · DCA / Recurring Transfers** | Standing, interval-based transfers (DAILY/WEEKLY/BIWEEKLY/MONTHLY) · Destination: external username/address OR another internal bucket · Optional end date · Pause/Resume/Cancel · Per-cycle execution log w/ failure reasons | Weekly $100 DCA to your cold wallet · Monthly sweep from Operating → Payroll bucket |
@@ -160,12 +160,12 @@ Flags are informational only - "worth a second look", never auto-reversing.
 
 | Concern | Choice | Notes |
 |---|---|---|
-| **Frontend** | Next.js 16 · App Router · React 19 · TypeScript 5 · Tailwind CSS v4 · GSAP animations · Lenis smooth scroll | Marketing site + dashboard in the same deploy |
+| **Frontend** | Next.js 16 · App Router · React 19 · TypeScript 5 · Tailwind CSS v4 · GSAP animations · Lenis smooth scroll · Lucide icons · `qr-code-styling` (custom branded QR) · `next/image` | Marketing site + full dashboard + public invoice/payment-link pages in the same deploy |
 | **Backend (API)** | Next.js Route Handlers (`app/api/**`) | Single-repo fullstack; API routes are the backend |
 | **Data Layer** | PostgreSQL 15+ · Prisma 7 (`@prisma/adapter-pg` · `prisma-client` generator) · Prisma Migrate | Generated client output path: `app/generated/prisma/` (check your `.gitignore`) |
 | **Custody & Onchain** | Circle Developer-Controlled Wallets SDK v10 · **Arc L1** (testnet / mainnet) · Circle Payments API (card/ACH checkout) · **USYC** yield-bearing token · Circle Webhooks (ECDSA-signed, verified against public key) | One entity secret → one wallet set → N org wallets |
 | **Auth** | NextAuth v4 (Credentials: email+password, JWT sessions) · PrismaAdapter (for future OAuth providers) · `bcryptjs` password hashing · Session carries `orgId` + `role` + `kybStatus` | Replace/extend with OAuth (Google / magic links) without touching financial routes |
-| **Authorization** | Role-based: `OWNER` / `ADMIN` / `MEMBER` · Bucket management: `canManageBucket.ts` gate · KYB: `requireApprovedOrg()` re-reads DB | OWNER/ADMIN can create/edit buckets and rules; MEMBER can view+approve per-route |
+| **Authorization** | Role-based: `OWNER` / `ADMIN` / `MEMBER` · Bucket management: `canManageBucket.ts` gate · Org/members: `canManageOrg.ts` (OWNER-only for role changes/removals · OWNER/ADMIN for profile) · KYB: `requireApprovedOrg()` re-reads DB | OWNER/ADMIN can create/edit buckets and rules; MEMBER can view+approve per-route; only OWNER can change teammate roles |
 | **Background Jobs** | BullMQ · IORedis · 6 named queues (see `QUEUE_NAMES` in [jobs/queue.ts](jobs/queue.ts)) · 5 dedicated worker files + 6 standalone jobs | Redis is the durable job store; survives process restart mid-payroll-run |
 | **Rate Limiting** | IORedis-backed · Sliding-window · `lib/rateLimit.ts` | Username claim endpoint: 10 tries/10 min/IP |
 | **LLM / AI** | Groq SDK (OpenAI-compatible chat completions) | Used for categorization suggestions + NL→schema translation; optional if Phase 9 features aren't enabled |
@@ -180,16 +180,64 @@ Flags are informational only - "worth a second look", never auto-reversing.
 comparta/
 ├── app/
 │   ├── layout.tsx                ← Root layout · Manrope font · full SEO/OG manifest
-│   ├── page.tsx                  ← Marketing homepage (scroll · GSAP pinned sections)
+│   ├── page.tsx                  ← Marketing homepage (GSAP pinned stacked cards · /money.webp · /smile.webp · /pay-team.webp)
 │   ├── globals.css               ← Tailwind v4 import · @theme inline · brand tokens
 │   ├── components/
 │   │   ├── FooterColumn.tsx
-│   │   └── NavDropdown.tsx       ← Mega-menu hover dropdown (staggered reveal)
-│   ├── invoices/_components/     ← Invoice display + formatting
-│   └── api/                      ← 25+ route handler groups (see API Overview below)
+│   │   ├── NavDropdown.tsx       ← Mega-menu hover dropdown (staggered reveal)
+│   │   ├── StatusPill.tsx        ← Reusable status badge (INVOICE / RUN / TX states)
+│   │   ├── ActivityFeed.tsx · BucketCards.tsx · QuickActions.tsx  ← Marketing/dashboard shared cards
+│   │   └── icons.tsx             ← Brand icon set used in NavDropdown
+│   ├── login/  register/         ← Split-screen auth (left: /skywoma.webp + 30% dark overlay · right: form)
+│   ├── pay/[slug]/page.tsx       ← Public payment-link checkout page (card + wallet tabs)
+│   ├── invoices/
+│   │   ├── _components/          ← Invoice display + formatting (formatMoney · formatDate · STATUS_CLASSES)
+│   │   └── pay/[invoiceId]/      ← **Public** invoice payment page (unauth'd · 8s polling · copy-pay-to-address)
+│   └── (app)/                    ← Authenticated dashboard route group
+│       ├── layout.tsx · page.tsx (redirects to /dashboard)
+│       ├── _components/
+│       │   ├── AppShell.tsx      ← Shell: sidebar nav · mobile drawer · user menu · KYB pill · Cmd+K palette · hide-balances toggle · time-aware greetings
+│       │   ├── CommandPalette.tsx← **Cmd+K (Ctrl+K)** fuzzy nav: pages + quick actions · keyword-indexed · Lucide icons · groupable
+│       │   ├── HideBalancesProvider.tsx  ← localStorage-backed privacy mode + `maskBalance()` helper (•••••)
+│       │   ├── Kyb.tsx           ← KYB status pill + approval-banner block (disables forms until APPROVED)
+│       │   ├── Providers.tsx     ← NextAuth + HideBalances provider composition
+│       │   └── nav.ts            ← Single source of truth for sidebar nav structure
+│       ├── dashboard/
+│       │   ├── page.tsx          ← Dashboard: KPI cards + buckets grid + quick actions + activity feed + deposit modal
+│       │   └── _components/
+│       │       ├── KpiCards.tsx           ← Financial Summary: liquid · deployed · total · 30d in/outflow · net cashflow · pending approvals · overdue count
+│       │       ├── BucketCards.tsx        ← Buckets preview grid (top 5) · semantic icons (OPERATING=Briefcase · RESERVE=Shield · PAYROLL=Users · SAVINGS=Sprout · custom=🪣)
+│       │       ├── MaskedTotalBalance.tsx ← Balance hero w/ navy gradient · HideBalances-aware
+│       │       ├── DepositModal.tsx       ← Custom-styled QR code (qr-code-styling lib) · PNG download · copy address · 1-click-close
+│       │       ├── QuickActions.tsx       ← Shortcut row: New transfer · New invoice · New pay link · Payroll run
+│       │       └── ActivityFeed.tsx       ← Recent unified timeline (7 event kinds) · empty state: /coins.webp · fixed h-[260px]
+│       ├── wallet/
+│       │   ├── transfer/page.tsx         ← New transfer: accepts `?to=` query param for deep-link prefill (contacts "Send" button lands here)
+│       │   ├── transfer/TransferForm.tsx ← Recipient resolver + **Pick-from-contacts searchable panel** (name/identifier filter)
+│       │   ├── transfers/                ← Transfer list + detail view
+│       │   ├── _components/CopyAddressButton.tsx
+│       │   └── page.tsx                  ← Wallet overview: address + QR + per-bucket balances
+│       ├── contacts/
+│       │   ├── page.tsx          ← Address book sorted by `lastPaidAt DESC` (recently paid float up)
+│       │   └── [id]/edit · new/  ← Per-contact **"Send"** action → deep-links to /wallet/transfer?to=
+│       ├── buckets/
+│       │   ├── _components/BucketsGridClient.tsx  ← Client-side re-render after server transfers
+│       │   ├── [id]/BucketActions.tsx             ← Per-bucket actions (transfer · rename · archive)
+│       │   └── [id]/ · new/
+│       ├── allocation-rules/  invoices/  payment-links/
+│       ├── payroll/            ← runs · payees · PayrollSubNav
+│       ├── savings/            ← bucket-level yield + savings rules + SavingsSubNav
+│       ├── recurring/          ← Recurring Transfers (DCA UI alias: list · new · detail)
+│       ├── insights/           ← overview · categorize · anomalies · InsightsSubNav
+│       └── settings/
+│           ├── _components/SettingsSubNav.tsx
+│           ├── page.tsx (redirects to /settings/account)
+│           ├── account/page.tsx   ← Update profile name · Change password (current → new → confirm)
+│           └── webhooks/page.tsx  ← OWNER-only: WebhookEvent log · signature ok/fail · reprocess failed events
+│   └── api/                      ← 70+ route handler files (see API Overview below)
 │
 ├── lib/                          ← Pure business logic (no React imports)
-│   ├── auth/                     ← NextAuth config · kyb-gate · canManageBucket
+│   ├── auth/                     ← NextAuth config · kyb-gate · canManageBucket · **canManageOrg** (OWNER-only for teammate role changes/removals, OWNER/ADMIN for org profile)
 │   ├── db/prisma.ts              ← PrismaClient singleton (HMR-safe, PrismaPg adapter)
 │   ├── env.ts                    ← Zod-schema validated env vars (the only place that reads process.env)
 │   ├── rateLimit.ts              ← Redis-backed sliding-window rate limiter
@@ -203,8 +251,11 @@ comparta/
 │   │   ├── chainMapping.ts       ← Circle chain id ↔ schema enum Chain
 │   │   └── webhookVerify.ts      ← ECDSA sig verify against Circle's published pubkey
 │   ├── identity/                 ← Username system · Address validation · Universal resolver
-│   ├── contacts/service.ts
-│   ├── transfers/                ← send (generic outbound primitive) · receive (webhook inbound handler) · idempotency
+│   ├── contacts/service.ts       ← **touches `lastPaidAt` on successful send** (recent-paid-first ordering in UI)
+│   ├── transfers/                ← send (generic outbound primitive · **re-resolves recipient identifiers server-side**) · receive (webhook inbound handler) · idempotency
+│   ├── config/demoMode.ts        ← Demo mode guard
+│   ├── org/provisioning.ts       ← Org → Circle wallet → 4 default buckets orchestration (called from KYB approve)
+│   ├── notifications/            ← notify.ts · dcaNotify.ts (email/in-app delivery stubs)
 │   ├── buckets/                  ← CRUD + archive · default set creation · dependency graph
 │   ├── allocationRules/          ← engine (rule firing) · service (CRUD) · serialize
 │   ├── invoices/                 ← CRUD · send/void · money calc · auto-reconciliation w/ inbound tx · PaymentLink creation hook
@@ -216,11 +267,11 @@ comparta/
 │   │   ├── categorization/       ← Seed (7 SYSTEM cats) · RULE map · LLM suggestion pipeline · service (confirm/override)
 │   │   ├── anomalies/            ← Detection sweep (2 types) · service (dismiss)
 │   │   ├── dashboard/queries.ts  ← Dashboard aggregate SQL
+│   │   ├── dashboard/getDashboardSummary.ts  ← Single-read composer: KPIs + per-bucket balances + NAV-implied yield + 30d in/outflow + unified activity feed (7 event kinds)
 │   │   ├── nlQuery/              ← Natural-language → Schema AST → SQL pipeline
 │   │   └── counterparty.ts       ← Counterparty normalization/fingerprinting
 │   ├── groq/client.ts            ← Memoized Groq client
-│   ├── http/clientIp.ts
-│   └── notifications/            ← Logging stubs (wire to email/in-app)
+│   └── http/clientIp.ts
 │
 ├── jobs/
 │   ├── queue.ts                  ← Central BullMQ queue + IORedis client definitions (QUEUE_NAMES)
@@ -276,13 +327,20 @@ All API routes live under `app/api/`. Every route that moves money or reads fina
 |---|---|---|
 | POST | `/api/auth/register` | Create `Organization` (KYB `PENDING`) + owner `User` (hashed password) |
 | POST | `/api/auth/[...nextauth]` | NextAuth sign-in (email + password credentials, JWT session) |
+| GET PATCH | `/api/auth/me` | Get / update own user profile (`name`). NextAuth-session authenticated. |
+| PATCH | `/api/auth/me/password` | Change password. Requires `currentPassword` + `newPassword` + `confirmPassword`. |
 | POST | `/api/username/claim` | Claim an org username (rate-limited · format regex · DB unique · denylist) |
 | GET | `/api/resolve/:identifier` | Universal resolver: `@username` OR `0x…` → `{ address, orgDisplayName? }` (rejects with reason) |
 
-### Admin / KYB
+### Org Profile · Members · Webhook Events (Admin)
 
 | Method | Route | Description |
 |---|---|---|
+| GET PATCH | `/api/org` | Get / update organization profile (legal name, etc). `canEditOrgProfile()` → OWNER/ADMIN. |
+| GET POST | `/api/org/members` | List org members (role + joinedAt) / invite a new teammate (`email` + `role`). |
+| PATCH DELETE | `/api/org/members/:id` | Update a teammate's role / remove them. **OWNER-only** (`canManageOrg.ts` prevents ADMIN from self-promoting or removing the only OWNER — hardens against privilege escalation + lockout). |
+| GET | `/api/org/webhook-events` | **OWNER-only.** Raw `WebhookEvent` log: Circle (wallet) + Circle-Payments (card/ACH) events · signature verification result · process status. |
+| POST | `/api/org/webhook-events/:id/reprocess` | **OWNER-only.** Replay a RECEIVED/FAILED webhook through the same inbound pipeline (inbound crediting / reconciliation). Use after a transient process error. |
 | POST | `/api/org/kyb/approve` | Manual admin stub (gated by `ADMIN_API_SECRET`). Flips `kybStatus=APPROVED`, then **atomically provisions Circle wallet + 4 default ledger buckets** (Operating / Tax Reserve / Payroll / Savings). Swap for a real KYB provider's webhook when ready. |
 
 ### Wallet & Ledger
@@ -328,6 +386,7 @@ All API routes live under `app/api/`. Every route that moves money or reads fina
 | GET POST | `/api/invoices` | List / Create. `lineItems` JSON carries display values; authoritative `subtotal/tax/total` are bigint - server-computed, **never client-trusted**. Auto-creates a 1:1 amount-locked `PaymentLink` at creation for checkout. |
 | GET PATCH DELETE | `/api/invoices/:id` | Read / Update (line items while DRAFT) / Void. Voiding writes a VOID `InvoiceEvent` append-only row; invoice rows themselves are never deleted. |
 | POST | `/api/invoices/:id/send` | Sends invoice to recipient + `InvoiceEvent` logged (SENT + delivery metadata) |
+| *(public)* GET | `/api/invoices/public/:invoiceId` | Unauthenticated read for the `/invoices/pay/:invoiceId` public page. Returns scrubbed view: line items, totals, due date, `payToAddress`, status. Reads the same `Invoice.status` the org sees; no auth needed. Frontend polls every 8s. |
 
 ### Payment Links (Phase 4)
 
@@ -337,6 +396,10 @@ All API routes live under `app/api/`. Every route that moves money or reads fina
 | GET | `/api/payment-links/:id` | Read |
 | POST | `/api/payment-links/:id/pause` | Pause (stops new checkouts) |
 | POST | `/api/payment-links/:id/resume` | Resume |
+| *(public)* GET | `/api/pay/:slug` | Public PaymentLink metadata for the checkout page: FIXED/OPEN amount, remaining uses, expires, org display name. Returns 404 if paused/expired/exhausted. |
+| *(public)* POST | `/api/pay/:slug/wallet` | Initiate wallet-pay checkout. Locks amount (for OPEN_AMOUNT) → returns `{ address, amount, paymentId }` → frontend polls session. |
+| *(public)* POST | `/api/pay/:slug/card` | Initiate Circle Payments API card/ACH checkout. Returns Circle provider session payload for card tokenization. |
+| *(public)* GET | `/api/pay/:slug/session/:paymentId` | **Polled every 5s by the frontend.** Returns checkout session status (PENDING → PAID → COMPLETED / FAILED / EXPIRED) + amount confirmation. |
 | *(public)* | `/pay/:slug` | Checkout page rendered via the shareable slug - supports both **wallet** (Arc address pay, amount-matched on inbound) and **card/ACH** (Circle Payments API) paths |
 
 ### Payroll (Phase 6)
@@ -377,6 +440,19 @@ All API routes live under `app/api/`. Every route that moves money or reads fina
 | POST | `/api/dca/:id/resume` | Resume |
 | POST | `/api/dca/:id/cancel` | Cancel permanently (terminal) |
 | GET | `/api/dca/:id/executions` | Paginated per-cycle log with failure reasons (INSUFFICIENT_FUNDS · OTHER) |
+
+### Spending Insights + AI (Phase 9)
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/insights/overview` | Dashboard KPI + category composition: 30d totals per category, top counterparties, anomalous-count summary. |
+| GET | `/api/insights/categories` | SYSTEM (7 seeded) + CUSTOM (org-defined) categories with per-category color + parent. |
+| GET | `/api/insights/categorizations/pending` | Un-categorized transactions that need RULE → LLM → human review (UI: categorize inbox). |
+| POST | `/api/insights/categorizations/:id/confirm` | One-tap accept the LLM-suggested category + reasoning. |
+| POST | `/api/insights/categorizations/:id/override` | Manual override: set a category + optional note. LLM's original suggestion is preserved for eval. |
+| GET | `/api/insights/anomalies` | All flagged anomalies (LARGE_OUTFLOW · NEW_COUNTERPARTY_LARGE_PAYMENT) with transaction context. |
+| POST | `/api/insights/anomalies/:id/dismiss` | Dismiss a false-positive anomaly (permanent · audit-logged). |
+| POST | `/api/insights/query` | NL→Schema→SQL pipeline: `{ query: "What did we spend on contractors last quarter?" }` → tabular results + suggested chart type. |
 
 ---
 
@@ -537,6 +613,43 @@ The codebase follows a consistent shape per module. Suppose you want to add *Ven
 5. **API routes**: `app/api/vendor-credits/route.ts` + `app/api/vendor-credits/[id]/route.ts`. Call `requireApprovedOrg()` on line 1.
 6. **Jobs?** If state-machine polling is needed (confirm-settlement, expiry sweep): add a queue name to `jobs/queue.ts`, write the standalone job file under `jobs/`, optionally add a BullMQ worker in `jobs/workers/`.
 7. **Categorization?** If the feature creates new `referenceType` values for `LedgerEntry`, add them to the RULE-based categorization map in `lib/insights/categorization/rules.ts` so transactions auto-classify correctly without needing LLM fallback.
+
+### UI Engineering Conventions (follow these for new dashboard components)
+
+Design tokens and component patterns used consistently across the authenticated app. Stick to these so new pages feel native:
+
+| Concern | Convention |
+|---|---|
+| **Typography** | Manrope font (declared in root `layout.tsx`). Headings: `#0B1E3F` navy · Body/subtle: `#7C8CA6` slate. |
+| **Brand colors** | Primary blue `#2A5CE6` · Navy `#0B1E3F` · Surface `#F7F8FB` · Borders `#E5E9F2`. Blue is the *only* saturated accent. |
+| **Container width** | Cap page content at `2xl:max-w-[1100px]`. Never go full-bleed in the dashboard shell. |
+| **Currency display** | Always `inline-flex items-center gap-1.5` with a 15×15 `rounded-full` USDC icon (`/img5.png` or `<CoinUSDC/>`) immediately before the amount string. No exceptions — this is how users learn to trust a number is USDC. |
+| **Balance privacy** | Every numeric balance field uses `useHideBalances()` + `maskBalance(formatted, hideBalances, keepCurrency: true)`. KPI card totals, bucket list rows, payroll per-item amounts, transfer history — all maskable. |
+| **Bucket icons** (`BucketCards.tsx` pattern) | Map semantic Lucide icons per bucket type inside a `44×44 rounded-full bg-[#FAFBFD]` pill: `OPERATING` → Briefcase · `RESERVE` → Shield · `PAYROLL` → Users · `SAVINGS` → Sprout. Icon size `w-5 h-5 text-[#2A5CE6]`. Custom buckets fall back to 🪣. |
+| **Card style** | `rounded-3xl border border-[#E5E9F2] bg-white p-6` is the standard dashboard card. Inner lists use `rounded-2xl`; inline hover-tappable rows use `-mx-2 px-2 hover:bg-[#F7F9FC] rounded-xl`. |
+| **Empty states** | Fix container height at `h-[260px]` with a centered illustration (`/coins.webp` or similar) + 1-line copy + primary CTA link. Keeps the dashboard grid from collapsing when a section has no data. |
+| **Session/state refreshes** | After a server mutation (send, create, approve) use `router.refresh()` *and* re-fetch client-side state rather than relying on server re-render. Client components own their interactive state; the server shell provides data. |
+| **Deep-link UX** | Cross-page shortcuts use query params (e.g. Contacts "Send" → `/wallet/transfer?to=identifier`). The receiving page `useEffect`s once on mount to resolve and pre-fill the form — never leave users copying-pasting between Comparta pages internally. |
+| **Command Palette (Cmd+K)** | Any new top-level page gets a `SEARCH_INDEX` entry in `CommandPalette.tsx`: unique id, title/subtitle, href, group (`"Pages"` / `"Quick actions"`), a Lucide `Icon`, and 3–5 `keywords` so users find it by synonym. |
+
+### Cross-Feature Integrations (documented because they span modules)
+
+#### Contacts ↔ Transfers Deep Link
+
+`Contacts` → `Transfers` is a deliberately tight coupling to eliminate manual address entry:
+1. **Contacts row** (`app/(app)/contacts/page.tsx`): Each list row renders a `Send` action that pushes `/wallet/transfer?to=${identifier}` with the contact's raw identifier.
+2. **Transfer page** (`app/(app)/wallet/transfer/page.tsx`): Reads the `?to=` search param server-side, passes it as `initialTo` to `TransferForm`.
+3. **TransferForm** (`app/(app)/wallet/transfer/TransferForm.tsx`): Runs `handleResolve()` once on mount to resolve the pre-filled identifier and show the user who it resolves to (never trust the client-typed string outright). Also exposes a *Pick from contacts* search panel: fetches `/api/contacts` when opened, fuzzy-filters by `displayName` OR `identifier`, and injects the selected contact into the recipient field.
+4. **Server-side re-resolution** ([`lib/transfers/send.ts`](lib/transfers/send.ts)): `sendPayment()` does **not** accept the client-resolved address. It re-runs the universal `resolver` for the `to` field fresh inside the server handler, so if a username was released between the client showing "valid" and Submit, the send fails loudly rather than sending to a stranger.
+5. **Recent-first ordering** ([`lib/contacts/service.ts`](lib/contacts/service.ts)): After a successful transfer, `sendPayment` calls `contacts/service.touchLastPaidAt(contactId, tx.id)`, which writes an ISO timestamp to `Contact.lastPaidAt`. The contacts page `ORDER BY lastPaidAt DESC NULLS LAST` so vendors you pay most often float to the top automatically.
+
+#### HideBalances Privacy Mode
+
+A lightweight, client-only feature wrapped around every balance display in the app:
+- **Provider:** [`HideBalancesProvider`](app/(app)/_components/HideBalancesProvider.tsx) mounts once at the root of the authenticated app. It reads/writes a `localStorage` key `comparta.hideBalances` (values `"1"` / `"0"`).
+- **Toggle:** The `AppShell` header renders an `Eye` / `EyeOff` Lucide icon wired to `toggleHideBalances()`. The choice survives page reloads.
+- **Formatting helper:** `maskBalance(formattedString, hideBalances, keepCurrency=true)` replaces the numeric portion with `•••••` while preserving the leading `$` so the layout doesn't jump. `keepCurrency=false` returns plain `•••••` for inline balance fields.
+- **Coverage rule:** Every `<span>` that renders a dollar amount (KPI cards, bucket rows, payroll item amounts, transfer history, invoice totals) MUST be piped through `maskBalance`. If you add a new numeric balance field anywhere, this is the first thing to wire.
 
 ---
 
