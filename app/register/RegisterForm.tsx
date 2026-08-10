@@ -197,7 +197,7 @@ export default function RegisterForm() {
  
             }}
         />
-        <div className="absolute inset-0 bg-black/30" />
+      
         
         <div className="relative z-10 flex flex-col justify-between px-8 py-6 md:px-16 md:py-8 text-white">
           <Link href="/" className="anim-logo flex items-center gap-2">
