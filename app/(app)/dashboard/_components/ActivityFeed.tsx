@@ -36,14 +36,14 @@ export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
       {items.map((item) => {
         const style = KIND_STYLES[item.kind];
         return (
-          <div key={item.id} className="flex items-center gap-3 px-5 py-3.5">
+          <div key={item.id} className="flex items-center gap-3 px-5 py-3.5 ">
             <span
               className={`w-9 h-9 rounded-full flex items-center justify-center text-sm shrink-0 ${style.bg} ${style.fg}`}
               aria-hidden="true"
             >
               {style.glyph}
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 pt-3">
               <p className="text-sm font-medium text-[#0B1E3F] truncate">{item.title}</p>
               <p className="text-xs text-[#7C8CA6] truncate">{item.subtitle}</p>
             </div>

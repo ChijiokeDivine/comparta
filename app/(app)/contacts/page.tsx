@@ -81,8 +81,8 @@ export default function ContactsPage() {
                 className="flex items-center gap-3 min-w-0 flex-1"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-[#0B1E3F] truncate">{c.displayName}</p>
-                  <p className="text-xs text-[#7C8CA6] font-mono truncate">{c.identifier}</p>
+                  <p className="text-sm font-medium text-[#0B1E3F] mb-3 truncate">{c.displayName}</p>
+                  <p className="text-xs text-[#7C8CA6] font-mono mb-2 truncate">{c.identifier}</p>
                 </div>
                 <StatusPill value={c.identifierType} label={c.identifierType === "USERNAME" ? "Username" : "Address"} />
               </Link>

@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import SettingsSubNav from "./_components/SettingsSubNav";
 import { KybPill } from "../_components/Kyb";
@@ -101,6 +102,12 @@ export default function OrganizationSettingsPage() {
     <div className="max-w-lg space-y-6">
       <h1 className="text-xl font-semibold text-[#0B1E3F]">Settings</h1>
       <SettingsSubNav active="organization" />
+
+      {session?.user?.role === "OWNER" && (
+        <Link href="/settings/webhooks" className="text-sm font-medium text-[#2A5CE6] hover:underline">
+          View webhook events →
+        </Link>
+      )}
 
       <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
         <div className="flex items-center justify-between">

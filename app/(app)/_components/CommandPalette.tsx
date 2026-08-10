@@ -350,7 +350,7 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
       className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[10vh]"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-[#0B1E3F]/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-transparent backdrop-blur-[5px]" />
 
       <div
         onClick={(e) => e.stopPropagation()}

@@ -4,6 +4,13 @@ import Link from "next/link";
 import type { BucketSummary } from "@/lib/buckets/service";
 import { formatMoney } from "@/app/invoices/_components/format";
 import { useHideBalances, maskBalance } from "@/app/(app)/_components/HideBalancesProvider";
+import {
+  Briefcase as OperatingIcon,
+  Shield as ReserveIcon,
+  Users as PayrollIcon,
+  Sprout as SavingsIcon,
+  Wallet as DefaultBucketIcon,
+} from "lucide-react";
 
 const TYPE_LABEL: Record<string, string> = {
   OPERATING: "Operating",
@@ -11,6 +18,13 @@ const TYPE_LABEL: Record<string, string> = {
   PAYROLL: "Payroll",
   SAVINGS: "Savings",
   CUSTOM: "Bucket",
+};
+
+const TYPE_ICON: Record<string, typeof DefaultBucketIcon> = {
+  OPERATING: OperatingIcon,
+  RESERVE: ReserveIcon,
+  PAYROLL: PayrollIcon,
+  SAVINGS: SavingsIcon,
 };
 
 export default function BucketCards({
@@ -44,7 +58,10 @@ export default function BucketCards({
         </Link>
       ) : (
         <div className="space-y-4">
-          {buckets.slice(0, 5).map((bucket) => (
+          {buckets.slice(0, 5).map((bucket) => {
+            const Icon = TYPE_ICON[bucket.type] ?? DefaultBucketIcon;
+            const isDefault = !TYPE_ICON[bucket.type];
+          return (
           <Link
             key={bucket.id}
             href={`/buckets/${bucket.id}`}
@@ -53,7 +70,11 @@ export default function BucketCards({
             <div className="flex items-center gap-3">
               {/* Icon */}
               <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5E9F2] bg-[#FAFBFD]">
-                <span className="text-lg">🪣</span>
+                {isDefault ? (
+                  <span className="text-lg">🪣</span>
+                ) : (
+                  <Icon className="w-5 h-5 text-[#2A5CE6]" />
+                )}
               </div>
 
               <div>
@@ -71,7 +92,8 @@ export default function BucketCards({
               {maskBalance(formatMoney(bucket.balance), hideBalances)}
             </p>
           </Link>
-        ))}
+        );
+        })}
 
           {buckets.length > 5 && (
             <Link

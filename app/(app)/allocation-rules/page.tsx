@@ -8,7 +8,7 @@ import { listAllocationRules } from "@/lib/allocationRules/service";
 import { serializeAllocationRule } from "@/lib/allocationRules/serialize";
 import { StatusPill } from "@/app/components/StatusPill";
 import type { Metadata } from "next";
-
+import Image from "next/image";
 export const metadata: Metadata = { title: "Allocation rules" };
 
 const TRIGGER_LABEL: Record<string, string> = {
@@ -59,8 +59,18 @@ export default async function AllocationRulesPage() {
       </p>
 
       {serialized.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6]">
+        <div className="rounded-2xl border border-dashed border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6] flex flex-col items-center justify-center h-[220px] ">
           No allocation rules yet.
+          <div className="flex items-center justify-center mt-5">
+          <Image
+            src="/allocation.webp"
+            alt="USDC"
+            width={50}
+            height={50}
+            className=" rounded-full"
+          />
+          </div>
+          
         </div>
       ) : (
         <div className="rounded-2xl border border-[#E5E9F2] bg-white divide-y divide-[#F2F4F8]">

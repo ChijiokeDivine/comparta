@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { StatusPill } from "@/app/components/StatusPill";
 import { formatMoney, formatDate } from "@/app/invoices/_components/format";
-
+import Image from "next/image"
 interface RecurringTransfer {
   id: string;
   name: string | null;
@@ -89,8 +89,18 @@ export default function RecurringTransfersPage() {
       )}
 
       {!loading && transfers.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6]">
+        <div className="rounded-2xl border border-dashed border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6] flex flex-col items-center justify-center h-[220px]">
           No recurring transfers yet.
+
+          <div className="flex items-center justify-center mt-5">
+            <Image
+              src="/allocation.webp"
+              alt="USDC"
+              width={50}
+              height={50}
+              className=" rounded-full"
+            />
+          </div>
         </div>
       ) : (
         <div className="rounded-2xl border border-[#E5E9F2] bg-white divide-y divide-[#F2F4F8]">
