@@ -66,5 +66,6 @@ export function getCircleClient(): CircleClient {
 
 /** The Circle blockchain identifier Comparta settles on. */
 export function getArcBlockchain(): "ARC-TESTNET" | "ARC" {
-  return getEnv().ARC_CHAIN === "ARC_MAINNET" ? "ARC" : "ARC-TESTNET";
+  const chain = getEnv().ARC_CHAIN === "ARC_MAINNET" ? "ARC" : "ARC-TESTNET";
+  return chain as "ARC-TESTNET" | "ARC"; // Forces the compiler to respect the enum literal
 }
