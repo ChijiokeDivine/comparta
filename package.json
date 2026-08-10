@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
+    "@circle-fin/adapter-circle-wallets": "^1.6.0",
+    "@circle-fin/app-kit": "^1.12.0",
     "@circle-fin/developer-controlled-wallets": "^10.7.1",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",

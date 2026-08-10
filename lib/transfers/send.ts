@@ -13,14 +13,23 @@
 //   3. validate amount (positive, <=6 decimals - reject, never silently round)
 //   4. check fromLedgerAccountId has sufficient balance (fast-fail; the
 //      real atomic guard is still recordEntry's row lock in step 6)
-//   5. submit the transfer to Circle (idempotency key protects against
-//      double-submission even if this function is retried)
-//   6. in a single DB transaction: write the OnchainTransaction (PENDING)
-//      row and debit the ledger account via recordEntry - the ledger
-//      debits immediately, not on confirmation; Arc's sub-second finality
-//      keeps the unconfirmed-but-debited window tiny, and the confirmation
-//      poller reverses it if the transfer ultimately fails
-//   7. enqueue confirmation polling
+//   5. submit the transfer to Circle via App-Kit kit.send() — this is the
+//      migration point from the old REST createTransaction flow. App-Kit
+//      resolves synchronously to a final onchain result (txHash + state),
+//      so a successful return here means the on-chain sim + signing +
+//      submission all passed — there is no separate "pending" phase.
+//   6. in a single DB transaction: write the OnchainTransaction (CONFIRMED
+//      — with confirmedAt + txHash + explorerUrl) row and debit the
+//      ledger account via recordEntry. The ledger debits at send time;
+//      Arc's sub-second finality means this matches the on-chain reality
+//      by the time the user sees the response.
+//   7. post-commit hooks (best-effort, never thrown):
+//        - payroll completion (marks PayrollRunItems CONFIRMED if the
+//          referenceType is PAYROLL_RUN; confirmTransaction cron used to
+//          do this via polling but App-Kit's txHash-as-circleTransactionId
+//          breaks that path, so we run it inline here).
+//        - contact book lastPaidAt touch (recent-paid-first ordering)
+//        - smart savings rule engine (ROUND_UP)
 //
 // If step 6 fails after step 5 succeeded (funds left Circle but our DB
 // write didn't land), that's logged as CRITICAL for manual reconciliation
@@ -39,9 +48,9 @@ import { touchContactLastPaid } from "@/lib/contacts/service";
 // lib/savings/sweep.ts's module docstring for why this lives here
 // rather than on the inbound side.
 import { executeOutgoingPaymentSavingsRules } from "@/lib/savings/sweep";
-import { getQueue, QUEUE_NAMES } from "@/jobs/queue";
+import { handlePayrollTransactionResolved } from "@/lib/payroll/completion";
 import type { LedgerReferenceType, Prisma } from "@/app/generated/prisma/client";
-
+import { getQueue, QUEUE_NAMES } from "@/jobs/queue";
 export class SendPaymentError extends Error {
   constructor(message: string, public readonly code: SendErrorCode) {
     super(message);
@@ -73,7 +82,7 @@ export interface SendPaymentInput {
 export interface SendPaymentResult {
   onchainTransactionId: string;
   circleTransactionId: string;
-  status: "PENDING";
+  status: "CONFIRMED";
   amount: string; // decimal string
   toAddress: string;
   toOrgId?: string;
@@ -146,10 +155,10 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
   let circleResult: Awaited<ReturnType<typeof circleSendTransaction>>;
   try {
     circleResult = await circleSendTransaction(
-      ledgerAccount.wallet.circleWalletId,
+      ledgerAccount.wallet.arcAddress,
       resolved.address,
       amountSmallestUnit,
-      idempotencyKey
+      ledgerAccount.wallet.chain
     );
   } catch (err) {
     if (err instanceof CircleApiError) {
@@ -166,6 +175,16 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
   // call already succeeded and is idempotency-keyed, so if this DB
   // transaction fails, funds have left custody without a local record -
   // that's the partial-failure case the edge cases call out explicitly.
+  //
+  // NOTE ON STATUS (App-Kit migration):
+  //   kit.send() resolves synchronously to a terminal onchain result
+  //   (txHash + state: "success"). There is no PENDING phase exposed, and
+  //   the confirmTransaction cron below can't help here either because
+  //   OnchainTransaction.circleTransactionId now holds an onchain txHash,
+  //   not a Circle-internal transaction UUID - which means
+  //   client.getTransaction({ id }) in the poller would 404 and the row
+  //   would stick PENDING forever. So we write CONFIRMED + confirmedAt
+  //   directly at create time.
   try {
     const { onchainTx } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const createdTx = await tx.onchainTransaction.create({
@@ -176,7 +195,9 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
           counterpartyAddress: resolved.address,
           chain: ledgerAccount.wallet.chain,
           sourceChain: ledgerAccount.wallet.chain,
-          status: "PENDING",
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          txHash: circleResult.circleTransactionId,
           referenceType: input.referenceType,
           referenceId: input.referenceId,
           memo: input.memo,
@@ -199,11 +220,16 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
       return { onchainTx: createdTx };
     });
 
-    // 7. Enqueue confirmation polling - best-effort; a missed enqueue
-    // here doesn't lose money (the transaction still exists in PENDING
-    // and a periodic sweep can pick it up), so failures here are logged,
-    // not thrown.
-    await enqueueConfirmationPolling(onchainTx.id);
+    // 7. (intentionally no confirmation polling enqueue — App-Kit sends
+    //     resolve synchronously, so we've already written CONFIRMED above)
+
+    // Best-effort post-commit hooks — same "never block the primary
+    // payment result" posture as the confirmation-polling equivalent in
+    // jobs/confirmTransaction.ts. Keep these independent; one failing
+    // must not affect another.
+    handlePayrollTransactionResolved(onchainTx).catch((err) =>
+      console.error(`[sendPayment] payroll completion hook failed for onchainTx ${onchainTx.id}`, err)
+    );
 
     // Best-effort address-book denormalization - never block the send on this.
     touchContactLastPaid(input.orgId, input.toIdentifier.trim()).catch(() => {});
@@ -224,7 +250,7 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
     return {
       onchainTransactionId: onchainTx.id,
       circleTransactionId: circleResult.circleTransactionId,
-      status: "PENDING",
+      status: "CONFIRMED",
       amount: toDecimalString(amountSmallestUnit),
       toAddress: resolved.address,
       toOrgId: resolved.orgId,
@@ -258,7 +284,6 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
     );
   }
 }
-
 async function enqueueConfirmationPolling(onchainTransactionId: string): Promise<void> {
   try {
     const queue = getQueue(QUEUE_NAMES.CONFIRM_TRANSACTION);

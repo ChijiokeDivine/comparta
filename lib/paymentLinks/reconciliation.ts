@@ -195,9 +195,10 @@ export async function issueWrongAmountRefund(
   let circleResult: Awaited<ReturnType<typeof circleSendTransaction>>;
   try {
     circleResult = await circleSendTransaction(
-      wallet.circleWalletId,
+      wallet.arcAddress,
       session.payerIdentifier,
       session.amountPaid,
+      wallet.chain,
       idempotencyKey
     );
   } catch (err) {
@@ -219,7 +220,9 @@ export async function issueWrongAmountRefund(
           counterpartyAddress: session.payerIdentifier!,
           chain: wallet.chain,
           sourceChain: wallet.chain,
-          status: "PENDING",
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          txHash: circleResult.circleTransactionId,
           referenceType: "ADJUSTMENT",
           referenceId: paymentLinkPaymentId,
           memo: `Refund: wrong amount sent to payment link checkout session ${paymentLinkPaymentId}`,
@@ -242,7 +245,8 @@ export async function issueWrongAmountRefund(
       return refundTx;
     });
 
-    await enqueueConfirmationPolling(idempotencyKey, circleResult.circleTransactionId);
+    // (intentionally no confirmation polling — App-Kit send resolves
+    // synchronously, status is already CONFIRMED above)
   } catch (err) {
     console.error(
       `[paymentLinks] CRITICAL: refund for session ${paymentLinkPaymentId} was submitted to Circle ` +

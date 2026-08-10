@@ -2,7 +2,7 @@
 //
 // Thin, typed functions over the Circle Developer-Controlled Wallets SDK.
 // This is the ONLY module in the codebase allowed to call the Circle SDK
-// directly for wallet/transaction operations - everything else (API
+// directly for wallet/transaction operations — everything else (API
 // routes, jobs) should go through these functions so custody logic stays
 // in one place.
 
@@ -10,7 +10,7 @@ import { getCircleClient, getArcBlockchain } from "./client";
 import { getEnv } from "@/lib/env";
 import { toDecimalString } from "./amount";
 import { randomUUID } from "node:crypto";
-
+import { sendViaAppKit, AppKitSendError } from "./appKit";
 export class CircleApiError extends Error {
   constructor(message: string, public readonly cause?: unknown) {
     super(message);
@@ -40,7 +40,7 @@ async function getOrCreateWalletSet(): Promise<string> {
     throw new CircleApiError("Circle createWalletSet returned no wallet set id");
   }
   console.warn(
-    `[circle] No CIRCLE_WALLET_SET_ID configured - created wallet set ${id}. ` +
+    `[circle] No CIRCLE_WALLET_SET_ID configured — created wallet set ${id}. ` +
       `Persist this into your env config to avoid creating a new one on every cold start.`
   );
   cachedWalletSetId = id;
@@ -66,7 +66,7 @@ export async function createWalletForOrg(orgId: string): Promise<CreatedWallet> 
   try {
     const res = await client.createWallets({
       blockchains: [blockchain],
-      accountType: "EOA",
+      accountType: "SCA",
       count: 1,
       walletSetId,
       metadata: [{ name: `org:${orgId}`, refId: orgId }],
@@ -134,72 +134,72 @@ async function resolveUsdcTokenId(circleWalletId: string): Promise<string> {
   const usdc = balances.find((b) => b.tokenSymbol === "USDC");
   if (!usdc?.tokenId) {
     throw new CircleApiError(
-      `Could not resolve USDC tokenId for wallet ${circleWalletId} - set CIRCLE_USDC_TOKEN_ID explicitly.`
+      `Could not resolve USDC tokenId for wallet ${circleWalletId} — set CIRCLE_USDC_TOKEN_ID explicitly.`
     );
   }
   return usdc.tokenId;
 }
 
 export interface SendResult {
+  /** The submitted transaction's identifier. Since the App Kit migration
+   * (see lib/circle/appKit.ts) this is the onchain txHash, not a Circle-
+   * internal transaction id — App Kit doesn't expose the latter. Kept as
+   * `circleTransactionId` in this interface (rather than renamed) only
+   * because the OnchainTransaction.circleTransactionId column callers
+   * write it into predates this migration; the column now holds a
+   * provider transaction identifier in the broader sense, txHash being
+   * this provider's version of that. */
   circleTransactionId: string;
   state: string;
+  explorerUrl?: string;
 }
 
 /**
- * Sends USDC from a Comparta-custodied wallet to an arbitrary Arc address.
- * `amount` is a bigint in micro-USDC (smallest unit) - this function does
- * the decimal-string conversion Circle's API expects, so callers never
- * touch float math on money.
+ * Sends USDC from a Comparta-custodied wallet to an arbitrary Arc
+ * address, via App Kit's Send capability (lib/circle/appKit.ts) — NOT a
+ * raw Circle Developer-Controlled Wallets REST call anymore. `amount` is
+ * a bigint in micro-USDC (smallest unit) — this function does the
+ * decimal-string conversion App Kit expects, so callers never touch
+ * float math on money.
  *
- * This function only submits the transaction to Circle; it does NOT write
- * any LedgerEntry rows. Callers (API routes / jobs) are responsible for
- * calling lib/ledger/engine after a successful submission, keyed off the
- * returned circleTransactionId, and reconciling final status via webhook
- * or getTransactionStatus.
+ * Takes the wallet's onchain `fromAddress` (Wallet.arcAddress), not its
+ * Circle wallet id — App Kit's Send capability identifies the source
+ * wallet by address, unlike the raw REST API this replaced, which used
+ * Circle's internal walletId. See lib/transfers/send.ts for the one
+ * caller this affects.
+ *
+ * Per lib/circle/appKit.ts's module docstring: App Kit's kit.send()
+ * resolves synchronously to a final state, unlike the old REST flow's
+ * PENDING-then-poll lifecycle. This function surfaces that result
+ * as-is — it does NOT write any LedgerEntry rows or assume a particular
+ * downstream persistence model; see lib/transfers/send.ts for that.
  */
 export async function sendTransaction(
-  circleWalletId: string,
+  fromAddress: string,
   toAddress: string,
   amount: bigint,
+  chain: import("@/app/generated/prisma/client").Chain,
   idempotencyKey: string = randomUUID()
 ): Promise<SendResult> {
   if (amount <= 0n) {
     throw new CircleApiError("sendTransaction: amount must be positive");
   }
 
-  const client = getCircleClient();
-  const tokenId = await resolveUsdcTokenId(circleWalletId);
-
   try {
-    console.log("Circle Payload Dump:", JSON.stringify({
-      walletId: circleWalletId,
-      tokenId: tokenId,
-      destinationAddress: toAddress,
-      amount: [toDecimalString(amount)],
-      fee: { type: "level", config: { feeLevel: "MEDIUM" } },
-      idempotencyKey,
-    }, (_, v) => typeof v === 'bigint' ? v.toString() : v, 2));
-
-    const res = await client.createTransaction({
-      walletId: circleWalletId,
-      tokenId,
-      destinationAddress: toAddress,
-      amount: [toDecimalString(amount)],
-      fee: { type: "level", config: { feeLevel: "MEDIUM" } },
-      idempotencyKey,
-    });
-
-    const id = res.data?.id;
-    if (!id) {
-      throw new CircleApiError("Circle createTransaction returned no transaction id");
-    }
-
-    return { circleTransactionId: id, state: res.data?.state ?? "INITIATED" };
+    const result = await sendViaAppKit(fromAddress, toAddress, amount, chain);
+    return {
+      circleTransactionId: result.txHash,
+      state: result.state,
+      explorerUrl: result.explorerUrl,
+    };
   } catch (err) {
-    throw new CircleApiError(
-      `Failed to send ${toDecimalString(amount)} USDC from ${circleWalletId} to ${toAddress}`,
-      err
-    );
+    if (err instanceof AppKitSendError) {
+      throw new CircleApiError(
+        `Failed to send ${toDecimalString(amount)} USDC from ${fromAddress} to ${toAddress}`,
+        err.cause ?? err
+      );
+    }
+    throw err;
   }
 }
 
