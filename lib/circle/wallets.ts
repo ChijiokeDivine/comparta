@@ -176,7 +176,7 @@ export async function sendTransaction(
       tokenId: tokenId,
       destinationAddress: toAddress,
       amount: [toDecimalString(amount)],
-      fee: { type: "level", config: { feeLevel: "MEDIUM" } },
+      fee: { type: "level", feeLevel: "MEDIUM"  },
       idempotencyKey,
     }, (_, v) => typeof v === 'bigint' ? v.toString() : v, 2));
 
