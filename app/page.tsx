@@ -836,7 +836,7 @@ export default function Home() {
           <div className="sticky top-0 h-screen flex items-center justify-center px-4 sm:px-6 md:px-10">
             <div className="relative w-full max-w-4xl lg:max-w-4xl 2xl:max-w-[1000px] h-[62vh] sm:h-[68vh] md:h-[72vh]">
               {[
-                { src: "/money.webp", label: "Move money", alt: "Comparta move money" },
+                { src: "/dashboard.webp", label: "Move money", alt: "Comparta move money" },
                 { src: "/VcnS1TWU8Hk2UfNqEK734kaF9VU.webp", label: "Get paid", alt: "Comparta get paid" },
                 { src: "/pexels-cottonbro-6594308.avif", label: "Pay your team", alt: "Comparta pay your team" },
               ].map((item, card) => (
