@@ -66,7 +66,7 @@ export async function createWalletForOrg(orgId: string): Promise<CreatedWallet> 
   try {
     const res = await client.createWallets({
       blockchains: [blockchain],
-      accountType: "SCA",
+      accountType: "EOA",
       count: 1,
       walletSetId,
       metadata: [{ name: `org:${orgId}`, refId: orgId }],
