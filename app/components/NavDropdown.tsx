@@ -1,11 +1,39 @@
 "use client";
 
 import { useState } from "react";
+import {
+  PiggyBank,
+  Landmark,
+  TrendingUp,
+  ArrowLeftRight,
+  Receipt,
+  Building2,
+  FileText,
+  Users,
+  CreditCard,
+  BookOpen,
+  Wallet,
+  Calculator,
+} from "lucide-react";
+
+const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>> = {
+  savings: PiggyBank,
+  deposit: Landmark,
+  invest: TrendingUp,
+  transfer: ArrowLeftRight,
+  bill: Receipt,
+  business: Building2,
+  invoice: FileText,
+  payroll: Users,
+  payment: CreditCard,
+  api: BookOpen,
+  wallet: Wallet,
+  expense: Calculator,
+};
 
 export function NavDropdown({ label }: { label: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Define dropdown items for each section
   const dropdownData: Record<string, { items: { label: string; icon?: string; isComingSoon?: boolean }[]; columns: number }> = {
     Personal: {
       columns: 3,
@@ -75,22 +103,13 @@ export function NavDropdown({ label }: { label: string }) {
                 href="#"
                 className="nav-dropdown-item flex items-center gap-3 px-4  rounded-lg hover:bg-[#F2F4F8] transition-colors"
               >
-                {/* Icon placeholder (you can replace with actual images/icons) */}
                 <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#0B1E3F"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <path d="M12 17h.01" />
-                  </svg>
+                  {(() => {
+                    const IconComponent = item.icon ? ICON_MAP[item.icon] : null;
+                    return IconComponent ? (
+                      <IconComponent size={20} color="#0B1E3F" strokeWidth={2} />
+                    ) : null;
+                  })()}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -182,20 +201,12 @@ export function MobileNavDropdown({ label }: { label: string }) {
               className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#F2F4F8] transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-[#EEF1F8] flex items-center justify-center flex-shrink-0">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#0B1E3F"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <path d="M12 17h.01" />
-                </svg>
+                {(() => {
+                  const IconComponent = item.icon ? ICON_MAP[item.icon] : null;
+                  return IconComponent ? (
+                    <IconComponent size={16} color="#0B1E3F" strokeWidth={2} />
+                  ) : null;
+                })()}
               </div>
               <div className="flex-1 flex items-center gap-2">
                 <span className="text-[14px] font-medium text-[#0B1E3F]">
