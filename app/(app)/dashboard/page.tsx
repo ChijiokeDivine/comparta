@@ -35,6 +35,8 @@ function formatBalanceHero(decimalString: string): string {
   return `${wholeGrouped}.${displayFrac}`;
 }
 
+const SIGNOUT_REDIRECT = "/api/auth/signout?callbackUrl=%2Flogin";
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.orgId) redirect("/login");
@@ -49,7 +51,7 @@ export default async function DashboardPage() {
       select: { arcAddress: true, chain: true },
     }),
   ]);
-  if (!org) redirect("/login");
+  if (!org) redirect(SIGNOUT_REDIRECT);
 
   const { kpis, buckets, activity } = await getDashboardSummary(session.user.orgId);
   const financialActionsDisabled = org.kybStatus !== "APPROVED";
