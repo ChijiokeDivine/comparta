@@ -916,7 +916,15 @@ export default function Home() {
               </button>
 
               <div className="absolute inset-0 flex items-center justify-center bg-[#1B1B1B]">
-                <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-purple-700 via-purple-500 to-fuchsia-300 shadow-[0_0_80px_rgba(168,85,247,0.4)]" />
+                <div className="relative w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full overflow-hidden shadow-[0_0_80px_rgba(168,85,247,0.4)]">
+                  <Image
+                    src="/freelancers.webp"
+                    alt="Freelancers"
+                    fill
+                    className="object-cover"
+                   
+                  />
+                </div>
               </div>
 
               <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
@@ -942,7 +950,15 @@ export default function Home() {
               </button>
 
               <div className="absolute inset-0 flex items-center justify-center  bg-[#1B1B1B]">
-                <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-orange-600 via-amber-500 to-yellow-200 shadow-[0_0_80px_rgba(251,146,60,0.4)]" />
+                <div className="relative w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full overflow-hidden shadow-[0_0_80px_rgba(251,146,60,0.4)]">
+                  <Image
+                    src="/agencies.webp"
+                    alt="Agencies"
+                    fill
+                    className="object-cover"
+                    
+                  />
+                </div>
               </div>
 
               <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
@@ -968,7 +984,15 @@ export default function Home() {
               </button>
 
               <div className="absolute inset-0 flex items-center justify-center  bg-[#1B1B1B]">
-                <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-blue-700 via-cyan-500 to-teal-200 shadow-[0_0_80px_rgba(34,211,238,0.4)]" />
+                <div className="relative w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full overflow-hidden shadow-[0_0_80px_rgba(34,211,238,0.4)]">
+                  <Image
+                    src="/remote.webp"
+                    alt="Remote Teams"
+                    fill
+                    className="object-cover"
+                    
+                  />
+                </div>
               </div>
 
               <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
@@ -995,7 +1019,15 @@ export default function Home() {
               </button>
 
               <div className="absolute inset-0 flex items-center justify-center  bg-[#1B1B1B]">
-                <div className="w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full bg-gradient-to-br from-indigo-700 via-violet-500 to-purple-200 shadow-[0_0_80px_rgba(139,92,246,0.4)]" />
+                <div className="relative w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full overflow-hidden shadow-[0_0_80px_rgba(139,92,246,0.4)]">
+                  <Image
+                    src="/businesses.webp"
+                    alt="Digital Businesses"
+                    fill
+                    className="object-cover"
+              
+                  />
+                </div>
               </div>
 
               <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-[#0a0d10] via-[#0a0d10]/80 to-transparent">
