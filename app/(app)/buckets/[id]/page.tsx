@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth/auth";
 import { getBucketDetail, BucketNotFoundError } from "@/lib/buckets/service";
 import { StatusPill } from "@/app/components/StatusPill";
 import { formatMoney } from "@/app/invoices/_components/format";
+import { ArrowRightLeft as MoveInIcon, ArrowLeftRight as MoveOutIcon } from "lucide-react";
 import BucketActions from "./BucketActions";
 import type { Metadata } from "next";
 
@@ -49,6 +50,25 @@ export default async function BucketDetailPage({ params }: { params: Promise<{ i
             {formatMoney(bucket.balance)}
           </p>
         </div>
+
+        {canManage && !bucket.archived && (
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/wallet/move?to=${encodeURIComponent(bucket.id)}`}
+              className="inline-flex items-center gap-2 text-xs font-semibold text-[#0B1E3F] px-3 py-2 rounded-xl border border-[#E5E9F2] bg-white hover:bg-[#F7F8FB] transition-colors"
+            >
+              <MoveInIcon className="w-3.5 h-3.5 text-[#2A5CE6]" />
+              Move into this bucket
+            </Link>
+            <Link
+              href={`/wallet/move?from=${encodeURIComponent(bucket.id)}`}
+              className="inline-flex items-center gap-2 text-xs font-semibold text-[#0B1E3F] px-3 py-2 rounded-xl border border-[#E5E9F2] bg-white hover:bg-[#F7F8FB] transition-colors"
+            >
+              <MoveOutIcon className="w-3.5 h-3.5 text-[#2A5CE6]" />
+              Move out of this bucket
+            </Link>
+          </div>
+        )}
 
         {bucket.sparkline.length > 0 && (
           <div>

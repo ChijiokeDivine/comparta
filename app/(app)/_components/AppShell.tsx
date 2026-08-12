@@ -6,14 +6,13 @@ import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { signOut, useSession } from "next-auth/react";
 import type { KybStatus, UserRole } from "@/app/generated/prisma/client";
-import { NAV_ITEMS } from "./nav";
+import { NAV_ITEMS, type NavItem, type NavChild } from "./nav";
 import { KybPill } from "./Kyb";
 import CommandPalette from "./CommandPalette";
+import { ChevronDownIcon, SettingsIcon } from "./icons";
 import {
   Menu as MenuIcon,
   X as CloseIcon,
-  ChevronDown as ChevronDownIcon,
-  Settings as SettingsIcon,
   Search as SearchIcon,
   Eye as EyeIcon,
   EyeOff as EyeOffIcon,
@@ -26,6 +25,20 @@ const ROLE_LABEL: Record<UserRole, string> = {
   ADMIN: "Admin",
   MEMBER: "Member",
 };
+
+// Figures out which top-level nav group should start expanded, based on
+// whichever group's href (or a child's href) matches the current route.
+// Used as a lazy useState initializer so there's no closed->open flash
+// on first paint.
+function getInitialActiveGroup(pathname: string | null): string | null {
+  for (const item of NAV_ITEMS) {
+    const children = item.children ?? [];
+    const parentActive = item.href ? isActive(pathname, item.href) : false;
+    const anyChildActive = children.some((c) => isActive(pathname, c.href));
+    if (parentActive || anyChildActive) return item.label;
+  }
+  return null;
+}
 
 export default function AppShell({
   orgName,
@@ -42,6 +55,26 @@ export default function AppShell({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
+
+  // Single source of truth for which sidebar group is expanded. Only one
+  // id can be active at a time — opening a new group implicitly closes
+  // whatever was open before. Shared between the desktop sidebar and the
+  // mobile drawer since they render the same NAV_ITEMS.
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(() =>
+    getInitialActiveGroup(pathname)
+  );
+
+  const toggleDropdown = (id: string) => {
+    setActiveDropdown((prev) => (prev === id ? null : id));
+  };
+
+  const openDropdown = (id: string) => {
+    setActiveDropdown(id);
+  };
+
+  const closeDropdowns = () => {
+    setActiveDropdown(null);
+  };
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000);
@@ -79,15 +112,24 @@ export default function AppShell({
   return (
     <div className="min-h-screen flex bg-[#F7F8FB]">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r border-[#E5E9F2] bg-white">
+      <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0  border-r border-[#E5E9F2] bg-white">
         <div className="h-16 flex items-center px-6 border-b border-gray-200">
           <Link href="/dashboard" className="flex items-center">
             <img src="/logo.png" alt="Comparta" height={50} width={110} />
           </Link>
         </div>
-        <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-5 space-y-0.5">
           {NAV_ITEMS.map((item) => (
-            <SidebarLink key={item.href} item={item} active={isActive(pathname, item.href)} />
+            <NavSection
+              key={item.label}
+              item={item}
+              pathname={pathname}
+              userRole={role}
+              dropdownId={item.label}
+              activeDropdown={activeDropdown}
+              toggleDropdown={toggleDropdown}
+              openDropdown={openDropdown}
+            />
           ))}
         </nav>
         <div className="px-3 py-4 border-t border-[#E5E9F2]">
@@ -120,13 +162,18 @@ export default function AppShell({
                 <CloseIcon className="w-5 h-5 text-[#0B1E3F]" />
               </button>
             </div>
-            <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
+            <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-2 space-y-0.5">
               {NAV_ITEMS.map((item) => (
-                <SidebarLink
-                  key={item.href}
+                <NavSection
+                  key={item.label}
                   item={item}
-                  active={isActive(pathname, item.href)}
-                  onClick={() => setMobileNavOpen(false)}
+                  pathname={pathname}
+                  userRole={role}
+                  onClickChild={() => setMobileNavOpen(false)}
+                  dropdownId={item.label}
+                  activeDropdown={activeDropdown}
+                  toggleDropdown={toggleDropdown}
+                  openDropdown={openDropdown}
                 />
               ))}
               <Link
@@ -215,6 +262,9 @@ export default function AppShell({
               userEmail={userEmail}
               role={role}
               initials={initials}
+              isOpen={activeDropdown === "user-menu"}
+              onToggle={() => toggleDropdown("user-menu")}
+              onClose={closeDropdowns}
             />
           </div>
         </header>
@@ -234,26 +284,181 @@ export default function AppShell({
   );
 }
 
+function isManager(role: UserRole): boolean {
+  return role === "OWNER" || role === "ADMIN";
+}
+
+function NavSection({
+  item,
+  pathname,
+  userRole,
+  onClickChild,
+  dropdownId,
+  activeDropdown,
+  toggleDropdown,
+  openDropdown,
+}: {
+  item: NavItem;
+  pathname: string | null;
+  userRole: UserRole;
+  onClickChild?: () => void;
+  dropdownId: string;
+  activeDropdown: string | null;
+  toggleDropdown: (id: string) => void;
+  openDropdown: (id: string) => void;
+}) {
+  const children = useMemo(
+    () =>
+      (item.children ?? []).filter((c) => !c.managerOnly || isManager(userRole)),
+    [item.children, userRole]
+  );
+
+  const hasChildren = children.length > 0;
+
+  // If managerOnly is set and user isn't a manager, skip the whole group
+  // unless it has children that are visible (which shouldn't really happen
+  // since children inherit, but this guards against a bad nav config).
+  const canViewGroup = !item.managerOnly || isManager(userRole);
+  if (!canViewGroup && children.length === 0) return null;
+
+  const parentHref = item.href;
+  const parentActive = parentHref ? isActive(pathname, parentHref) : false;
+  const anyChildActive = children.some((c) => isActive(pathname, c.href));
+
+  // Open state is derived from the single shared `activeDropdown` id owned
+  // by AppShell — not local state — so opening one group always closes
+  // whichever other group was open.
+  const open = activeDropdown === dropdownId;
+
+  // Auto-expand this group (and thus collapse any other open group, since
+  // openDropdown replaces the shared id) whenever navigation lands on a
+  // route inside it — e.g. via browser back/forward or the cmd-k palette.
+  useEffect(() => {
+    if (parentActive || anyChildActive) openDropdown(dropdownId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parentActive, anyChildActive, dropdownId]);
+
+  if (!hasChildren) {
+    // Plain leaf item — no children, no chevron, no toggle.
+    return (
+      <SidebarLink
+        item={item}
+        active={parentActive}
+        href={parentHref ?? "#"}
+      />
+    );
+  }
+
+  const groupAccent =
+    parentActive || anyChildActive
+      ? "bg-[#EEF2FF] text-[#2A5CE6]"
+      : "text-[#3E4A6B] hover:bg-[#F2F4F8]";
+
+  const parentClasses = `group w-full flex items-center gap-3 rounded-xl px-3 py-3 my-1 text-sm font-medium transition-colors ${groupAccent}`;
+
+  const chevronButton = (
+    <button
+      type="button"
+      aria-label={open ? `Collapse ${item.label}` : `Expand ${item.label}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        toggleDropdown(dropdownId);
+      }}
+      className="w-6 h-6 -mr-1 flex items-center justify-center rounded-md text-[#7C8CA6] hover:text-[#0B1E3F] hover:bg-white/70 transition-colors"
+    >
+      <ChevronDownIcon
+        className={`w-4 h-4 transition-transform duration-200 ${
+          open ? "rotate-180" : ""
+        }`}
+      />
+    </button>
+  );
+
+  return (
+    <div className="space-y-0.5">
+      {parentHref ? (
+        <Link href={parentHref} className={parentClasses}>
+          <item.icon className="w-5 h-5 shrink-0" />
+          <span className="flex-1 text-left truncate">{item.label}</span>
+          {chevronButton}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={() => toggleDropdown(dropdownId)}
+          className={parentClasses}
+        >
+          <item.icon className="w-5 h-5 shrink-0" />
+          <span className="flex-1 text-left truncate">{item.label}</span>
+          {chevronButton}
+        </button>
+      )}
+
+      {open && (
+        <div className="pl-3 space-y-0.5">
+          {children.map((child) => (
+            <SidebarChildLink
+              key={child.href}
+              child={child}
+              active={isActive(pathname, child.href)}
+              onClick={onClickChild}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SidebarLink({
   item,
   active,
   onClick,
+  href,
 }: {
-  item: (typeof NAV_ITEMS)[number];
+  item: { label: string; icon: NavItem["icon"] };
   active: boolean;
   onClick?: () => void;
+  href: string;
 }) {
   const Icon = item.icon;
   return (
     <Link
-      href={item.href}
+      href={href}
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-xl px-3 py-3 my-2 text-sm font-medium transition-colors ${
+      className={`flex items-center gap-3 rounded-xl px-3 py-3 my-1 text-sm font-medium transition-colors ${
         active ? "bg-[#EEF2FF] text-[#2A5CE6]" : "text-[#3E4A6B] hover:bg-[#F2F4F8]"
       }`}
     >
-      <Icon className="w-5 h-5" />
-      {item.label}
+      <Icon className="w-5 h-5 shrink-0" />
+      <span className="truncate">{item.label}</span>
+    </Link>
+  );
+}
+
+function SidebarChildLink({
+  child,
+  active,
+  onClick,
+}: {
+  child: NavChild;
+  active: boolean;
+  onClick?: () => void;
+}) {
+  const Icon = child.icon;
+  return (
+    <Link
+      href={child.href}
+      onClick={onClick}
+      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${
+        active
+          ? "bg-[#EEF2FF] text-[#2A5CE6]"
+          : "text-[#5A6886] hover:bg-[#F2F4F8] hover:text-[#0B1E3F]"
+      }`}
+    >
+      <Icon className="w-4 h-4 shrink-0" />
+      <span className="truncate">{child.label}</span>
     </Link>
   );
 }
@@ -263,38 +468,43 @@ function UserMenu({
   userEmail,
   role,
   initials,
+  isOpen,
+  onToggle,
+  onClose,
 }: {
   userName: string;
   userEmail: string;
   role: UserRole;
   initials: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     }
-    if (open) document.addEventListener("mousedown", onClickOutside);
+    if (isOpen) document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [open]);
+  }, [isOpen, onClose]);
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={onToggle}
         className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 hover:bg-[#F2F4F8] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] cursor-pointer bg-[#F7F8FB]"
         aria-haspopup="true"
-        aria-expanded={open}
+        aria-expanded={isOpen}
       >
         <span className="w-8 h-8 rounded-full bg-[#0B1E3F] text-white text-xs font-semibold flex items-center justify-center">
           {initials}
         </span>
-        <ChevronDownIcon className={`w-4 h-4 text-[#7C8CA6] transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDownIcon className={`w-4 h-4 text-[#7C8CA6] transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
-      {open && (
+      {isOpen && (
         <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-[#E5E9F2] shadow-lg py-2 z-50">
           <div className="px-4 py-2.5 border-b border-[#F2F4F8]">
             <p className="text-sm font-semibold text-[#0B1E3F] truncate">{userName}</p>
@@ -306,7 +516,7 @@ function UserMenu({
           <Link
             href="/settings"
             className="block px-4 py-2.5 text-sm text-[#3E4A6B] hover:bg-[#F2F4F8]"
-            onClick={() => setOpen(false)}
+            onClick={onClose}
           >
             Account settings
           </Link>

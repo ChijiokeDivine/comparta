@@ -17,7 +17,14 @@
     --foreground: #ededed;
   }
 }
+.scrollbar-hide {
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE/old Edge */
+}
 
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;               /* Chrome, Safari, new Edge */
+}
 body {
   background: var(--background);
   color: var(--foreground);

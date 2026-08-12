@@ -164,3 +164,127 @@ export function PlusIcon({ className = "w-4 h-4" }: IconProps) {
     </svg>
   );
 }
+
+export function TransfersIcon({ className = base }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h11l-3-3M17 17H6l3 3" />
+    </svg>
+  );
+}
+
+export function HistoryIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path strokeLinecap="round" d="M3 3v5h5M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+export function ListIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  );
+}
+
+export function MoveIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8M8 12h8M8 17h8M5 7l-2 2 2 2M19 17l2-2-2-2" />
+    </svg>
+  );
+}
+
+export function SendIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" />
+    </svg>
+  );
+}
+
+export function UserPlusIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path strokeLinecap="round" d="M19 8v6M22 11h-6" />
+    </svg>
+  );
+}
+
+export function UsersIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="9" cy="8" r="3.25" />
+      <path strokeLinecap="round" d="M2.5 19.5c0-3.31 2.46-6 5.5-6s5.5 2.69 5.5 6" />
+      <path strokeLinecap="round" d="M16 10.5a3 3 0 0 1 0 6M19 19a5 5 0 0 0-2-4" />
+    </svg>
+  );
+}
+
+export function PlayIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 5v14l11-7L7 5Z" />
+    </svg>
+  );
+}
+
+export function FilePlusIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z" />
+      <path strokeLinecap="round" d="M14 3v6h6M12 13v6M9 16h6" />
+    </svg>
+  );
+}
+
+export function BucketPlusIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16l-1.5 12.5a2 2 0 0 1-2 1.5H7.5a2 2 0 0 1-2-1.5L4 7Z" />
+      <path strokeLinecap="round" d="M2.5 7h19M9 7V5a3 3 0 0 1 6 0v2M12 12v6M9 15h6" />
+    </svg>
+  );
+}
+
+export function RulesIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14 3h7v7M10 13l2 2 4-4" />
+    </svg>
+  );
+}
+
+export function SavingsBucketIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12.5c0-4.5 3.5-8 8.5-8 3 0 4.8 1.3 5.8 2.5H20l-1 3h-2.2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12.5v3.8c0 1 .8 1.7 1.8 1.7H8v2M17 15v2.5c0 1.1-.9 2-2 2h-.5" />
+      <circle cx="14" cy="11" r=".6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function AlertIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4M12 17h.01" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+    </svg>
+  );
+}
+
+export function TagIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20.59 13.41 11.17 22a2 2 0 0 1-2.83 0l-7-7A2 2 0 0 1 1 13.34V4a2 2 0 0 1 2-2h9.17a2 2 0 0 1 1.42.59l7 7a2 2 0 0 1 0 2.82Z" />
+      <circle cx="7.5" cy="7.5" r="1.25" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

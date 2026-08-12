@@ -9,6 +9,7 @@ import {
   Link2 as PaymentLinksIcon,
   Contact as ContactsIcon,
   ArrowDownLeft as DepositIcon,
+  ArrowLeftRight as MoveIcon,
 } from "lucide-react";
 import DepositModal from "./DepositModal";
 
@@ -23,6 +24,7 @@ interface QuickAction {
 const ACTIONS: QuickAction[] = [
   { label: "New deposit", icon: DepositIcon, action: "deposit" },
   { href: "/wallet/transfer", label: "New transfer", icon: WalletIcon },
+  { href: "/wallet/move", label: "Move between buckets", icon: MoveIcon },
   { href: "/invoices/new", label: "New invoice", icon: InvoicesIcon, hideOnMobile: true },
   { href: "/payment-links/new", label: "New payment link", icon: PaymentLinksIcon },
   { href: "/contacts/new", label: "New payee", icon: ContactsIcon },
