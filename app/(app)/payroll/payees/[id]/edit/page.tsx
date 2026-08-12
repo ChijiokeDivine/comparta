@@ -129,7 +129,10 @@ export default function EditPayeePage() {
           <input
             id="identifier"
             value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setIdentifier(val.startsWith("@") ? val.slice(1) : val);
+            }}
             className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm"
           />
         </div>

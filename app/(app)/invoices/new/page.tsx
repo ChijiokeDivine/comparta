@@ -109,7 +109,10 @@ export default function NewInvoicePage() {
               id="recipient"
               disabled={disabled}
               value={recipientIdentifier}
-              onChange={(e) => setRecipientIdentifier(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setRecipientIdentifier(val.startsWith("@") ? val.slice(1) : val);
+              }}
               placeholder="@acme or 0x1234…"
               className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm"
             />

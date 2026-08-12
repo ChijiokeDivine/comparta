@@ -61,19 +61,15 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/wallet",
     label: "Wallet",
     icon: WalletIcon,
-
-  },
-
-  {
-    href: "/wallet/transfers",
-    label: "Transfers",
-    icon: TransfersIcon,
     children: [
       { href: "/wallet/transfer", label: "New transfer", icon: SendIcon },
+      { href: "/wallet/move", label: "Move between buckets", icon: MoveIcon, managerOnly: true },
       { href: "/recurring", label: "Recurring transfers", icon: RecurringIcon },
       { href: "/wallet/transfers", label: "Transfer history", icon: HistoryIcon },
     ],
+
   },
+
 
   {
     href: "/buckets",
@@ -82,7 +78,6 @@ export const NAV_ITEMS: NavItem[] = [
     managerOnly: true,
     children: [
       { href: "/buckets/new", label: "New bucket", icon: BucketPlusIcon, managerOnly: true },
-      { href: "/wallet/move", label: "Move between buckets", icon: MoveIcon, managerOnly: true },
     ],
   },
 
