@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search as SearchIcon, X, ArrowRight, Wallet, User, FileText } from "lucide-react";
+import { Search as SearchIcon, X, ArrowRight, FileText } from "lucide-react";
 import Image from "next/image";
 interface Bucket {
   id: string;
@@ -59,17 +59,17 @@ export default function TransferForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch contacts whenever the picker opens. Depends ONLY on
-  // pickerOpen — depending on contactsLoading here (as a prior version
-  // did) creates a feedback loop: the effect sets contactsLoading(true),
-  // which changes the dependency, which re-runs the effect, which
-  // (once the fetch settles and sets it back to false) changes the
-  // dependency again, forever. `cancelled` guards against a stale
-  // response landing after the panel's been closed/reopened quickly.
+  function togglePicker() {
+    setPickerOpen((o) => {
+      const next = !o;
+      if (next) setContactsLoading(true);
+      return next;
+    });
+  }
+
   useEffect(() => {
     if (!pickerOpen) return;
     let cancelled = false;
-    setContactsLoading(true);
     fetch("/api/contacts")
       .then((res) => res.json())
       .then((data) => {
@@ -135,10 +135,10 @@ export default function TransferForm({
     handleResolve(contact.identifier);
   }
 
-  const fromBucket = useMemo(
-    () => buckets.find((b) => b.id === fromLedgerAccountId) ?? null,
-    [buckets, fromLedgerAccountId]
-  );
+  // const fromBucket = useMemo(
+  //   () => buckets.find((b) => b.id === fromLedgerAccountId) ?? null,
+  //   [buckets, fromLedgerAccountId]
+  // );
 
   function truncateAddress(addr: string, start = 7, end = 7) {
     if (addr.length <= start + end + 2) return addr;
@@ -241,7 +241,7 @@ export default function TransferForm({
           </label>
           <button
             type="button"
-            onClick={() => setPickerOpen((o) => !o)}
+            onClick={togglePicker}
             disabled={disabled}
             className="text-xs font-semibold text-[#2A5CE6] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
           >

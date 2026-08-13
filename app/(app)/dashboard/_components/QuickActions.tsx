@@ -9,7 +9,6 @@ import {
   Link2 as PaymentLinksIcon,
   Contact as ContactsIcon,
   ArrowDownLeft as DepositIcon,
-  ArrowLeftRight as MoveIcon,
 } from "lucide-react";
 import DepositModal from "./DepositModal";
 

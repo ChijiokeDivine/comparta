@@ -296,6 +296,8 @@ model Organization {
   transactionCategories  TransactionCategory[]
   transactionCategorizations TransactionCategorization[]
   spendingAnomalies      SpendingAnomaly[]
+  multisigSigners        MultisigSigner[]
+  multisigTreasury       MultisigTreasury?
   defaultLedgerAccount   LedgerAccount?    @relation("OrganizationDefaultLedgerAccount", fields: [defaultLedgerAccountId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -319,6 +321,7 @@ model User {
   payrollRunsInitiated PayrollRun[] @relation("PayrollRunInitiator")
   payrollRunsApproved  PayrollRun[] @relation("PayrollRunApprover")
   recurringTransfersCreated RecurringTransfer[] @relation("RecurringTransferCreator")
+  multisigSigner       MultisigSigner?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1478,4 +1481,64 @@ model SpendingAnomaly {
   @@unique([onchainTransactionId, type])
   @@index([orgId, status])
   @@map("spending_anomalies")
+}
+
+
+model MultisigSigner {
+  id             String   @id @default(cuid())
+  orgId          String
+  userId         String   @unique
+  circleWalletId String   @unique
+  arcAddress     String   @unique
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("multisig_signers")
+}
+
+model MultisigTreasury {
+  id              String   @id @default(cuid())
+  orgId           String   @unique
+  contractAddress String   @unique
+  deploymentTxId  String   @unique
+  threshold       Int
+  chain           Chain
+  createdAt       DateTime @default(now())
+
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  proposals    MultisigProposal[]
+
+  @@index([orgId])
+  @@map("multisig_treasuries")
+}
+
+model MultisigProposal {
+  id                String                 @id @default(cuid())
+  treasuryId        String
+  onChainTransferId Int
+  proposedByUserId  String
+  toAddress         String
+  amount            BigInt
+  reference         String
+  status            MultisigProposalStatus @default(PENDING)
+  approvalCount     Int                    @default(1)
+  circleTxId        String?
+  createdAt         DateTime               @default(now())
+  executedAt        DateTime?
+
+  treasury MultisigTreasury @relation(fields: [treasuryId], references: [id], onDelete: Cascade)
+
+  @@unique([treasuryId, onChainTransferId])
+  @@index([treasuryId])
+  @@index([treasuryId, status])
+  @@map("multisig_proposals")
+}
+
+enum MultisigProposalStatus {
+  PENDING
+  EXECUTED
+  CANCELLED
 }

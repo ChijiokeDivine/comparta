@@ -5,7 +5,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { getDashboardSummary } from "@/lib/insights/dashboard/getDashboardSummary";
-import { formatMoney } from "@/app/invoices/_components/format";
 import { KybBanner } from "../_components/Kyb";
 import QuickActions from "./_components/QuickActions";
 import BucketCards from "./_components/BucketCards";
