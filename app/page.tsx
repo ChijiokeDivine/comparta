@@ -3,23 +3,13 @@
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import Lenis from "lenis";
-import { NavDropdown, MobileNavDropdown } from "./components/NavDropdown";
-
+import { NavDropdown } from "./components/NavDropdown";
+import Link from "next/link";
 
 
 
 export default function Home() {
-  interface FloatingTile {
-    image: string;
-    alt: string;
-    rotate: string;
-  }
 
-  interface TestItem {
-    image: string;
-    title: string;
-    description: string;
-  }
 
 
   const [lordIconProps, setLordIconProps] = useState({
@@ -243,30 +233,8 @@ export default function Home() {
     }, [tooltipOpen, secondTooltipOpen]);
 
 
-    const floatingTiles: FloatingTile[] = [
-      { image: "/images/tests/xray-legs.jpg", alt: "X-ray of legs", rotate: "-rotate-[8deg]" },
-      { image: "/images/tests/dexa-scan.jpg", alt: "DEXA scan", rotate: "rotate-[6deg]" },
-      { image: "/images/tests/mri-vascular.jpg", alt: "MRI vascular scan", rotate: "-rotate-[5deg]" },
-      { image: "/images/tests/lung-scan.jpg", alt: "Lung scan", rotate: "rotate-[4deg]" },
-      { image: "/images/tests/cardiac-vessels.jpg", alt: "Cardiac blood vessels", rotate: "-rotate-[6deg]" },
-      { image: "/images/tests/spine-xray.jpg", alt: "Spine X-ray", rotate: "rotate-[10deg]" },
-      { image: "/images/tests/vo2-mask.jpg", alt: "VO2 max testing mask", rotate: "rotate-[9deg]" },
-    ];
 
-    // duplicated once for a seamless loop
-    const tickerTiles: FloatingTile[] = [...floatingTiles, ...floatingTiles];
 
-    const tests: TestItem[] = [
-      { image: "/images/tests/whole-body-mri.jpg", title: "Whole Body MRI", description: "Detects abnormalities across the body." },
-      { image: "/images/tests/blood-panel.jpg", title: "Advanced Blood Panel", description: "In-depth blood analysis." },
-      { image: "/images/tests/vo2-max.jpg", title: "VO2 Max Testing", description: "Measures oxygen uptake and endurance." },
-      { image: "/images/tests/dexa.jpg", title: "DEXA Body Composition Testing", description: "Analyzes body fat, muscle, and bone density." },
-      { image: "/images/tests/ct-angiography.jpg", title: "CT Coronary Angiography", description: "Assesses coronary blockages and heart risk." },
-      { image: "/images/tests/plaque.jpg", title: "AI Coronary Plaque Characterization", description: "Identifies high-risk plaque features." },
-      { image: "/images/tests/hereditary.jpg", title: "Hereditary Diseases Screening", description: "Screens genetic disease risk." },
-      { image: "/images/tests/cgm.jpg", title: "Continuous Glucose Monitoring", description: "Tracks blood sugar continuously." },
-      { image: "/images/tests/lung-ct.jpg", title: "Low Dose Lung CT Scan", description: "Detects early lung cancer signs." },
-    ];
 
   const growCards = [
     {
@@ -360,9 +328,9 @@ export default function Home() {
         <header className="relative z-20 w-full">
           <div className="mx-auto flex max-w-[1920px] items-center justify-between px-4 py-6 sm:px-6 md:px-8">
             {/* Logo */}
-            <a href="/" className="flex items-center gap-2">
-              <img src="img5.png" alt="Comparta" height={35} width={110} />
-            </a>
+            <Link href="/" className="flex items-center gap-2">
+              <Image src="/img5.png" alt="Comparta" height={35} width={110} />
+            </Link>
 
             {/* Nav */}
             <nav className="hidden items-center gap-10 md:flex">
@@ -581,7 +549,7 @@ export default function Home() {
               Move money like
               <span className="inline max-[349px]:inline">&nbsp;</span>
               <br className="block max-[349px]:hidden" />
-              it's easy
+              it&apos;s easy
 
              
             </h1>
@@ -642,7 +610,7 @@ export default function Home() {
               </h1>
               <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
                 <h1 className="text-emerald-300 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
-                  We don't.
+                  We don&apos;t.
                 </h1>
               
               </div>
@@ -651,7 +619,7 @@ export default function Home() {
             {/* Footer text */}
             <p className="max-w-md sm:max-w-lg text-sm sm:text-base text-white/70 leading-relaxed mt-10 md:mt-0">
               <span className="text-white font-medium">
-                No holding periods. No "3-5 business days."
+                No holding periods. No &quot;3-5 business days.&quot;
               </span>{" "}
               Comparta moves money around the clock - nights, weekends, holidays, all the same.
             </p>
@@ -677,9 +645,11 @@ export default function Home() {
             <span className="max-[362px]:hidden">One platform.</span> Every way you{" "}
             <span className="inline-flex items-center gap-2 whitespace-nowrap align-middle">
               move money
-              <img
+              <Image
                 src="/send.png"
                 alt="3D icon"
+                width={100}
+                height={100}
                 className="inline-block h-8 md:h-16 w-auto align-middle"
               />
             </span>
@@ -697,7 +667,8 @@ export default function Home() {
                   Instant payments, anywhere 
                 </p>
                 <div className="relative mt-auto aspect-[4/3] w-full overflow-hidden rounded-xl  flex items-center justify-center">
-                  <img
+                  <Image
+                  fill
                     src="/pay1.png"
                     alt="Sending money instantly"
                     className="h-3/4 w-3/4 object-contain"
@@ -717,7 +688,8 @@ export default function Home() {
                   Send money globally for less
                 </p>
                 <div className="relative mt-auto aspect-[4/3]  w-full overflow-hidden rounded-xl flex items-center justify-center">
-                  <img
+                  <Image
+                  fill
                     src="/3d.webp"
                     alt="Paying your team"
                     className="h-3/4 w-3/4 object-contain"
@@ -750,7 +722,8 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Get paid, without the chase */}
             <div className="relative rounded-xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
-              <img
+              <Image
+              fill
                 src="/image24.webp"
                 alt="Get paid, without the chase"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
@@ -782,7 +755,8 @@ export default function Home() {
 
             {/* Pay out, without the stress */}
             <div className="relative rounded-xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] group">
-              <img
+              <Image
+              fill
                 src="/ejh.webp"
                 alt="Pay out, without the stress"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
@@ -873,7 +847,7 @@ export default function Home() {
             Built for your business
           </h2>
           <p className="mt-4 sm:mt-6 text-gray-400 text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
-            Different businesses move money differently. Here's what Comparta looks like for yours.
+            Different businesses move money differently. Here&apos;s what Comparta looks like for yours.
           </p>
         </div>
 
@@ -935,7 +909,7 @@ export default function Home() {
                   Invoice fast. Get paid faster.
                 </p>
                 <p className="text-gray-400 text-sm sm:text-base leading-relaxed hidden sm:block">
-                  Send an invoice between meetings. Get paid before you've closed your laptop.
+                  Send an invoice between meetings. Get paid before you{"'"}ve closed your laptop.
                 </p>
               </div>
             </div>
@@ -1138,11 +1112,11 @@ export default function Home() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-10 lg:gap-8 py-14 sm:py-16">
             {/* Brand column */}
             <div className="col-span-2 sm:col-span-3 lg:col-span-1 flex flex-col gap-4">
-              <a href="/" className="flex items-center gap-2 w-fit">
+              <Link href="/" className="flex items-center gap-2 w-fit">
               
-                <img src="img5.png" alt="Comparta" height={42} width={135} />
+                <Image src="/img5.png" alt="Comparta" height={42} width={135} />
           
-              </a>
+              </Link>
            
 
             </div>

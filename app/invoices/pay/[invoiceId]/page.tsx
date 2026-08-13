@@ -1,7 +1,7 @@
 // app/invoices/pay/[invoiceId]/page.tsx
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   STATUS_LABEL,
@@ -10,6 +10,7 @@ import {
   formatDate,
   type InvoiceStatus,
 } from "@/app/invoices/_components/format";
+import Image from "next/image";
 
 interface LineItem {
   description: string;
@@ -42,26 +43,28 @@ export default function PayInvoicePage() {
   const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/invoices/public/${params.invoiceId}`);
-      if (!res.ok) {
-        setNotFound(true);
-        return;
-      }
-      const data = await res.json();
-      setInvoice(data.invoice);
-    } catch {
-      // transient network hiccup during a background poll — leave the
-      // last good state on screen rather than flashing an error
-    } finally {
-      setLoading(false);
-    }
-  }, [params.invoiceId]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    fetch(`/api/invoices/public/${params.invoiceId}`)
+      .then(async (res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setNotFound(true);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled) setInvoice(data.invoice);
+      })
+      .catch(() => {
+        // ignore transient error on mount
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [params.invoiceId]);
 
   // Payment confirmation isn't something this page drives — it's written
   // asynchronously by the existing background reconciliation in
@@ -70,9 +73,20 @@ export default function PayInvoicePage() {
   // without asking the payer to hit refresh themselves.
   useEffect(() => {
     if (!invoice || !PAYABLE_STATUSES.includes(invoice.status)) return;
-    const id = setInterval(load, POLL_INTERVAL_MS);
+    const id = setInterval(() => {
+      fetch(`/api/invoices/public/${params.invoiceId}`)
+        .then(async (res) => {
+          if (!res.ok) return;
+          const data = await res.json();
+          setInvoice(data.invoice);
+        })
+        .catch(() => {
+          // transient network hiccup during a background poll — leave the
+          // last good state on screen rather than flashing an error
+        });
+    }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [invoice, load]);
+  }, [invoice, params.invoiceId]);
 
   async function handleCopy() {
     if (!invoice?.payToAddress) return;
@@ -89,7 +103,7 @@ export default function PayInvoicePage() {
     <div className="min-h-screen bg-[#F7F8FB] flex items-start sm:items-center justify-center px-4 py-10">
       <div className="w-full max-w-lg">
         <div className="flex justify-center mb-6">
-          <img src="/img5.png" alt="Comparta" height={28} width={100} />
+          <Image src="/img5.png" alt="Comparta" height={28} width={100} />
         </div>
 
         {loading ? (

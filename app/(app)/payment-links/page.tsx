@@ -28,8 +28,12 @@ export default function PaymentLinksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  function handleTabChange(next: (typeof TABS)[number]) {
+    setTab(next);
     setLoading(true);
+  }
+
+  useEffect(() => {
     const params = tab === "ALL" ? "" : `?status=${tab}`;
     fetch(`/api/payment-links${params}`)
       .then((res) => res.json())
@@ -63,7 +67,7 @@ export default function PaymentLinksPage() {
         {TABS.map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => handleTabChange(t)}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
               tab === t
                 ? "bg-[#0B1E3F] text-white border-[#0B1E3F]"

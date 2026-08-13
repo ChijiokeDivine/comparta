@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { formatUSDC } from "@/app/invoices/_components/format";
+import Image from "next/image";
 
 type UnavailableReason = "NOT_FOUND" | "PAUSED" | "EXPIRED" | "USED_UP";
 
@@ -173,7 +174,7 @@ export default function PayLinkPage() {
     <div className="min-h-screen bg-[#F7F8FB] flex items-start sm:items-center justify-center px-4 py-10">
       <div className="w-full max-w-lg">
         <div className="flex justify-center mb-6">
-          <img src="/logo.png" alt="Comparta" height={28} width={100} />
+          <Image src="/logo.png" alt="Comparta" height={28} width={100} />
         </div>
 
         {loading ? (
