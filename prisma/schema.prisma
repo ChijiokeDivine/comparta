@@ -181,6 +181,19 @@ enum PaymentLinkStatus {
 // reused one, so history is a truthful append-only log of attempts).
 enum PaymentLinkPaymentStatus {
   PENDING            // checkout session opened, funds not yet observed
+  // Wallet path only: a deposit was observed at this session's Circle
+  // deposit wallet (lib/circle/wallets.ts#createWalletForPaymentLinkPayment)
+  // and app/api/webhooks/circle/route.ts has claimed the session to sweep
+  // it to the treasury wallet - see
+  // lib/paymentLinks/reconciliation.ts#reconcileDepositWalletPayment. This
+  // claim is atomic (PENDING -> SWEEPING via a conditional update) so a
+  // redelivered webhook can't trigger a second sweep of the same funds.
+  // A session can also come to rest here permanently, with failureReason
+  // set, if the observed amount didn't match amountExpected or the sweep
+  // itself failed - either way it's parked for manual review rather than
+  // silently retried, since automatically resweeping/re-crediting funds
+  // that already triggered one investigation is its own risk.
+  SWEEPING
   CONFIRMED          // funds received and the ledger was credited
   FAILED             // card/ACH declined, or the wallet tx itself failed onchain
   WRONG_AMOUNT_REFUNDED // wallet path only: payer sent an amount that didn't
@@ -313,10 +326,11 @@ model User {
   organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   email         String    @unique
-  passwordHash  String? // null if using magic-link only
+  passwordHash  String?
   emailVerified DateTime?
   name          String?
   role          UserRole  @default(MEMBER)
+  onboardingCompleted Boolean @default(false)
 
   payrollRunsInitiated PayrollRun[] @relation("PayrollRunInitiator")
   payrollRunsApproved  PayrollRun[] @relation("PayrollRunApprover")
@@ -745,6 +759,18 @@ model PaymentLinkPayment {
   // amount-matching heuristic the wallet path relies on.
   circlePaymentId String? @unique
   idempotencyKey  String? @unique
+
+  // Wallet path only: a single-purpose Circle Developer-Controlled Wallet
+  // provisioned for this session alone (see
+  // lib/circle/wallets.ts#createWalletForPaymentLinkPayment). depositAddress
+  // - not the merchant's own treasury wallet.arcAddress - is what's shown
+  // to the payer (lib/paymentLinks/checkout.ts). Once app/api/webhooks/
+  // circle/route.ts observes a deposit here, lib/paymentLinks/
+  // reconciliation.ts#reconcileDepositWalletPayment sweeps it on to the
+  // treasury and only then confirms this session - so a payer never has
+  // an address that can reach the org's real funds.
+  depositWalletId String? @unique
+  depositAddress  String? @unique
 
   // Wallet path only: a transient Circle Payment Intent created for this
   // session's exact amountExpected, associated with the merchant's Circle

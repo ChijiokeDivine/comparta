@@ -56,6 +56,7 @@ export async function runInvoiceOverdueSweep(): Promise<OverdueSweepResult> {
 
     try {
       if (recipientEmail) {
+        const baseUrl = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL ?? "http://localhost:3000";
         await sendInvoiceReminderEmail({
           invoiceId: invoice.id,
           orgLegalName: invoice.organization.legalName,
@@ -63,7 +64,7 @@ export async function runInvoiceOverdueSweep(): Promise<OverdueSweepResult> {
           total: toDecimalString(invoice.total),
           currency: invoice.currency,
           dueDate: invoice.dueDate,
-          publicUrl: `/invoice/${invoice.id}`,
+          publicUrl: `${baseUrl.replace(/\/$/, "")}/invoices/pay/${invoice.id}`,
           daysPastDue,
         });
       }

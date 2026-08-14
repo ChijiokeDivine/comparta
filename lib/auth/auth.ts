@@ -106,6 +106,7 @@ function buildProviders() {
           orgId: user.orgId,
           role: user.role,
           kybStatus: user.organization.kybStatus,
+          onboardingCompleted: user.onboardingCompleted,
         };
       },
     }),
@@ -175,6 +176,7 @@ export const authOptions: AuthOptions = {
       if (user) {
         token.orgId = user.orgId;
         token.role = user.role;
+        token.onboardingCompleted = user.onboardingCompleted;
 
         if (typeof user.kybStatus !== "undefined") {
           // Credentials flow already passed kybStatus via authorize()

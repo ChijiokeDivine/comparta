@@ -191,7 +191,7 @@ export async function sendInvoice(orgId: string, invoiceId: string, publicBaseUr
       total: toDecimalString(updated.total),
       currency: updated.currency,
       dueDate: updated.dueDate,
-      publicUrl: `${publicBaseUrl}/invoice/${invoiceId}`,
+      publicUrl: `${publicBaseUrl}/invoices/pay/${invoiceId}`,
     }).catch((err) => console.error(`[invoices] send email failed for ${invoiceId}`, err));
   }
 

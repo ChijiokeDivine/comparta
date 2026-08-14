@@ -1,23 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useSyncExternalStore } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
+import { googleErrorMessage } from "./googleErrorMessage";
+
+function useIsClient() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
 
 export default function LoginPage() {
-  const [mounted, setMounted] = useState(false);
-  const [error, setError] = useState("");
+  const mounted = useIsClient();
+  const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  useEffect(() => { setMounted(true); }, []);
+  const googleError = googleErrorMessage(searchParams.get("error"));
+  const displayedError = googleError || formError;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError("");
+    setFormError("");
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
@@ -33,13 +44,13 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError(result.error === "CredentialsSignin" ? "Invalid email or password." : result.error);
+        setFormError(result.error === "CredentialsSignin" ? "Invalid email or password." : result.error);
         setLoading(false);
         return;
       }
 
       if (!result?.ok) {
-        setError("Sign-in failed. Please try again.");
+        setFormError("Sign-in failed. Please try again.");
         setLoading(false);
         return;
       }
@@ -47,18 +58,18 @@ export default function LoginPage() {
       router.refresh();
       router.replace("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setFormError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       setLoading(false);
     }
   }
 
   async function handleGoogleLogin() {
-    setError("");
+    setFormError("");
     setGoogleLoading(true);
     try {
       await signIn("google", { callbackUrl: "/dashboard" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Google login failed. Please try again.");
+      setFormError(err instanceof Error ? err.message : "Google login failed. Please try again.");
       setGoogleLoading(false);
     }
   }
@@ -101,7 +112,7 @@ export default function LoginPage() {
    
         <div className="relative z-10 flex flex-col justify-between px-8 py-6 md:px-16 md:py-8 text-white">
           <Link href="/" className="anim-logo flex items-center gap-2">
-            <img src="/img5.png" alt="Comparta" height={42} width={135} />
+            <Image src="/img5.png" alt="Comparta" height={42} width={135} />
           </Link>
           <div className="anim-welcome pb-12">
             <h2 className="text-4xl md:text-5xl font-normal leading-tight tracking-tight mb-6">
@@ -132,9 +143,9 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {error && (
+          {displayedError && (
             <div className="mb-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+              {displayedError}
             </div>
           )}
 
@@ -206,3 +217,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+

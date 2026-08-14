@@ -1,15 +1,43 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect, useRef } from "react";
+import { useState, useSyncExternalStore, useRef, useEffect } from "react";
 import Lenis from "lenis";
 import { NavDropdown } from "./components/NavDropdown";
 import Link from "next/link";
+// Nav items with all sub-items visible by default, organized by section
+import {
+  TrendingUp,
+  ArrowLeftRight,
+  CreditCard,
+  Wallet,
+  Receipt,
+  Users,
+  Code2,
+  type LucideIcon,
+} from "lucide-react";
 
-
+const PERSONAL_ITEMS: { label: string; icon: LucideIcon }[] = [
+  { label: "Grow & Invest", icon: TrendingUp },
+  { label: "Move Money", icon: ArrowLeftRight },
+  { label: "Payments", icon: CreditCard },
+];
+ 
+const BUSINESS_ITEMS: { label: string; icon: LucideIcon }[] = [
+  { label: "Account & Payments", icon: Wallet },
+  { label: "Spend & Invoices", icon: Receipt },
+  { label: "Payroll", icon: Users },
+];
+function useIsClient() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
 
 export default function Home() {
-
+  const mounted = useIsClient();
 
 
   const [lordIconProps, setLordIconProps] = useState({
@@ -307,7 +335,7 @@ export default function Home() {
           // transform: translateY(10px);
         }
       `}</style>
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen bg-white ${mounted ? "ready" : ""}`}>
       {/* Header + Hero shared background wrapper */}
       <div className="relative overflow-hidden">
         {/* Shared background video */}
@@ -408,80 +436,46 @@ export default function Home() {
                       Personal
                     </h3>
                     <div className="space-y-3">
-                      {[
-                        "Grow & Invest",
-                        "Move Money",
-                        "Payments",
-                      ].map((item) => (
+                      {PERSONAL_ITEMS.map(({ label, icon: Icon }) => (
                         <a
-                          key={item}
+                          key={label}
                           href="#"
                           className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
                         >
-                          <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
-                            <svg
-                              width="20"
-                              height="20"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="#0B1E3F"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <circle cx="12" cy="12" r="10" />
-                              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                              <path d="M12 17h.01" />
-                            </svg>
+                          <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                            <Icon size={20} strokeWidth={2} color="#0B1E3F" />
                           </div>
                           <span className="text-[14px] font-medium text-[#0B1E3F]">
-                            {item}
+                            {label}
                           </span>
                         </a>
                       ))}
                     </div>
                   </div>
-
+            
                   {/* Business Section */}
                   <div>
                     <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
                       Business
                     </h3>
                     <div className="space-y-3">
-                      {[
-                        "Account & Payments",
-                        "Spend & Invoices",
-                        "Payroll",
-                      ].map((item) => (
+                      {BUSINESS_ITEMS.map(({ label, icon: Icon }) => (
                         <a
-                          key={item}
+                          key={label}
                           href="#"
                           className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
                         >
-                          <div className="w-9 h-9 rounded-full bg-[#fffff] flex items-center justify-center flex-shrink-0">
-                            <svg
-                              width="20"
-                              height="20"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="#0B1E3F"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <circle cx="12" cy="12" r="10" />
-                              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                              <path d="M12 17h.01" />
-                            </svg>
+                          <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                            <Icon size={20} strokeWidth={2} color="#0B1E3F" />
                           </div>
                           <span className="text-[14px] font-medium text-[#0B1E3F]">
-                            {item}
+                            {label}
                           </span>
                         </a>
                       ))}
                     </div>
                   </div>
-
+            
                   {/* Developer Section */}
                   <div>
                     <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
@@ -492,28 +486,15 @@ export default function Home() {
                         href="#"
                         className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
                       >
-                        <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
-                          <svg
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="#0B1E3F"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                            <path d="M12 17h.01" />
-                          </svg>
+                        <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                          <Code2 size={20} strokeWidth={2} color="#0B1E3F" />
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[14px] font-medium text-[#0B1E3F]">
-                            API 
+                            API
                           </span>
                           <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
-                           Soon
+                            Soon
                           </span>
                         </div>
                       </a>
@@ -545,7 +526,7 @@ export default function Home() {
         <section className="relative"  >
 
           <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-end px-4 pt-20 md:pb-20 pb-36  text-center sm:px-6 md:h-[90vh] h-[80vh]">
-            <h1 className="text-[40px] font-normal leading-[1.05] text-[#FFFFFF] sm:text-[60px] md:text-[65px] lg:text-[65px] xl:text-[70px] pt-12  md:pt-20">
+            <h1 className="text-[40px] anim-h1 font-normal leading-[1.05] text-[#FFFFFF] sm:text-[60px] md:text-[65px] lg:text-[65px] xl:text-[70px] pt-12  md:pt-20">
               Move money like
               <span className="inline max-[349px]:inline">&nbsp;</span>
               <br className="block max-[349px]:hidden" />
@@ -555,12 +536,12 @@ export default function Home() {
             </h1>
             
 
-            <p className="mt-9 max-w-[540px] text-[16px] text-[#FFFFFF] md:text-[15px]">
+            <p className="mt-9 anim-p max-w-[540px] text-[16px] text-[#FFFFFF] md:text-[15px]">
               Comparta unifies invoicing, payments, payroll, and savings. instant settlement, all from one account. 
             </p>
             <a
               href="/register"
-              className="mt-10 btn-3d  "
+              className="mt-10 btn-3d  anim-cta"
             >
               <span className="md:block hidden">Create your account</span><span className="md:hidden block">Get started</span>
              

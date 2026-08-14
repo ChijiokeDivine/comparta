@@ -152,135 +152,166 @@ export async function reconcileWalletTransferAgainstPaymentLinks(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Payment-Intent wallet path (Arc, transient Circle Payment Intents)
+// Deposit-wallet wallet path (per-session Circle Developer-Controlled
+// Wallets, never the treasury address)
 //
 // Unlike reconcileWalletTransferAgainstPaymentLinks above, this path never
-// heuristically guesses which session an inbound transfer belongs to: every
-// PaymentLinkPayment created by lib/paymentLinks/checkout.ts#startWalletCheckout
-// carries its own circlePaymentIntentId, so app/api/webhooks/circle/route.ts
-// can look the session up directly off Circle's "payments"/"paymentIntents"
-// webhook topics. reconcileWalletTransferAgainstPaymentLinks (and the
-// amount-matching it does) remains only for inbound transfers that AREN'T
-// tied to a payment-link checkout at all.
+// heuristically guesses which session an inbound transfer belongs to and
+// never touches the org's treasury Wallet as a payer-facing address at
+// all. lib/paymentLinks/checkout.ts#startWalletCheckout provisions a
+// single-purpose Circle wallet per session (lib/circle/wallets.ts#
+// createWalletForPaymentLinkPayment) and shows ONLY that address to the
+// payer. app/api/webhooks/circle/route.ts checks every "transactions.
+// inbound" notification's destinationAddress against
+// PaymentLinkPayment.depositAddress BEFORE falling through to
+// handleInboundTransfer - a deposit wallet is never registered in the
+// Wallet table, so it must never reach that path.
+//
+// On a match, this sweeps the funds on to the org's real treasury wallet
+// (lib/circle/wallets.ts#sendTransaction) and only then confirms the
+// session - a payer's own address never has visibility into, or the
+// ability to drain, the org's actual funds.
 
-export type PaymentIntentReconcileResult =
-  | { kind: "confirmed"; paymentLinkId: string }
+export type DepositWalletReconcileResult =
+  | { kind: "swept"; paymentLinkId: string }
   | { kind: "amount_mismatch" }
-  | { kind: "already_settled" }
+  | { kind: "sweep_failed" }
+  | { kind: "already_handled" }
+  | { kind: "no_treasury_wallet" }
   | { kind: "not_found" };
 
-export interface PaymentIntentSettlementInput {
-  circlePaymentIntentId: string;
-  /** Circle's id for this specific settlement event (the "payments" topic's payment.id) - used as OnchainTransaction.circleTransactionId. */
-  circlePaymentId: string;
-  /** Settled amount, in smallest USDC unit. */
-  amountPaid: bigint;
-  /** Payer's source address, if Circle reported one. */
-  payerAddress?: string;
-  /** Onchain settlement tx hash, if Circle reported one. */
-  txHash?: string;
+export interface DepositWalletInboundInput {
+  depositAddress: string;
+  /** Amount actually observed at the deposit wallet, in smallest USDC unit. */
+  amountReceived: bigint;
 }
 
 /**
- * Called from the Circle webhook once a transient Payment Intent's deposit
- * address reports a settled payment. Always records an OnchainTransaction
- * for the real funds that arrived - even on a mismatch - so there's an
- * audit trail; only CONFIRMS the checkout session (credits the ledger) when
- * the settled amount exactly matches what the session expects. A mismatch
- * shouldn't really happen (the intent was created for one exact amount and
- * accepts only that), but Circle's own timeline `context` distinguishes
- * paid/underpaid/overpaid, so this stays defensive rather than trusting the
- * amount blindly.
+ * Called from the Circle webhook once a payment-link deposit wallet
+ * receives funds. Claims the session atomically (PENDING -> SWEEPING)
+ * before doing anything else - sendTransaction's idempotencyKey parameter
+ * isn't actually wired through to App Kit today (see lib/circle/
+ * appKit.ts#sendViaAppKit's SendParams, which has no idempotency field),
+ * so a redelivered webhook racing an in-flight sweep is a real risk this
+ * claim exists specifically to close, not a theoretical one.
  */
-export async function reconcilePaymentIntentSettlement(
-  input: PaymentIntentSettlementInput
-): Promise<PaymentIntentReconcileResult> {
-  const session = await prisma.paymentLinkPayment.findUnique({
-    where: { circlePaymentIntentId: input.circlePaymentIntentId },
+export async function reconcileDepositWalletPayment(
+  input: DepositWalletInboundInput
+): Promise<DepositWalletReconcileResult> {
+  const claim = await prisma.paymentLinkPayment.updateMany({
+    where: { depositAddress: input.depositAddress, status: "PENDING" },
+    data: { status: "SWEEPING" },
+  });
+  if (claim.count === 0) {
+    // Either no session has this deposit address at all, or one does but
+    // isn't PENDING anymore (already swept, already flagged, or a
+    // duplicate delivery of this same webhook) - either way there's
+    // nothing new to do here.
+    const exists = await prisma.paymentLinkPayment.findUnique({
+      where: { depositAddress: input.depositAddress },
+      select: { id: true },
+    });
+    return exists ? { kind: "already_handled" } : { kind: "not_found" };
+  }
+
+  const session = await prisma.paymentLinkPayment.findUniqueOrThrow({
+    where: { depositAddress: input.depositAddress },
     include: { paymentLink: { include: { organization: { include: { wallets: { take: 1 } } } } } },
   });
 
-  if (!session) return { kind: "not_found" };
-  if (session.status !== "PENDING") return { kind: "already_settled" };
-
-  const wallet = session.paymentLink.organization.wallets[0];
-  if (!wallet) {
+  const treasury = session.paymentLink.organization.wallets[0];
+  if (!treasury) {
+    await prisma.paymentLinkPayment.update({
+      where: { id: session.id },
+      data: { failureReason: "Org has no treasury wallet configured - deposit wallet funds need manual handling." },
+    });
     console.error(
-      `[paymentLinks] Org ${session.paymentLink.orgId} has no wallet - cannot settle Payment Intent ` +
-        `${input.circlePaymentIntentId} for session ${session.id}.`
+      `[paymentLinks] Org ${session.paymentLink.orgId} has no treasury wallet - cannot sweep deposit wallet ` +
+        `${input.depositAddress} for session ${session.id}.`
     );
-    return { kind: "not_found" };
-  }
-
-  const amountMatches = input.amountPaid === session.amountExpected;
-
-  const { onchainTxId, confirmResult } = await prisma.$transaction(async (tx: Tx) => {
-    const onchainTx = await tx.onchainTransaction.create({
-      data: {
-        walletId: wallet.id,
-        direction: "IN",
-        amount: input.amountPaid,
-        counterpartyAddress: input.payerAddress ?? session.paymentIntentAddress ?? "",
-        chain: wallet.chain,
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        txHash: input.txHash,
-        circleTransactionId: input.circlePaymentId,
-        memo: `Payment Intent settlement for payment-link checkout session ${session.id}`,
-      },
-    });
-
-    if (!amountMatches) {
-      return { onchainTxId: onchainTx.id, confirmResult: null };
-    }
-
-    const confirmResult = await confirmPaymentLinkPayment(tx, {
-      paymentLinkPaymentId: session.id,
-      onchainTransactionId: onchainTx.id,
-      amountPaid: input.amountPaid,
-      payerIdentifier: input.payerAddress,
-    });
-
-    return { onchainTxId: onchainTx.id, confirmResult };
-  });
-
-  if (!amountMatches) {
     await flagPaymentForManualReconciliation(
       session.paymentLink.orgId,
-      onchainTxId,
-      `Payment Intent ${input.circlePaymentIntentId} settled ${input.amountPaid} but session ${session.id} ` +
-        `expected ${session.amountExpected} - a transient intent should only ever accept its exact amount, so ` +
-        `this needs manual review rather than an automatic confirm.`
+      session.id,
+      `Deposit wallet ${input.depositAddress} (session ${session.id}) received funds but the org has no ` +
+        `treasury wallet configured to sweep them to.`
+    );
+    return { kind: "no_treasury_wallet" };
+  }
+
+  if (input.amountReceived !== session.amountExpected) {
+    // Funds sit isolated in this session's own single-purpose deposit
+    // wallet rather than being auto-credited to the org's default ledger
+    // bucket - safer than the amount-heuristic path above, at the cost of
+    // needing a manual sweep-or-refund decision instead of an automatic
+    // refund.
+    await prisma.paymentLinkPayment.update({
+      where: { id: session.id },
+      data: {
+        failureReason: `Deposit wallet received ${input.amountReceived} but this session expects ` +
+          `${session.amountExpected} - left unswept for manual review.`,
+      },
+    });
+    await flagPaymentForManualReconciliation(
+      session.paymentLink.orgId,
+      session.id,
+      `Deposit wallet ${input.depositAddress} for payment-link checkout session ${session.id} received ` +
+        `${input.amountReceived} but the session expects ${session.amountExpected}.`
     );
     return { kind: "amount_mismatch" };
   }
 
-  return { kind: "confirmed", paymentLinkId: confirmResult!.paymentLinkId };
-}
+  let sweep: Awaited<ReturnType<typeof circleSendTransaction>>;
+  try {
+    sweep = await circleSendTransaction(
+      input.depositAddress,
+      treasury.arcAddress,
+      input.amountReceived,
+      treasury.chain,
+      `sweep-payment-link-${session.id}`
+    );
+  } catch (err) {
+    await prisma.paymentLinkPayment.update({
+      where: { id: session.id },
+      data: { failureReason: "Sweep to the org's treasury wallet failed - funds remain in the deposit wallet." },
+    });
+    console.error(
+      `[paymentLinks] CRITICAL: failed to sweep deposit wallet ${input.depositAddress} (session ${session.id}, ` +
+        `amount ${input.amountReceived}) to the treasury. Funds remain in the deposit wallet - needs manual sweep.`,
+      err instanceof CircleApiError ? err.cause ?? err : err
+    );
+    await flagPaymentForManualReconciliation(
+      session.paymentLink.orgId,
+      session.id,
+      `Sweep of deposit wallet ${input.depositAddress} (session ${session.id}) to the treasury failed. ` +
+        `Funds remain in the deposit wallet and need a manual retry.`
+    );
+    return { kind: "sweep_failed" };
+  }
 
-export type PaymentIntentFailureResult = "failed" | "already_settled" | "not_found";
+  const result = await prisma.$transaction(async (tx: Tx) => {
+    const onchainTx = await tx.onchainTransaction.create({
+      data: {
+        walletId: treasury.id,
+        direction: "IN",
+        amount: input.amountReceived,
+        counterpartyAddress: input.depositAddress,
+        chain: treasury.chain,
+        status: "CONFIRMED",
+        confirmedAt: new Date(),
+        txHash: sweep.circleTransactionId,
+        circleTransactionId: sweep.circleTransactionId,
+        memo: `Swept from payment-link deposit wallet ${input.depositAddress} for checkout session ${session.id}`,
+      },
+    });
 
-/**
- * Called from the Circle webhook when a transient Payment Intent reaches a
- * terminal non-success state (expired / failed) with no settlement - closes
- * out the PENDING session so the checkout page stops polling forever.
- */
-export async function failPaymentIntentSession(
-  circlePaymentIntentId: string,
-  reason: string
-): Promise<PaymentIntentFailureResult> {
-  const session = await prisma.paymentLinkPayment.findUnique({
-    where: { circlePaymentIntentId },
-    select: { id: true, status: true },
+    return confirmPaymentLinkPayment(tx, {
+      paymentLinkPaymentId: session.id,
+      onchainTransactionId: onchainTx.id,
+      amountPaid: input.amountReceived,
+    });
   });
-  if (!session) return "not_found";
-  if (session.status !== "PENDING") return "already_settled";
 
-  await prisma.paymentLinkPayment.update({
-    where: { id: session.id },
-    data: { status: "FAILED", failureReason: reason },
-  });
-  return "failed";
+  return { kind: "swept", paymentLinkId: result.paymentLinkId };
 }
 
 /**

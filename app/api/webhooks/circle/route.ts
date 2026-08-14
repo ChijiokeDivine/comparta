@@ -10,8 +10,11 @@
 //      requests that fail signature verification are stored (with
 //      signatureOk: false) for audit/debugging, but are never processed.
 //   4. Process, dispatching on notificationType:
-//        - "transactions.inbound"  -> lib/transfers/receive.ts (credits
-//          the receiving org's ledger)
+//        - "transactions.inbound"  -> checked first against
+//          PaymentLinkPayment.depositAddress (lib/paymentLinks/
+//          reconciliation.ts#reconcileDepositWalletPayment - payment-link
+//          wallet-checkout deposits); otherwise lib/transfers/receive.ts
+//          (credits the receiving org's ledger)
 //        - "transactions.outbound" -> jobs/confirmTransaction.ts's
 //          confirmTransaction(), so an outbound send resolves as soon as
 //          the webhook arrives rather than waiting for the next poll
@@ -27,7 +30,7 @@ import { prisma } from "@/lib/db/prisma";
 import { verifyCircleWebhookSignature } from "@/lib/circle/webhookVerify";
 import { handleInboundTransfer, type InboundNotification } from "@/lib/transfers/receive";
 import { confirmTransaction } from "@/jobs/confirmTransaction";
-import { reconcilePaymentIntentSettlement, failPaymentIntentSession } from "@/lib/paymentLinks/reconciliation";
+import { reconcileDepositWalletPayment } from "@/lib/paymentLinks/reconciliation";
 import { toSmallestUnit } from "@/lib/circle/amount";
 
 interface CircleWebhookPayload {
@@ -48,34 +51,6 @@ interface CircleWebhookPayload {
     txHash?: string;
   };
   timestamp?: string;
-}
-
-// Envelope + resource shapes for the two Payment Intents (Stablecoin
-// Payins) topics used by the wallet checkout path - see
-// developers.circle.com/circle-mint/references/webhook-notifications.
-// Distinct notificationType strings ("paymentIntents", "payments") from
-// the Developer-Controlled Wallets notifications above, and NOT nested
-// under `notification` - each carries its own top-level key.
-interface CirclePaymentIntentWebhookPayload {
-  notificationType?: string;
-  paymentIntent?: {
-    id?: string;
-    type?: "transient" | "continuous";
-    timeline?: Array<{ status?: string; context?: string; time?: string }>;
-  };
-}
-
-interface CirclePaymentWebhookPayload {
-  notificationType?: string;
-  payment?: {
-    id?: string;
-    type?: "payment" | "refund";
-    status?: "pending" | "confirmed" | "paid" | "failed" | "action_required";
-    paymentIntentId?: string;
-    amount?: { amount?: string; currency?: string };
-    source?: { type?: string; chain?: string; address?: string };
-    transactionHash?: string;
-  };
 }
 
 export async function POST(req: Request) {
@@ -155,6 +130,31 @@ async function dispatchNotification(
         console.warn("[webhooks/circle] inbound notification missing required fields, skipping", payload);
         return;
       }
+
+      // Payment-link wallet-checkout deposits land at a single-purpose
+      // Circle wallet (lib/circle/wallets.ts#createWalletForPaymentLinkPayment)
+      // that's never registered in the Wallet table - this MUST be
+      // checked, and handled separately, before falling through to
+      // handleInboundTransfer below, which resolves org treasury wallets
+      // from that table and isn't meant for these.
+      if (notification.destinationAddress) {
+        const depositMatch = await prisma.paymentLinkPayment.findUnique({
+          where: { depositAddress: notification.destinationAddress },
+          select: { id: true },
+        });
+        if (depositMatch) {
+          if (!notification.amounts[0]) {
+            console.warn("[webhooks/circle] deposit-wallet inbound notification missing amount, skipping", payload);
+            return;
+          }
+          await reconcileDepositWalletPayment({
+            depositAddress: notification.destinationAddress,
+            amountReceived: toSmallestUnit(notification.amounts[0]),
+          });
+          return;
+        }
+      }
+
       const inbound: InboundNotification = {
         circleTransactionId: notification.id,
         walletId: notification.walletId,
@@ -183,59 +183,6 @@ async function dispatchNotification(
       });
       if (onchainTx) {
         await confirmTransaction(onchainTx.id);
-      }
-      return;
-    }
-
-    case "payments": {
-      const { payment } = payload as unknown as CirclePaymentWebhookPayload;
-      if (!payment?.paymentIntentId || !payment.id || !payment.status) {
-        console.warn("[webhooks/circle] payments notification missing required fields, skipping", payload);
-        return;
-      }
-      // Only the wallet-checkout settlement path cares about this topic
-      // here; refunds (type: "refund") aren't part of this flow.
-      if (payment.type === "refund") return;
-
-      if (payment.status === "paid") {
-        if (!payment.amount?.amount) {
-          console.warn("[webhooks/circle] paid payment notification missing amount, skipping", payload);
-          return;
-        }
-        await reconcilePaymentIntentSettlement({
-          circlePaymentIntentId: payment.paymentIntentId,
-          circlePaymentId: payment.id,
-          amountPaid: toSmallestUnit(payment.amount.amount),
-          payerAddress: payment.source?.address,
-          txHash: payment.transactionHash,
-        });
-        return;
-      }
-
-      if (payment.status === "failed") {
-        await failPaymentIntentSession(
-          payment.paymentIntentId,
-          "The wallet payment could not be settled."
-        );
-      }
-      // pending / confirmed / action_required: still mid-flight, no-op -
-      // the checkout page keeps polling PaymentLinkPayment.status.
-      return;
-    }
-
-    case "paymentIntents": {
-      const { paymentIntent } = payload as unknown as CirclePaymentIntentWebhookPayload;
-      if (!paymentIntent?.id) return;
-
-      // Per Circle's docs the most recent transition is timeline[0].
-      // Terminal failure states with no settlement close the session out
-      // here; "complete" is confirmed via the "payments" topic above
-      // instead, since that's the event carrying the settled amount/tx.
-      const latestStatus = paymentIntent.timeline?.[0]?.status;
-      if (latestStatus === "expired") {
-        await failPaymentIntentSession(paymentIntent.id, "This checkout session expired before payment was received.");
-      } else if (latestStatus === "failed") {
-        await failPaymentIntentSession(paymentIntent.id, "The wallet payment could not be settled.");
       }
       return;
     }

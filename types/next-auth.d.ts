@@ -10,6 +10,7 @@ declare module "next-auth" {
       orgId: string;
       role: UserRole;
       kybStatus: KybStatus;
+      onboardingCompleted: boolean;
     } & DefaultSession["user"];
   }
 
@@ -18,6 +19,7 @@ declare module "next-auth" {
     orgId: string;
     role: UserRole;
     kybStatus: KybStatus;
+    onboardingCompleted: boolean;
   }
 
   interface AdapterUser extends DefaultAdapterUser {
@@ -32,6 +34,7 @@ declare module "next-auth/jwt" {
     orgId: string;
     role: UserRole;
     kybStatus: KybStatus;
+    onboardingCompleted: boolean;
   }
 }
 

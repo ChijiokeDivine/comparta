@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
+import { googleErrorMessage } from "./googleErrorMessage";
 
 type RegisterResponse = {
   error?: string;
@@ -18,6 +19,14 @@ const STEPS = [
   { label: "Security", title: "Secure your account", hint: "Pick a strong password you don't use elsewhere." },
 ];
 
+function useIsClient() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
+
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className="mt-1.5 text-sm text-red-600">{message}</p>;
@@ -25,7 +34,8 @@ function FieldError({ message }: { message?: string }) {
 
 export default function RegisterForm() {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const searchParams = useSearchParams();
+  const mounted = useIsClient();
 
   const [legalName, setLegalName] = useState("");
   const [ownerName, setOwnerName] = useState("");
@@ -37,19 +47,20 @@ export default function RegisterForm() {
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const stepRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  const googleError = googleErrorMessage(searchParams.get("error"));
+  const displayedError = googleError || formError;
 
   useEffect(() => {
     stepRef.current?.querySelector<HTMLInputElement>("input")?.focus();
   }, [currentStep]);
 
   function resetMessages() {
-    setError(null);
+    setFormError(null);
     setFieldErrors({});
     setStepErrors({});
   }
@@ -95,7 +106,7 @@ export default function RegisterForm() {
 
     if (!validateStep(STEPS.length)) return;
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setFormError("Passwords do not match");
       return;
     }
 
@@ -126,7 +137,7 @@ export default function RegisterForm() {
           else if (flat.email) setCurrentStep(2);
           else if (flat.password || flat.confirmPassword) setCurrentStep(3);
         }
-        setError(data.error ?? "Registration failed");
+        setFormError(data.error ?? "Registration failed");
         return;
       }
 
@@ -143,7 +154,7 @@ export default function RegisterForm() {
         router.push("/login");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setFormError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setSubmitting(false);
     }
@@ -155,7 +166,7 @@ export default function RegisterForm() {
     try {
       await signIn("google", { callbackUrl: "/dashboard" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign up failed");
+      setFormError(err instanceof Error ? err.message : "Google sign up failed");
       setGoogleLoading(false);
     }
   }
@@ -232,9 +243,9 @@ export default function RegisterForm() {
 
           
 
-          {error && (
+          {displayedError && (
             <div className="mb-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-              {error}
+              {displayedError}
             </div>
           )}
 
@@ -425,3 +436,4 @@ export default function RegisterForm() {
     </div>
   );
 }
+

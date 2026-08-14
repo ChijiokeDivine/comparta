@@ -89,6 +89,54 @@ export async function createWalletForOrg(orgId: string): Promise<CreatedWallet> 
   }
 }
 
+/**
+ * Provisions a new, single-purpose Circle Developer-Controlled Wallet for
+ * one payment-link wallet-checkout session (lib/paymentLinks/
+ * checkout.ts#startWalletCheckout). Same wallet set / SCA account type as
+ * createWalletForOrg above - the only difference is what it's for: this
+ * address is shown directly to an anonymous payer, so it must never be
+ * the org's own treasury wallet.arcAddress. Once a deposit lands here,
+ * lib/paymentLinks/reconciliation.ts#reconcileDepositWalletPayment sweeps
+ * it on to the org's real wallet before the checkout session is confirmed.
+ *
+ * Deliberately NOT refactored to share a helper with createWalletForOrg -
+ * same body, kept separate so a change to one provisioning path can't
+ * silently affect the other.
+ */
+export async function createWalletForPaymentLinkPayment(paymentLinkPaymentId: string): Promise<CreatedWallet> {
+  const client = getCircleClient();
+  const walletSetId = await getOrCreateWalletSet();
+  const blockchain = getArcBlockchain();
+
+  try {
+    const res = await client.createWallets({
+      blockchains: [blockchain],
+      accountType: "SCA",
+      count: 1,
+      walletSetId,
+      metadata: [{ name: `payment-link-payment:${paymentLinkPaymentId}`, refId: paymentLinkPaymentId }],
+    });
+
+    const wallet = res.data?.wallets?.[0];
+    if (!wallet?.id || !wallet?.address) {
+      throw new CircleApiError(
+        `Circle createWallets returned no usable deposit wallet for payment-link payment ${paymentLinkPaymentId}`
+      );
+    }
+
+    return {
+      circleWalletId: wallet.id,
+      arcAddress: wallet.address,
+      chain: blockchain,
+    };
+  } catch (err) {
+    throw new CircleApiError(
+      `Failed to create Arc deposit wallet for payment-link payment ${paymentLinkPaymentId}`,
+      err
+    );
+  }
+}
+
 export interface WalletBalance {
   tokenSymbol: string;
   tokenId: string;

@@ -16,7 +16,8 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
-import { createHostedCardPayment, createTransientPaymentIntent } from "@/lib/circle/payments";
+import { createHostedCardPayment } from "@/lib/circle/payments";
+import { createWalletForPaymentLinkPayment } from "@/lib/circle/wallets";
 import type { PaymentLink } from "@/app/generated/prisma/client";
 
 export class PaymentLinkNotPayableError extends Error {
@@ -173,16 +174,16 @@ export interface WalletCheckoutSession {
 }
 
 /**
- * Starts the wallet path: reserves a PaymentLinkPayment row, then asks
- * Circle for a transient Payment Intent scoped to this session's exact
- * amount and tied to the merchant's Circle wallet. The intent's generated
- * one-time deposit address - never the merchant's own treasury
- * wallet.arcAddress - is what's returned to the payer. This gives the
- * wallet path Circle-verified exact-amount matching via the
- * "paymentIntents"/"payments" webhook topics (see app/api/webhooks/circle/
- * route.ts) instead of the amount heuristic in
- * lib/paymentLinks/reconciliation.ts, which remains in place only as the
- * matcher for ordinary inbound transfers that aren't payment-link checkouts.
+ * Starts the wallet path: reserves a PaymentLinkPayment row, then
+ * provisions a single-purpose Circle deposit wallet for this session's
+ * exact amount. That wallet's own address - never the merchant's
+ * treasury wallet.arcAddress - is what's returned to the payer. Once
+ * app/api/webhooks/circle/route.ts observes a deposit there, it's swept
+ * to the treasury and the session confirmed (see
+ * lib/paymentLinks/reconciliation.ts#reconcileDepositWalletPayment) -
+ * this fetch of the treasury wallet here is only to fail fast if the org
+ * has none configured yet; the sweep destination is re-resolved at
+ * settlement time.
  */
 export async function startWalletCheckout(input: StartWalletCheckoutInput): Promise<WalletCheckoutSession> {
   const { link, amountExpected } = await loadPayableLink(input.slug, input.amount);
@@ -205,37 +206,29 @@ export async function startWalletCheckout(input: StartWalletCheckoutInput): Prom
     },
   });
 
-  const idempotencyKey = randomUUID();
-
   try {
-    const intent = await createTransientPaymentIntent({
-      amount: toDecimalString(amountExpected),
-      merchantWalletId: wallet.circleWalletId,
-      chain: wallet.chain,
-      idempotencyKey,
-    });
+    const deposit = await createWalletForPaymentLinkPayment(session.id);
 
     await prisma.paymentLinkPayment.update({
       where: { id: session.id },
       data: {
-        circlePaymentIntentId: intent.circlePaymentIntentId,
-        paymentIntentAddress: intent.address,
-        idempotencyKey,
+        depositWalletId: deposit.circleWalletId,
+        depositAddress: deposit.arcAddress,
       },
     });
 
     return {
       paymentLinkPaymentId: session.id,
-      payToAddress: intent.address,
-      chain: intent.chain,
+      payToAddress: deposit.arcAddress,
+      chain: deposit.chain,
       amountExpected: toDecimalString(amountExpected),
     };
   } catch (err) {
     await prisma.paymentLinkPayment.update({
       where: { id: session.id },
-      data: { status: "FAILED", failureReason: "Failed to start wallet checkout with Circle." },
+      data: { status: "FAILED", failureReason: "Failed to provision a deposit wallet with Circle." },
     });
-    console.error(`[paymentLinks] Circle Payment Intent creation failed for ${session.id}`, err);
+    console.error(`[paymentLinks] Circle deposit-wallet creation failed for ${session.id}`, err);
     throw err;
   }
 }
