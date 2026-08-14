@@ -337,11 +337,70 @@ model User {
   recurringTransfersCreated RecurringTransfer[] @relation("RecurringTransferCreator")
   multisigSigner       MultisigSigner?
 
+  // Required by @auth/prisma-adapter for OAuth (Google) sign-in — the
+  // adapter's getUserByAccount/linkAccount/etc. call prisma.account.* and
+  // prisma.session.* directly, so these models must exist even though we
+  // use session: { strategy: "jwt" } and Session rows are never read.
+  accounts Account[]
+  sessions Session[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([orgId])
   @@map("users")
+}
+
+// Auth.js/NextAuth standard model — one row per OAuth provider linked to a
+// User (e.g. Google). Required by @auth/prisma-adapter; see CompartaAuthAdapter
+// in lib/auth/auth.ts for how a brand-new Google sign-in gets an Organization
+// auto-created before this row is inserted.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+// Auth.js/NextAuth standard model. Unused at runtime under
+// session: { strategy: "jwt" } (we don't do DB-backed sessions), but the
+// PrismaAdapter's type contract still requires prisma.session to exist.
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// Auth.js/NextAuth standard model — used for email magic-link / verification
+// flows. Not currently used by Comparta's credentials+Google setup, but
+// required for the adapter's type contract.
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
 }
 
 // Maps an Organization to its single Circle-custodied Arc wallet.
