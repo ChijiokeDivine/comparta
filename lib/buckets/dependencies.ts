@@ -1,210 +1,77 @@
-// lib/auth/auth.ts
+// lib/buckets/dependencies.ts
 //
-// NextAuth v4 configuration. Email + password credentials + Google OAuth.
-// Session carries orgId, role, and the org's kybStatus so downstream checks
-// (see kyb-gate.ts) don't need an extra DB round trip on every request.
+// Central registry for bucket-archival dependency checks. Any module that
+// wants to block archiving a bucket under some condition registers a
+// checker here - see builtinDependencyCheckers.ts for the checks this
+// phase owns (default receiving bucket, active allocation rules, live
+// payment links).
+//
+// Why the indirection: lib/buckets/service.ts imports this file (and, via
+// its side-effect import of builtinDependencyCheckers.ts, causes the
+// built-in checks to register themselves) but never imports the checkers
+// directly. That means a future module - Payroll, DCA, whatever - can
+// add its own dependency check by registering here without service.ts
+// or this file ever needing to import that module back. Avoids a
+// circular-import mess as the set of things that can "depend on" a
+// bucket grows.
 
-import type { AuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
-import type { Adapter } from "next-auth/adapters";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db/prisma";
-import { getEnv } from "@/lib/env";
+export interface BucketDependency {
+  // Human-readable description of what's blocking archival, e.g.
+  // "3 active allocation rule(s)" - surfaced directly in
+  // BucketHasDependenciesError's message in service.ts.
+  label: string;
+  // How many of the dependency exist. Purely informational for now
+  // (label already has it baked in for display) but kept separate so
+  // callers can e.g. sum totals across checkers without parsing label.
+  count: number;
+}
+
+export type BucketDependencyChecker = (
+  orgId: string,
+  ledgerAccountId: string
+) => Promise<BucketDependency | null>;
+
+// Module-level singleton array. Guarded against double-registration
+// across dev-mode HMR reloads of this file by stashing the registry on
+// globalThis - without this, editing builtinDependencyCheckers.ts (or
+// any file importing it) during `next dev` would re-run every top-level
+// registerBucketDependencyChecker() call and silently duplicate entries,
+// so an archive attempt would run (and display) the same check 2x, 3x,
+// etc. the more times you save a file.
+const globalForBucketDeps = globalThis as unknown as {
+  __bucketDependencyCheckers?: BucketDependencyChecker[];
+};
+
+const checkers: BucketDependencyChecker[] =
+  globalForBucketDeps.__bucketDependencyCheckers ?? [];
+
+if (process.env.NODE_ENV !== "production") {
+  globalForBucketDeps.__bucketDependencyCheckers = checkers;
+}
 
 /**
- * Custom PrismaAdapter wrapper. The User model has a required `orgId` FK,
- * so a raw OAuth sign-in would fail the PrismaAdapter to create a User
- * without orgId. This override intercepts `createUser` and - for brand-new
- * OAuth-created users - creates a PENDING Organization first and links the
- * new User to it (role OWNER), then proceeds with standard user creation.
- *
- * Credential-signed-up users already go through POST /api/auth/register which
- * creates the Org + User explicitly - never hit this code path.
- *
- * NOTE on typing: `createUser`'s param is typed with only the fields this
- * function actually reads (email/name/emailVerified), rather than the
- * library's `AdapterUser` type. That's deliberate - our own module
- * augmentation in types/next-auth.d.ts adds orgId/role to `AdapterUser`,
- * and because `DefaultAdapterUser` extends `User` (which we also augmented
- * with kybStatus), that requirement leaks transitively into `AdapterUser`
- * too. `@auth/prisma-adapter`'s internal `AdapterUser` reference doesn't
- * see that same augmentation, so the two don't structurally unify - hence
- * the "missing kybStatus, orgId, role" error. Using a minimal structural
- * type here avoids relying on either flavor of `AdapterUser`, and the
- * final cast to `Adapter["createUser"]` reflects the real contract: this
- * function receives a partial OAuth profile and returns a full user,
- * which is exactly what it does.
+ * Register a check that can block archiving a bucket. Call this at
+ * module load time (top-level, as builtinDependencyCheckers.ts does) -
+ * the checker fires on every archive attempt for every bucket, so keep
+ * it cheap and scoped to `orgId`/`ledgerAccountId`.
  */
-function CompartaAuthAdapter(): Adapter {
-  const base = PrismaAdapter(prisma) as Adapter;
-
-  const createUser = async (user: {
-    email: string;
-    name?: string | null;
-    emailVerified?: Date | null;
-  }) => {
-    return prisma.$transaction(async (tx) => {
-      const emailName = user.email?.split("@")[0] ?? "Unnamed";
-      const legalName = user.name ?? emailName;
-
-      const org = await tx.organization.create({
-        data: {
-          legalName,
-          kybStatus: "PENDING",
-        },
-      });
-
-      return (tx as unknown as typeof prisma).user.create({
-        data: {
-          email: user.email,
-          emailVerified: user.emailVerified ?? null,
-          name: user.name ?? null,
-          orgId: org.id,
-          role: "OWNER",
-        },
-      });
-    });
-  };
-
-  return {
-    ...base,
-    createUser: createUser as Adapter["createUser"],
-  };
+export function registerBucketDependencyChecker(checker: BucketDependencyChecker): void {
+  checkers.push(checker);
 }
 
-function buildProviders() {
-  const env = getEnv();
-
-  // Always include credentials
-  const providers: AuthOptions["providers"] = [
-    CredentialsProvider({
-      name: "Email and password",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase().trim() },
-          include: { organization: true },
-        });
-
-        if (!user?.passwordHash) return null;
-
-        const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!valid) return null;
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name ?? undefined,
-          image: null,
-          orgId: user.orgId,
-          role: user.role,
-          kybStatus: user.organization.kybStatus,
-          onboardingCompleted: user.onboardingCompleted,
-        };
-      },
-    }),
-  ];
-
-  // Only register Google provider only when the user has configured it -
-  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
-    providers.push(
-      GoogleProvider({
-        clientId: env.GOOGLE_CLIENT_ID,
-        clientSecret: env.GOOGLE_CLIENT_SECRET,
-      })
-    );
-  }
-
-  return providers;
+/**
+ * Runs every registered checker against one bucket and returns whichever
+ * dependencies are actually blocking (i.e. filters out the `null`s).
+ * An empty array means the bucket is safe to archive - see
+ * archiveBucket() in service.ts, which throws BucketHasDependenciesError
+ * when this returns anything non-empty.
+ */
+export async function findBucketDependencies(
+  orgId: string,
+  ledgerAccountId: string
+): Promise<BucketDependency[]> {
+  const results = await Promise.all(
+    checkers.map((checker) => checker(orgId, ledgerAccountId))
+  );
+  return results.filter((r): r is BucketDependency => r !== null);
 }
-
-export const authOptions: AuthOptions = {
-  // Custom adapter so OAuth new users get an Org auto-created (see docstring above)
-  adapter: CompartaAuthAdapter(),
-  session: { strategy: "jwt" },
-  secret: getEnv().NEXTAUTH_SECRET,
-
-  cookies: {
-    sessionToken: {
-      name:
-        process.env.NODE_ENV === "production"
-          ? "__Secure-next-auth.session-token"
-          : "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-      },
-    },
-    callbackUrl: {
-      name:
-        process.env.NODE_ENV === "production"
-          ? "__Secure-next-auth.callback-url"
-          : "next-auth.callback-url",
-      options: {
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-      },
-    },
-    csrfToken: {
-      name:
-        process.env.NODE_ENV === "production"
-          ? "__Host-next-auth.csrf-token"
-          : "next-auth.csrf-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-      },
-    },
-  },
-
-  providers: buildProviders(),
-
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.orgId = user.orgId;
-        token.role = user.role;
-        token.onboardingCompleted = user.onboardingCompleted;
-
-        if (typeof user.kybStatus !== "undefined") {
-          // Credentials flow already passed kybStatus via authorize()
-          token.kybStatus = user.kybStatus;
-        } else {
-          // OAuth flow: custom createUser wrote user.orgId; fetch kybStatus once
-          const org = await prisma.organization.findUnique({
-            where: { id: user.orgId },
-            select: { kybStatus: true },
-          });
-          token.kybStatus = org?.kybStatus ?? "PENDING";
-        }
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
-        if (token.orgId) session.user.orgId = token.orgId;
-        if (token.role) session.user.role = token.role;
-        if (token.kybStatus) session.user.kybStatus = token.kybStatus;
-      }
-      return session;
-    },
-  },
-
-  pages: {
-    signIn: "/login",
-    newUser: "/register",
-  },
-};

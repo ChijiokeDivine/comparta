@@ -17,6 +17,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import type { OtpPurpose } from "@/app/generated/prisma/client";
+import { getEnv } from "@/lib/env";
 import crypto from "node:crypto";
 
 export type { OtpPurpose };
@@ -278,4 +279,64 @@ export function parsePurposeFromQuery(raw: string | null | undefined): OtpPurpos
 /** Inverse of parsePurposeFromQuery — the query-string value we put in URLs. */
 export function purposeToQueryParam(purpose: OtpPurpose): "reset" | "verify" {
   return purpose === "PASSWORD_RESET" ? "reset" : "verify";
+}
+
+// ── Stateless HMAC-signed reset tokens ───────────────────────────────────
+//
+// After a PASSWORD_RESET OTP verifies, the server hands back a short-lived,
+// self-contained token so /reset-password doesn't need an extra DB table.
+// Layout: `${base64url(jsonPayload)}.${hexHmac}`.
+//   payload: { email, exp: epoch_ms }
+//   hmac key: NEXTAUTH_SECRET, domain-separated via suffix
+// Same cryptographic posture NextAuth uses for session JWTs.
+
+const RESET_TOKEN_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+export function mintResetToken(email: string): string {
+  const secret = getResetTokenSecret();
+  const payload = Buffer.from(
+    JSON.stringify({ email, exp: Date.now() + RESET_TOKEN_TTL_MS })
+  ).toString("base64url");
+  const sig = crypto
+    .createHmac("sha256", secret)
+    .update(payload)
+    .digest("hex");
+  return `${payload}.${sig}`;
+}
+
+export function verifyResetToken(token: unknown): { email: string } | null {
+  if (typeof token !== "string" || !token.includes(".")) return null;
+  const [payloadB64, sig] = token.split(".");
+  if (!payloadB64 || !sig) return null;
+
+  const secret = getResetTokenSecret();
+  const expectedSig = crypto
+    .createHmac("sha256", secret)
+    .update(payloadB64)
+    .digest("hex");
+
+  // Timing-safe compare against the HMAC only. Both sides are equal-length
+  // hex strings so no padding required.
+  const a = Buffer.from(sig, "hex");
+  const b = Buffer.from(expectedSig, "hex");
+  if (a.length !== b.length) return null;
+  if (!crypto.timingSafeEqual(a, b)) return null;
+
+  let payload: { email?: unknown; exp?: unknown };
+  try {
+    payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+  if (typeof payload.email !== "string") return null;
+  if (typeof payload.exp !== "number" || payload.exp <= Date.now()) return null;
+  return { email: payload.email };
+}
+
+function getResetTokenSecret(): string {
+  const s = getEnv().NEXTAUTH_SECRET;
+  if (!s) {
+    return "dev-reset-token-fallback-secret-change-me";
+  }
+  return `${s}|reset-token-v1`;
 }

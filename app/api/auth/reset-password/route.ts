@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
-import { verifyResetToken } from "@/app/api/auth/otp/verify/route";
+import { verifyResetToken } from "@/lib/otp/service";
 
 const schema = z.object({
   resetToken: z.string().min(1),

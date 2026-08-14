@@ -7,13 +7,13 @@
 // them back).
 
 import { prisma } from "@/lib/db/prisma";
-import { registerBucketDependencyChecker } from "./dependencies";
+import { registerBucketDependencyChecker } from "@/lib/buckets/dependencies";
 
 // A bucket that is the org's configured default receiving account for
 // unmatched inbound payments (see lib/transfers/receive.ts) can't be
 // archived out from under that config - the next inbound transfer would
 // have nowhere to land.
-registerBucketDependencyChecker(async (orgId, ledgerAccountId) => {
+registerBucketDependencyChecker(async (orgId: string, ledgerAccountId: string) => {
   const org = await prisma.organization.findFirst({
     where: { id: orgId, defaultLedgerAccountId: ledgerAccountId },
     select: { id: true },
@@ -25,7 +25,7 @@ registerBucketDependencyChecker(async (orgId, ledgerAccountId) => {
 // target - an archived bucket with a live rule pointing at it would
 // either silently stop allocating (source) or accumulate funds nobody's
 // watching (target).
-registerBucketDependencyChecker(async (orgId, ledgerAccountId) => {
+registerBucketDependencyChecker(async (orgId: string, ledgerAccountId: string) => {
   const count = await prisma.allocationRule.count({
     where: {
       orgId,
@@ -40,7 +40,7 @@ registerBucketDependencyChecker(async (orgId, ledgerAccountId) => {
 // PAUSED link can be resumed by the merchant at any time, so it still
 // counts as a live dependency; EXPIRED links are terminal and don't
 // block archival).
-registerBucketDependencyChecker(async (orgId, ledgerAccountId) => {
+registerBucketDependencyChecker(async (orgId: string, ledgerAccountId: string) => {
   const count = await prisma.paymentLink.count({
     where: { orgId, receivingLedgerAccountId: ledgerAccountId, status: { in: ["ACTIVE", "PAUSED"] } },
   });
