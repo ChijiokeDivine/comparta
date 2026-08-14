@@ -232,3 +232,217 @@ export async function flagPaymentForManualReconciliation(
     `[notify] MANUAL RECONCILIATION NEEDED: org ${orgId}, onchainTransaction ${onchainTransactionId} - ${reason}`
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// OTP EMAILS (password reset + account verification)
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Both flows use a 6-digit numeric code, delivered in a generously-spaced,
+// minimal-text layout so the code is immediately scannable.  Same
+// table-based, inline-style posture as the invoice emails (Outlook/Gmail
+// app safe).
+
+export interface OtpEmailContext {
+  recipientEmail: string;
+  code: string; // 6 digits, e.g. "482019"
+}
+
+/**
+ * Formats the 6-digit OTP into two spaced groups of 3 for readability,
+ * e.g. "482019" → "482 019".  Keeps digits visually close but gives the
+ * eye a break — the goal is instant copy/read, not an eyechart.
+ */
+function formatOtpDisplay(code: string): string {
+  if (code.length !== 6) return code;
+  return `${code.slice(0, 3)} ${code.slice(3)}`;
+}
+
+/**
+ * Shared skeleton for both OTP emails.  `kind` switches:
+ *   - "reset":    heading "Reset your Comparta password", body hint about the code expiring, no action suggested beyond entering it
+ *   - "verify":   heading "Verify your email", body welcoming them and confirming the code is for their new account
+ */
+function buildOtpEmailHtml(
+  ctx: OtpEmailContext,
+  kind: "reset" | "verify"
+): string {
+  const displayCode = formatOtpDisplay(ctx.code);
+
+  const heading =
+    kind === "reset"
+      ? "Reset your password"
+      : "Verify your email";
+
+  const eyebrow =
+    kind === "reset"
+      ? "Password reset requested"
+      : "Welcome to Comparta";
+
+  // One short, clear paragraph — no wall of text.
+  const bodyLine =
+    kind === "reset"
+      ? "Enter the 6-digit code below to set a new password for your Comparta account."
+      : "Enter the 6-digit code below to confirm your email address and finish creating your account.";
+
+  const expiryHint = "This code expires in 15 minutes and can only be used once.";
+  const footerLine =
+    kind === "reset"
+      ? "If you didn't request a password reset, you can safely ignore this email."
+      : "If you didn't create a Comparta account, you can safely ignore this email.";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${heading}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F7F8FB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F7F8FB;">
+  <tr>
+    <td align="center" style="padding:48px 20px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#FFFFFF;border:1px solid #E5E9F2;border-radius:16px;">
+        <tr>
+          <td style="padding:48px 40px 44px;">
+
+            <!-- Wordmark -->
+            <p style="margin:0 0 40px;font-size:13px;font-weight:700;color:#2A5CE6;letter-spacing:0.02em;">Comparta</p>
+
+            <!-- Eyebrow / tiny meta -->
+            <p style="margin:0 0 12px;font-size:11px;font-weight:600;color:#7C8CA6;text-transform:uppercase;letter-spacing:0.06em;">${eyebrow}</p>
+
+            <!-- Heading (generous bottom space before the body) -->
+            <h1 style="margin:0 0 28px;font-size:24px;font-weight:600;color:#0B1E3F;line-height:1.25;">${heading}</h1>
+
+            <!-- Single body paragraph, light weight, good line height -->
+            <p style="margin:0 0 36px;font-size:14px;color:#52617A;line-height:1.65;">${bodyLine}</p>
+
+            <!--
+              OTP code block:
+                - large, generously padded card
+                - monospaced numerals
+                - generous letter-spacing for scannability
+                - soft accent background, not screaming red/blue
+            -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+              <tr>
+                <td align="center" style="background-color:#F0F4FF;border-radius:12px;border:1px solid #DCE4F9;padding:28px 20px;">
+                  <p style="margin:0;font-size:36px;font-weight:700;color:#0B1E3F;letter-spacing:0.25em;font-variant-numeric:tabular-nums;font-family:'SF Mono',Menlo,Consolas,monospace;">${displayCode}</p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Expiry / safety line -->
+            <p style="margin:0 0 0;font-size:12px;color:#7C8CA6;line-height:1.6;">${expiryHint}</p>
+
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 40px 32px;border-top:1px solid #F2F4F8;">
+            <p style="margin:0;font-size:11px;color:#B3BDD1;line-height:1.6;">${footerLine} &middot; Comparta</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+}
+
+function buildOtpEmailText(
+  ctx: OtpEmailContext,
+  kind: "reset" | "verify"
+): string {
+  const subject =
+    kind === "reset"
+      ? "Your Comparta password reset code"
+      : "Verify your Comparta email";
+
+  const body =
+    kind === "reset"
+      ? `Your 6-digit password reset code for Comparta:
+
+${ctx.code}
+
+This code expires in 15 minutes and can only be used once.
+
+If you didn't request a password reset, you can safely ignore this email.
+
+— Comparta`
+      : `Welcome to Comparta. Your 6-digit email verification code:
+
+${ctx.code}
+
+This code expires in 15 minutes and can only be used once.
+
+If you didn't create a Comparta account, you can safely ignore this email.
+
+— Comparta`;
+
+  return `${subject}
+
+${body}`;
+}
+
+/** Shared low-level send.  Best-effort, never throws on failure. */
+async function sendOtpEmail(
+  ctx: OtpEmailContext,
+  kind: "reset" | "verify",
+  idempotencyKey: string
+): Promise<void> {
+  if (!resend) {
+    const label = kind === "reset" ? "password-reset OTP" : "email-verification OTP";
+    console.log(
+      `[notify] RESEND_API_KEY not set - would email ${label} ${ctx.code} to ${ctx.recipientEmail}`
+    );
+    return;
+  }
+
+  const subject =
+    kind === "reset"
+      ? `Your Comparta password reset code: ${ctx.code}`
+      : `Verify your Comparta email: ${ctx.code}`;
+
+  const { data, error } = await resend.emails.send({
+    from: RESEND_FROM,
+    to: [ctx.recipientEmail],
+    subject,
+    html: buildOtpEmailHtml(ctx, kind),
+    text: buildOtpEmailText(ctx, kind),
+    // idempotencyKey,
+    tags: [
+      { name: "category", value: kind === "reset" ? "password-reset-otp" : "email-verification-otp" },
+    ],
+  });
+
+  if (error) {
+    console.error(
+      `[notify] resend failed for OTP email (${kind}) to ${ctx.recipientEmail}`,
+      error
+    );
+    return;
+  }
+
+  console.log(
+    `[notify] OTP email (${kind}) sent to ${ctx.recipientEmail} (id=${data?.id ?? "?"})`
+  );
+}
+
+/** Sent when a user clicks "Forgot password" and enters their email. */
+export async function sendPasswordResetOtpEmail(ctx: OtpEmailContext): Promise<void> {
+  // idempotency: (email + truncated-to-minute timestamp) so the same user
+  // hammering "resend" within 60s shares the idempotency key and Resend
+  // (if idempotency is re-enabled above) won't double-send the same code
+  // minute-windowed email.
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+  const idemKey = `otp/password-reset/${ctx.recipientEmail}/${minuteBucket}`;
+  await sendOtpEmail(ctx, "reset", idemKey);
+}
+
+/** Sent immediately after a brand-new credentials account is created, to confirm ownership. */
+export async function sendEmailVerificationOtpEmail(ctx: OtpEmailContext): Promise<void> {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+  const idemKey = `otp/email-verification/${ctx.recipientEmail}/${minuteBucket}`;
+  await sendOtpEmail(ctx, "verify", idemKey);
+}

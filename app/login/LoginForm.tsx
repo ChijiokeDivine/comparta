@@ -25,6 +25,10 @@ export default function LoginPage() {
 
   const googleError = googleErrorMessage(searchParams.get("error"));
   const displayedError = googleError || formError;
+  const verifiedBanner =
+    searchParams.get("verified") === "1";
+  const passwordChangedBanner =
+    searchParams.get("passwordChanged") === "1";
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -143,6 +147,17 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {verifiedBanner && (
+            <div className="mb-6 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              Email verified. You can now sign in to your Comparta account.
+            </div>
+          )}
+          {passwordChangedBanner && !verifiedBanner && (
+            <div className="mb-6 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              Password updated. Sign in with your new password.
+            </div>
+          )}
+
           {displayedError && (
             <div className="mb-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
               {displayedError}
@@ -176,8 +191,11 @@ export default function LoginPage() {
               {loading ? "Signing in…" : "Log in"}
             </button>
           </form>
-
-          <div className="relative continue-sec">
+          <p className=" text-right  text-[#7C8CA6] text-sm md:text-sm">
+          
+            <Link href="/forgot-password" className=" text-[#0B1E3F] hover:underline">Forgot password</Link>
+          </p>
+          <div className="relative continue-sec mt-4 md:mt-4">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-[#E5E9F2]" />
             </div>
@@ -212,6 +230,7 @@ export default function LoginPage() {
             Don&apos;t have an account?{" "}
             <Link href="/register" className="font-semibold text-[#0B1E3F] hover:underline">Sign up</Link>
           </p>
+         
         </div>
       </div>
     </div>

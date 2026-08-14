@@ -98,6 +98,20 @@ function buildProviders() {
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) return null;
 
+        // New credential sign-ups require email verification via the 6-digit
+        // OTP flow (/register → /verify-otp).  Throw a descriptive error so
+        // LoginForm surfaces the message directly (see LoginForm.tsx line ~147:
+        // non-"CredentialsSignin" errors are rendered verbatim).
+        //
+        // NOTE: Google/OAuth sign-ins bypass this authorize() entirely and
+        // get emailVerified set by Google via the OAuth profile + our custom
+        // adapter — they never hit this gate.
+        if (!user.emailVerified) {
+          throw new Error(
+            "Please verify your email first. Check your inbox for the verification code, or request a new one."
+          );
+        }
+
         return {
           id: user.id,
           email: user.email,

@@ -32,6 +32,8 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 import { provisionOrgWallet } from "@/lib/org/provisioning";
+import { issueOtp } from "@/lib/otp/service";
+import { sendEmailVerificationOtpEmail } from "@/lib/notifications/notify";
 
 const registerSchema = z.object({
   legalName: z.string().min(2, "Legal business name is required"),
@@ -79,6 +81,31 @@ export async function POST(req: Request) {
     include: { users: true },
   });
 
+  // Issue + email a verification OTP.
+  //   - Best-effort: even if email delivery fails (e.g. no Resend key in dev),
+  //     the account still exists and the user can re-trigger a send from
+  //     /api/auth/verification/send or the /verify-otp UI.
+  //   - Done in the same request (not after()) because the response tells the
+  //     client where to redirect (/verify-otp) and we want the OTP row to
+  //     exist before that page tries to resend.
+  let otpSent = false;
+  try {
+    const issued = await issueOtp(normalizedEmail, "EMAIL_VERIFICATION");
+    if (issued.ok && issued.code) {
+      await sendEmailVerificationOtpEmail({
+        recipientEmail: normalizedEmail,
+        code: issued.code,
+      });
+      otpSent = true;
+    } else {
+      console.warn(
+        `[register] could not issue email-verification OTP for ${normalizedEmail}: ${issued.error}`
+      );
+    }
+  } catch (err) {
+    console.error(`[register] OTP send failed for ${normalizedEmail}`, err);
+  }
+
   // after() schedules this to run once the response has been sent, but
   // — unlike a bare un-awaited promise — the platform (Vercel, etc.)
   // keeps the serverless function alive until it settles, so it can't
@@ -105,7 +132,11 @@ export async function POST(req: Request) {
         email: org.users[0].email,
         role: org.users[0].role,
       },
-      message: "Account created. Your organization is approved and your wallet is being set up now.",
+      // Signpost for the client to redirect to /verify-otp (not sign in).
+      nextStep: "verify-email",
+      otpSent,
+      message:
+        "Account created. Check your email for a 6-digit verification code to confirm your email.",
     },
     { status: 201 }
   );

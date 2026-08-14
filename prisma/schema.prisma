@@ -278,6 +278,19 @@ enum AnomalyStatus {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// AUTH / VERIFICATION
+// ─────────────────────────────────────────────────────────────────────────
+
+// Purpose of a single-use 6-digit one-time passcode. Allows the same
+// Otp table + verification pipeline to power both flows:
+//   - PASSWORD_RESET: forgot-password flow (leads to /reset-password)
+//   - EMAIL_VERIFICATION: confirm new-account email (completes signup)
+enum OtpPurpose {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // CORE TABLES
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -401,6 +414,40 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verification_tokens")
+}
+
+// 6-digit single-use one-time passcodes. One table for two purposes
+// (see OtpPurpose enum) — same verification pipeline, different
+// post-verification redirect and different `consumed` behavior.
+//
+// Security posture:
+//   - `code` is NOT hashed. 6 digits has only 1M combinations, so any
+//     hash is trivially brute-forceable; the real protection is:
+//       * short TTL (expiresAt, default 15 min)
+//       * single-use (consumedAt nulled row on success)
+//       * per-identifier rate limiting (see lib/otp/service.ts)
+//       * per-purpose lock: a PASSWORD_RESET row cannot satisfy an
+//         EMAIL_VERIFICATION challenge and vice versa
+//   - At verifier lookup we do `where: { email, purpose, code,
+//     consumedAt: null, expiresAt: { gt: now() } }` — exactly one
+//     matching row is valid.
+//   - `attempts` counts failed verifications on THIS row. Caller may
+//     null the row early at N attempts to defeat slow on-line guessing.
+model Otp {
+  id         String     @id @default(cuid())
+  email      String     // not a FK: a user may request reset before a User row exists (email-verification purpose)
+  purpose    OtpPurpose
+  code       String     // 6-digit plaintext, e.g. "482019"
+  attempts   Int        @default(0)
+  consumedAt DateTime?  // set on successful verification; row becomes invisible to future lookups
+  expiresAt  DateTime
+
+  createdAt  DateTime   @default(now())
+
+  // Lookup index: every verifier query filters on (email, purpose, consumedAt, expiresAt)
+  @@index([email, purpose, consumedAt])
+  @@index([expiresAt])
+  @@map("otps")
 }
 
 // Maps an Organization to its single Circle-custodied Arc wallet.

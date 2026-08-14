@@ -141,18 +141,12 @@ export default function RegisterForm() {
         return;
       }
 
-      const signInRes = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-        callbackUrl: "/dashboard",
-      });
-
-      if (signInRes?.ok) {
-        router.push("/dashboard");
-      } else {
-        router.push("/login");
-      }
+      // New flow: email must be verified before the first sign-in.
+      // Redirect to /verify-otp with the email pre-filled so the user
+      // can enter the 6-digit code we just sent.
+      router.push(
+        `/verify-otp?purpose=verify&email=${encodeURIComponent(email)}`
+      );
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -171,7 +165,6 @@ export default function RegisterForm() {
     }
   }
 
-  const progress = ((currentStep - 1) / (STEPS.length - 1)) * 100;
 
   return (
     <div className={`min-h-screen w-full flex ${mounted ? "ready" : ""} bg-white`}>
@@ -212,7 +205,7 @@ export default function RegisterForm() {
         
         <div className="relative z-10 flex flex-col justify-between px-8 py-6 md:px-16 md:py-8 text-white">
           <Link href="/" className="anim-logo flex items-center gap-2">
-            <img src="/img5.png" alt="Comparta" height={42} width={135} />
+            <Image src="/img5.png" alt="Comparta" height={42} width={135} />
           </Link>
           <div className="anim-welcome pb-12">
             <h2 className="text-4xl md:text-5xl font-normal leading-tight tracking-tight mb-6">
