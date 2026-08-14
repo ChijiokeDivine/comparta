@@ -27,6 +27,8 @@ import { prisma } from "@/lib/db/prisma";
 import { verifyCircleWebhookSignature } from "@/lib/circle/webhookVerify";
 import { handleInboundTransfer, type InboundNotification } from "@/lib/transfers/receive";
 import { confirmTransaction } from "@/jobs/confirmTransaction";
+import { reconcilePaymentIntentSettlement, failPaymentIntentSession } from "@/lib/paymentLinks/reconciliation";
+import { toSmallestUnit } from "@/lib/circle/amount";
 
 interface CircleWebhookPayload {
   subscriptionId?: string;
@@ -46,6 +48,34 @@ interface CircleWebhookPayload {
     txHash?: string;
   };
   timestamp?: string;
+}
+
+// Envelope + resource shapes for the two Payment Intents (Stablecoin
+// Payins) topics used by the wallet checkout path - see
+// developers.circle.com/circle-mint/references/webhook-notifications.
+// Distinct notificationType strings ("paymentIntents", "payments") from
+// the Developer-Controlled Wallets notifications above, and NOT nested
+// under `notification` - each carries its own top-level key.
+interface CirclePaymentIntentWebhookPayload {
+  notificationType?: string;
+  paymentIntent?: {
+    id?: string;
+    type?: "transient" | "continuous";
+    timeline?: Array<{ status?: string; context?: string; time?: string }>;
+  };
+}
+
+interface CirclePaymentWebhookPayload {
+  notificationType?: string;
+  payment?: {
+    id?: string;
+    type?: "payment" | "refund";
+    status?: "pending" | "confirmed" | "paid" | "failed" | "action_required";
+    paymentIntentId?: string;
+    amount?: { amount?: string; currency?: string };
+    source?: { type?: string; chain?: string; address?: string };
+    transactionHash?: string;
+  };
 }
 
 export async function POST(req: Request) {
@@ -153,6 +183,59 @@ async function dispatchNotification(
       });
       if (onchainTx) {
         await confirmTransaction(onchainTx.id);
+      }
+      return;
+    }
+
+    case "payments": {
+      const { payment } = payload as unknown as CirclePaymentWebhookPayload;
+      if (!payment?.paymentIntentId || !payment.id || !payment.status) {
+        console.warn("[webhooks/circle] payments notification missing required fields, skipping", payload);
+        return;
+      }
+      // Only the wallet-checkout settlement path cares about this topic
+      // here; refunds (type: "refund") aren't part of this flow.
+      if (payment.type === "refund") return;
+
+      if (payment.status === "paid") {
+        if (!payment.amount?.amount) {
+          console.warn("[webhooks/circle] paid payment notification missing amount, skipping", payload);
+          return;
+        }
+        await reconcilePaymentIntentSettlement({
+          circlePaymentIntentId: payment.paymentIntentId,
+          circlePaymentId: payment.id,
+          amountPaid: toSmallestUnit(payment.amount.amount),
+          payerAddress: payment.source?.address,
+          txHash: payment.transactionHash,
+        });
+        return;
+      }
+
+      if (payment.status === "failed") {
+        await failPaymentIntentSession(
+          payment.paymentIntentId,
+          "The wallet payment could not be settled."
+        );
+      }
+      // pending / confirmed / action_required: still mid-flight, no-op -
+      // the checkout page keeps polling PaymentLinkPayment.status.
+      return;
+    }
+
+    case "paymentIntents": {
+      const { paymentIntent } = payload as unknown as CirclePaymentIntentWebhookPayload;
+      if (!paymentIntent?.id) return;
+
+      // Per Circle's docs the most recent transition is timeline[0].
+      // Terminal failure states with no settlement close the session out
+      // here; "complete" is confirmed via the "payments" topic above
+      // instead, since that's the event carrying the settled amount/tx.
+      const latestStatus = paymentIntent.timeline?.[0]?.status;
+      if (latestStatus === "expired") {
+        await failPaymentIntentSession(paymentIntent.id, "This checkout session expired before payment was received.");
+      } else if (latestStatus === "failed") {
+        await failPaymentIntentSession(paymentIntent.id, "The wallet payment could not be settled.");
       }
       return;
     }

@@ -746,6 +746,18 @@ model PaymentLinkPayment {
   circlePaymentId String? @unique
   idempotencyKey  String? @unique
 
+  // Wallet path only: a transient Circle Payment Intent created for this
+  // session's exact amountExpected, associated with the merchant's Circle
+  // wallet (see lib/circle/payments.ts#createTransientPaymentIntent). Like
+  // circlePaymentId above, this gives the wallet path exact-match
+  // reconciliation via Circle's "paymentIntents"/"payments" webhook topics
+  // instead of the amount heuristic in lib/paymentLinks/reconciliation.ts.
+  // paymentIntentAddress is the one-time deposit address Circle generated
+  // for this intent - this, not the merchant's treasury wallet.arcAddress,
+  // is what's shown to the payer (see lib/paymentLinks/checkout.ts).
+  circlePaymentIntentId String? @unique
+  paymentIntentAddress  String?
+
   failureReason String?
 
   createdAt   DateTime  @default(now())

@@ -151,6 +151,138 @@ export async function reconcileWalletTransferAgainstPaymentLinks(
   return { kind: "no_match" };
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Payment-Intent wallet path (Arc, transient Circle Payment Intents)
+//
+// Unlike reconcileWalletTransferAgainstPaymentLinks above, this path never
+// heuristically guesses which session an inbound transfer belongs to: every
+// PaymentLinkPayment created by lib/paymentLinks/checkout.ts#startWalletCheckout
+// carries its own circlePaymentIntentId, so app/api/webhooks/circle/route.ts
+// can look the session up directly off Circle's "payments"/"paymentIntents"
+// webhook topics. reconcileWalletTransferAgainstPaymentLinks (and the
+// amount-matching it does) remains only for inbound transfers that AREN'T
+// tied to a payment-link checkout at all.
+
+export type PaymentIntentReconcileResult =
+  | { kind: "confirmed"; paymentLinkId: string }
+  | { kind: "amount_mismatch" }
+  | { kind: "already_settled" }
+  | { kind: "not_found" };
+
+export interface PaymentIntentSettlementInput {
+  circlePaymentIntentId: string;
+  /** Circle's id for this specific settlement event (the "payments" topic's payment.id) - used as OnchainTransaction.circleTransactionId. */
+  circlePaymentId: string;
+  /** Settled amount, in smallest USDC unit. */
+  amountPaid: bigint;
+  /** Payer's source address, if Circle reported one. */
+  payerAddress?: string;
+  /** Onchain settlement tx hash, if Circle reported one. */
+  txHash?: string;
+}
+
+/**
+ * Called from the Circle webhook once a transient Payment Intent's deposit
+ * address reports a settled payment. Always records an OnchainTransaction
+ * for the real funds that arrived - even on a mismatch - so there's an
+ * audit trail; only CONFIRMS the checkout session (credits the ledger) when
+ * the settled amount exactly matches what the session expects. A mismatch
+ * shouldn't really happen (the intent was created for one exact amount and
+ * accepts only that), but Circle's own timeline `context` distinguishes
+ * paid/underpaid/overpaid, so this stays defensive rather than trusting the
+ * amount blindly.
+ */
+export async function reconcilePaymentIntentSettlement(
+  input: PaymentIntentSettlementInput
+): Promise<PaymentIntentReconcileResult> {
+  const session = await prisma.paymentLinkPayment.findUnique({
+    where: { circlePaymentIntentId: input.circlePaymentIntentId },
+    include: { paymentLink: { include: { organization: { include: { wallets: { take: 1 } } } } } },
+  });
+
+  if (!session) return { kind: "not_found" };
+  if (session.status !== "PENDING") return { kind: "already_settled" };
+
+  const wallet = session.paymentLink.organization.wallets[0];
+  if (!wallet) {
+    console.error(
+      `[paymentLinks] Org ${session.paymentLink.orgId} has no wallet - cannot settle Payment Intent ` +
+        `${input.circlePaymentIntentId} for session ${session.id}.`
+    );
+    return { kind: "not_found" };
+  }
+
+  const amountMatches = input.amountPaid === session.amountExpected;
+
+  const { onchainTxId, confirmResult } = await prisma.$transaction(async (tx: Tx) => {
+    const onchainTx = await tx.onchainTransaction.create({
+      data: {
+        walletId: wallet.id,
+        direction: "IN",
+        amount: input.amountPaid,
+        counterpartyAddress: input.payerAddress ?? session.paymentIntentAddress ?? "",
+        chain: wallet.chain,
+        status: "CONFIRMED",
+        confirmedAt: new Date(),
+        txHash: input.txHash,
+        circleTransactionId: input.circlePaymentId,
+        memo: `Payment Intent settlement for payment-link checkout session ${session.id}`,
+      },
+    });
+
+    if (!amountMatches) {
+      return { onchainTxId: onchainTx.id, confirmResult: null };
+    }
+
+    const confirmResult = await confirmPaymentLinkPayment(tx, {
+      paymentLinkPaymentId: session.id,
+      onchainTransactionId: onchainTx.id,
+      amountPaid: input.amountPaid,
+      payerIdentifier: input.payerAddress,
+    });
+
+    return { onchainTxId: onchainTx.id, confirmResult };
+  });
+
+  if (!amountMatches) {
+    await flagPaymentForManualReconciliation(
+      session.paymentLink.orgId,
+      onchainTxId,
+      `Payment Intent ${input.circlePaymentIntentId} settled ${input.amountPaid} but session ${session.id} ` +
+        `expected ${session.amountExpected} - a transient intent should only ever accept its exact amount, so ` +
+        `this needs manual review rather than an automatic confirm.`
+    );
+    return { kind: "amount_mismatch" };
+  }
+
+  return { kind: "confirmed", paymentLinkId: confirmResult!.paymentLinkId };
+}
+
+export type PaymentIntentFailureResult = "failed" | "already_settled" | "not_found";
+
+/**
+ * Called from the Circle webhook when a transient Payment Intent reaches a
+ * terminal non-success state (expired / failed) with no settlement - closes
+ * out the PENDING session so the checkout page stops polling forever.
+ */
+export async function failPaymentIntentSession(
+  circlePaymentIntentId: string,
+  reason: string
+): Promise<PaymentIntentFailureResult> {
+  const session = await prisma.paymentLinkPayment.findUnique({
+    where: { circlePaymentIntentId },
+    select: { id: true, status: true },
+  });
+  if (!session) return "not_found";
+  if (session.status !== "PENDING") return "already_settled";
+
+  await prisma.paymentLinkPayment.update({
+    where: { id: session.id },
+    data: { status: "FAILED", failureReason: reason },
+  });
+  return "failed";
+}
+
 /**
  * Submits the actual refund transaction for a WRONG_AMOUNT_REFUNDED
  * session. Called AFTER the transaction that recorded the inbound

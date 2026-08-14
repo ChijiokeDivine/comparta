@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { startWalletCheckout, PaymentLinkNotPayableError, CheckoutValidationError } from "@/lib/paymentLinks/checkout";
+import { CirclePaymentsApiError } from "@/lib/circle/payments";
 
 const bodySchema = z.object({
   amount: z.string().optional(),
@@ -29,6 +30,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     }
     if (err instanceof CheckoutValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    if (err instanceof CirclePaymentsApiError) {
+      return NextResponse.json(
+        { error: "Wallet checkout isn't available right now. Try again shortly." },
+        { status: 502 }
+      );
     }
     console.error("[pay] wallet checkout failed", err);
     return NextResponse.json({ error: "Failed to start checkout" }, { status: 500 });

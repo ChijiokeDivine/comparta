@@ -16,7 +16,7 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
-import { createHostedCardPayment } from "@/lib/circle/payments";
+import { createHostedCardPayment, createTransientPaymentIntent } from "@/lib/circle/payments";
 import type { PaymentLink } from "@/app/generated/prisma/client";
 
 export class PaymentLinkNotPayableError extends Error {
@@ -172,6 +172,18 @@ export interface WalletCheckoutSession {
   amountExpected: string; // decimal string
 }
 
+/**
+ * Starts the wallet path: reserves a PaymentLinkPayment row, then asks
+ * Circle for a transient Payment Intent scoped to this session's exact
+ * amount and tied to the merchant's Circle wallet. The intent's generated
+ * one-time deposit address - never the merchant's own treasury
+ * wallet.arcAddress - is what's returned to the payer. This gives the
+ * wallet path Circle-verified exact-amount matching via the
+ * "paymentIntents"/"payments" webhook topics (see app/api/webhooks/circle/
+ * route.ts) instead of the amount heuristic in
+ * lib/paymentLinks/reconciliation.ts, which remains in place only as the
+ * matcher for ordinary inbound transfers that aren't payment-link checkouts.
+ */
 export async function startWalletCheckout(input: StartWalletCheckoutInput): Promise<WalletCheckoutSession> {
   const { link, amountExpected } = await loadPayableLink(input.slug, input.amount);
 
@@ -193,12 +205,39 @@ export async function startWalletCheckout(input: StartWalletCheckoutInput): Prom
     },
   });
 
-  return {
-    paymentLinkPaymentId: session.id,
-    payToAddress: wallet.arcAddress,
-    chain: wallet.chain,
-    amountExpected: toDecimalString(amountExpected),
-  };
+  const idempotencyKey = randomUUID();
+
+  try {
+    const intent = await createTransientPaymentIntent({
+      amount: toDecimalString(amountExpected),
+      merchantWalletId: wallet.circleWalletId,
+      chain: wallet.chain,
+      idempotencyKey,
+    });
+
+    await prisma.paymentLinkPayment.update({
+      where: { id: session.id },
+      data: {
+        circlePaymentIntentId: intent.circlePaymentIntentId,
+        paymentIntentAddress: intent.address,
+        idempotencyKey,
+      },
+    });
+
+    return {
+      paymentLinkPaymentId: session.id,
+      payToAddress: intent.address,
+      chain: intent.chain,
+      amountExpected: toDecimalString(amountExpected),
+    };
+  } catch (err) {
+    await prisma.paymentLinkPayment.update({
+      where: { id: session.id },
+      data: { status: "FAILED", failureReason: "Failed to start wallet checkout with Circle." },
+    });
+    console.error(`[paymentLinks] Circle Payment Intent creation failed for ${session.id}`, err);
+    throw err;
+  }
 }
 
 export interface StartCardCheckoutInput {
