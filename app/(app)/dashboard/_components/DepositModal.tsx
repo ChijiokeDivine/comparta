@@ -141,7 +141,7 @@ export default function DepositModal({
           <button
             onClick={onClose}
             aria-label="Close"
-            className="rounded-full p-2 text-[#7C8CA6] hover:bg-[#F2F4F8] hover:text-[#0B1E3F] transition-colors"
+            className="rounded-full p-2 text-[#7C8CA6] hover:bg-[#FAF9F6] hover:text-[#0B1E3F] transition-colors"
           >
             <X size={18} />
           </button>
@@ -160,7 +160,7 @@ export default function DepositModal({
                 <label className="text-xs font-medium text-[#7C8CA6] px-1">
                   Your deposit address
                 </label>
-                <div className="flex items-center gap-2 rounded-xl border border-[#E5E9F2] bg-[#FAFBFD] px-3.5 py-3">
+                <div className="flex items-center gap-2 rounded-lg border border-[#E5E9F2] bg-[#FAF9F6] px-3.5 py-3">
                   <CircleDollarSign
                     size={18}
                     className="shrink-0 text-[#2A5CE6]"
@@ -191,7 +191,7 @@ export default function DepositModal({
               </div>
 
               <div className="md:grid grid-cols-3 gap-2.5   hidden">
-                <div className="rounded-xl bg-[#FAFBFD] border border-[#F2F4F8] p-3 text-center">
+                <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
                   <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
                     <Network size={14} />
                   </div>
@@ -200,7 +200,7 @@ export default function DepositModal({
                     {displayChain}
                   </p>
                 </div>
-                <div className="rounded-xl bg-[#FAFBFD] border border-[#F2F4F8] p-3 text-center">
+                <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
                   <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
                     <Clock3 size={14} />
                   </div>
@@ -209,7 +209,7 @@ export default function DepositModal({
                     ~1 min
                   </p>
                 </div>
-                <div className="rounded-xl bg-[#FAFBFD] border border-[#F2F4F8] p-3 text-center">
+                <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
                   <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white  flex items-center justify-center">
                     <Image
                       src="/usdc.png"
