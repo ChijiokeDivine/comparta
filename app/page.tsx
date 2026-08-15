@@ -440,7 +440,7 @@ export default function Home() {
                         <a
                           key={label}
                           href="#"
-                          className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+                          className="flex items-center gap-3 px-3 py-0 rounded-lg hover:bg-[#F2F4F8] transition-colors"
                         >
                           <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">
                             <Icon size={20} strokeWidth={2} color="#0B1E3F" />
@@ -463,7 +463,7 @@ export default function Home() {
                         <a
                           key={label}
                           href="#"
-                          className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+                          className="flex items-center gap-3 px-3 py-0 rounded-lg hover:bg-[#F2F4F8] transition-colors"
                         >
                           <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">
                             <Icon size={20} strokeWidth={2} color="#0B1E3F" />
@@ -484,7 +484,7 @@ export default function Home() {
                     <div className="space-y-3">
                       <a
                         href="#"
-                        className="flex items-center gap-3 px-3 py-1 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+                        className="flex items-center gap-3 px-3 py-0 rounded-lg hover:bg-[#F2F4F8] transition-colors"
                       >
                         <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">
                           <Code2 size={20} strokeWidth={2} color="#0B1E3F" />
@@ -503,7 +503,7 @@ export default function Home() {
                 </nav>
 
                 {/* Bottom actions */}
-                <div className="mt-12 flex flex-col gap-4">
+                <div className="mt-12 flex flex-col gap-4 items-center">
                   <a
                     href="/login"
                     className="text-[16px] font-semibold text-[#2F6FF0] hover:opacity-80 text-center"
@@ -512,7 +512,16 @@ export default function Home() {
                   </a>
                   <a
                     href="/register"
-                    className="btn-3d text-center "
+                    className="btn-3d  text-center "
+                    style={{
+                      '--btn-bg': '#2A5CE6',
+                      '--btn-bg-hover': '#2450d1',
+                      '--btn-edge': '#1A3FA8',
+                      '--btn-edge-hover': '#17358f',
+                      color: '#ffffff',
+                      width: '85%',
+                      padding: '16px 0 16px 0',
+                    } as React.CSSProperties}
                   >
                     Sign up for free
                   </a>
@@ -558,7 +567,7 @@ export default function Home() {
 
           <div className="grow-track" ref={trackRef}>
             {growCards.map((card) => (
-              <a href="#" key={card.key} className={`grow-card ${card.variant}`}>
+              <a key={card.key} className={`grow-card cursor-pointer ${card.variant}`}>
                 <div className="grow-illustration" />
                 <div className="grow-info">
                   <div className="grow-info-icon">

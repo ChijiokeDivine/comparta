@@ -48,7 +48,39 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setFormError(result.error === "CredentialsSignin" ? "Invalid email or password." : result.error);
+        if (result.error === "CredentialsSignin") {
+          setFormError("Invalid email or password.");
+          setLoading(false);
+          return;
+        }
+
+        if (result.error.toLowerCase().includes("verify your email")) {
+          // Account exists but wasn't verified as of that sign-in attempt.
+          // Resend the code, but check the response in case it got verified
+          // in another tab between then and now.
+          try {
+            const resendRes = await fetch("/api/auth/verification/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email }),
+            });
+            const resendData = await resendRes.json().catch(() => ({}));
+
+            if (resendData?.alreadyVerified) {
+              setFormError("Your email is already verified — please sign in again.");
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // Resend failed to even reach the server — fall through to
+            // /verify-otp anyway; the page's own "Resend" button can retry.
+          }
+
+          router.push(`/verify-otp?purpose=verify&email=${encodeURIComponent(email)}`);
+          return;
+        }
+
+        setFormError(result.error);
         setLoading(false);
         return;
       }

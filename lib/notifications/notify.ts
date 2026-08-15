@@ -118,7 +118,7 @@ function buildInvoiceEmailHtml(ctx: InvoiceEmailContext, opts?: { reminder?: boo
         </tr>
         <tr>
           <td style="padding:20px 36px 28px;border-top:1px solid #F2F4F8;">
-            <p style="margin:0;font-size:11px;color:#B3BDD1;line-height:1.6;">Paid in stablecoins on Circle's Arc L1 &middot; Comparta</p>
+            <p style="margin:0;font-size:11px;color:#B3BDD1;line-height:1.6;"> Comparta</p>
           </td>
         </tr>
       </table>
