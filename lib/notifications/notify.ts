@@ -63,9 +63,9 @@ function buildInvoiceEmailHtml(ctx: InvoiceEmailContext, opts?: { reminder?: boo
 <title>${heading}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#F7F8FB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F7F8FB;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" >
   <tr>
-    <td align="center" style="padding:40px 20px;">
+    <td align="center" style="padding:40px 6px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#FFFFFF;border:1px solid #E5E9F2;border-radius:16px;">
         <tr>
           <td style="padding:40px 36px 32px;">
@@ -82,7 +82,7 @@ function buildInvoiceEmailHtml(ctx: InvoiceEmailContext, opts?: { reminder?: boo
             <!-- Amount -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F7F8FB;border-radius:12px;margin-bottom:24px;">
               <tr>
-                <td style="padding:18px 20px;">
+                <td style="padding:18px 10px;">
                   <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:#7C8CA6;text-transform:uppercase;letter-spacing:0.05em;">Amount due</p>
                   <p style="margin:0;font-size:28px;font-weight:700;color:#0B1E3F;font-variant-numeric:tabular-nums;">${amountLine}</p>
                 </td>
@@ -297,13 +297,13 @@ function buildOtpEmailHtml(
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>${heading}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#F7F8FB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F7F8FB;">
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" >
   <tr>
-    <td align="center" style="padding:48px 20px;">
+    <td align="center" style="padding:48px 6px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#FFFFFF;border:1px solid #E5E9F2;border-radius:16px;">
         <tr>
-          <td style="padding:48px 40px 44px;">
+          <td style="padding:48px 20px 44px;">
 
             <!-- Wordmark -->
             <p style="margin:0 0 40px;font-size:13px;font-weight:700;color:#2A5CE6;letter-spacing:0.02em;">Comparta</p>
@@ -339,7 +339,7 @@ function buildOtpEmailHtml(
         </tr>
         <tr>
           <td style="padding:20px 40px 32px;border-top:1px solid #F2F4F8;">
-            <p style="margin:0;font-size:11px;color:#B3BDD1;line-height:1.6;">${footerLine} &middot; Comparta</p>
+            <p style="margin:0;font-size:11px;color:#B3BDD1;line-height:1.6;">${footerLine}</p>
           </td>
         </tr>
       </table>
@@ -378,7 +378,7 @@ This code expires in 15 minutes and can only be used once.
 
 If you didn't create a Comparta account, you can safely ignore this email.
 
-— Comparta`;
+`;
 
   return `${subject}
 

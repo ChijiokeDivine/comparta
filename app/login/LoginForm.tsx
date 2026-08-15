@@ -67,7 +67,7 @@ export default function LoginPage() {
             const resendData = await resendRes.json().catch(() => ({}));
 
             if (resendData?.alreadyVerified) {
-              setFormError("Your email is already verified — please sign in again.");
+              setFormError("Your email is already verified - please sign in again.");
               setLoading(false);
               return;
             }
