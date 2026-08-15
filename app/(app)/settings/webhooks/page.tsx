@@ -1,7 +1,7 @@
 // app/(app)/settings/webhooks/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import SettingsSubNav from "../_components/SettingsSubNav";
 import { StatusPill } from "@/app/components/StatusPill";
@@ -28,21 +28,43 @@ export default function WebhookEventsPage() {
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
   const [resultById, setResultById] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (isOwner) load();
-    else setLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOwner]);
-
-  function load() {
+  // Manual re-fetch, used after a reprocess action. Called from an event
+  // handler, not an effect body, so a synchronous setLoading(true) here is
+  // exactly the pattern React expects.
+  const refetch = useCallback(() => {
     setLoading(true);
     fetch("/api/org/webhook-events")
       .then((res) => res.json())
       .then((data) => setEvents(data.events ?? []))
       .catch(() => setError("Failed to load webhook events"))
       .finally(() => setLoading(false));
-  }
+  }, []);
 
+  // Fetch-on-mount / on-isOwner-change. Kept inline (rather than calling a
+  // shared `load` helper) so eslint can see the setState calls belong to
+  // this effect and a `cancelled` guard can protect against a stale
+  // response landing after isOwner changes or the component unmounts.
+  useEffect(() => {
+    if (!isOwner) return; // loading already starts true; nothing to fetch, nothing to reset here
+
+    let cancelled = false;
+
+    fetch("/api/org/webhook-events")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setEvents(data.events ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Failed to load webhook events");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwner]);
   async function handleReprocess(id: string) {
     setReprocessingId(id);
     setResultById((prev) => ({ ...prev, [id]: "" }));
@@ -54,7 +76,7 @@ export default function WebhookEventsPage() {
         return;
       }
       setResultById((prev) => ({ ...prev, [id]: "Reprocessed. Check the bucket balance." }));
-      load();
+      refetch();
     } catch {
       setResultById((prev) => ({ ...prev, [id]: "Reprocessing failed" }));
     } finally {

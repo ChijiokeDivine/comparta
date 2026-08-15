@@ -34,10 +34,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { verifyCircleWebhookSignature } from "@/lib/circle/webhookVerify";
-import { toSmallestUnit } from "@/lib/circle/amount";
+import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
 import { confirmPaymentLinkPayment } from "@/lib/paymentLinks/completion";
 import { notifyInvoicePaidIfMatched } from "@/lib/invoices/reconciliation";
 import { handleInboundTransfer, type InboundNotification } from "@/lib/transfers/receive";
+import { broadcastPaymentReceived } from "@/lib/realtime/eventBus";
 import type { Prisma } from "@/app/generated/prisma/client";
 
 interface CircleWalletTransferPayload {
@@ -266,4 +267,17 @@ async function processPaymentEvent(payload: CirclePaymentWebhookPayload): Promis
   });
 
   await notifyInvoicePaidIfMatched(session.paymentLink.orgId, reconciliation);
+
+  try {
+    broadcastPaymentReceived({
+      type: "payment_received",
+      orgId: session.paymentLink.orgId,
+      amount: toDecimalString(amountPaid),
+      counterpartyAddress: session.payerIdentifier ?? "circle-payments-api",
+      onchainTransactionId: `circle-payment-${payment.id}`,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[webhooks/circle-payments] failed to broadcast payment_received", err);
+  }
 }

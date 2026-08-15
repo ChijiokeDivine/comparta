@@ -6,10 +6,8 @@ import {
   X,
   Copy,
   Check,
-  Download,
   Network,
   Clock3,
-  ShieldCheck,
   CircleDollarSign,
 } from "lucide-react";
 import QRCodeStyling from "qr-code-styling";
@@ -30,7 +28,6 @@ export default function DepositModal({
   const qrRef = useRef<HTMLDivElement | null>(null);
   const qrInstance = useRef<QRCodeStyling | null>(null);
   const [copied, setCopied] = useState(false);
-  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -104,28 +101,12 @@ export default function DepositModal({
     }
   }
 
-  async function handleDownload() {
-    if (!qrInstance.current) return;
-    try {
-      setDownloading(true);
-      const blob = (await qrInstance.current.getRawData("png")) as Blob;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `comparta-deposit-${chain.toLowerCase()}-${address.slice(-6)}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } finally {
-      setTimeout(() => setDownloading(false), 600);
-    }
-  }
+ 
 
-  function truncateMiddle(addr: string, start = 8, end = 6) {
-    if (addr.length <= start + end + 3) return addr;
-    return `${addr.slice(0, start)}…${addr.slice(-end)}`;
-  }
+  // function truncateMiddle(addr: string, start = 8, end = 6) {
+  //   if (addr.length <= start + end + 3) return addr;
+  //   return `${addr.slice(0, start)}…${addr.slice(-end)}`;
+  // }
 
   const displayChain =
     chain && chain.includes("_")

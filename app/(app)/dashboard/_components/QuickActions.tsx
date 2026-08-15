@@ -30,7 +30,7 @@ const ACTIONS: QuickAction[] = [
 
 interface QuickActionsProps {
   disabled: boolean;
-  wallet?: { arcAddress: string; chain?: string } | null;
+  wallet?: { arcAddress: string; chain?: string | null } | null;
 }
 
 export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
@@ -128,7 +128,7 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
         open={depositOpen}
         onClose={() => setDepositOpen(false)}
         address={wallet?.arcAddress ?? ""}
-        chain={wallet?.chain}
+        chain={wallet?.chain ?? ""}
       />
     </>
   );

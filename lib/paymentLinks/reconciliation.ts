@@ -36,6 +36,8 @@ import { confirmPaymentLinkPayment } from "./completion";
 import { flagPaymentForManualReconciliation } from "@/lib/notifications/notify";
 import { getQueue, QUEUE_NAMES } from "@/jobs/queue";
 import { randomUUID } from "node:crypto";
+import { broadcastPaymentReceived } from "@/lib/realtime/eventBus";
+import { toDecimalString } from "@/lib/circle/amount";
 
 type Tx = Prisma.TransactionClient;
 
@@ -310,6 +312,19 @@ export async function reconcileDepositWalletPayment(
       amountPaid: input.amountReceived,
     });
   });
+
+  try {
+    broadcastPaymentReceived({
+      type: "payment_received",
+      orgId: session.paymentLink.orgId,
+      amount: toDecimalString(input.amountReceived),
+      counterpartyAddress: session.payerIdentifier ?? input.depositAddress,
+      onchainTransactionId: session.id,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[paymentLinks] failed to broadcast payment_received for deposit sweep", err);
+  }
 
   return { kind: "swept", paymentLinkId: result.paymentLinkId };
 }

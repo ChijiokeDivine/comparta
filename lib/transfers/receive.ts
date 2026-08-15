@@ -25,7 +25,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { recordEntry } from "@/lib/ledger/engine";
-import { toSmallestUnit } from "@/lib/circle/amount";
+import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
 import { mapCircleBlockchain } from "@/lib/circle/chainMapping";
 import { reconcileInboundPaymentAgainstInvoices, notifyInvoicePaidIfMatched } from "@/lib/invoices/reconciliation";
 import { reconcileWalletTransferAgainstPaymentLinks, issueWrongAmountRefund } from "@/lib/paymentLinks/reconciliation";
@@ -34,6 +34,7 @@ import { executeIncomingPaymentAllocationRules } from "@/lib/allocationRules/eng
 // exact same trigger point as ON_INCOMING_PAYMENT AllocationRules, for
 // the same reason (see lib/savings/sweep.ts's module docstring).
 import { executeIncomingPaymentSavingsRules } from "@/lib/savings/sweep";
+import { broadcastPaymentReceived } from "@/lib/realtime/eventBus";
 import type { Chain, Prisma } from "@/app/generated/prisma/client";
 
 export interface InboundNotification {
@@ -226,7 +227,10 @@ export async function handleInboundTransfer(notification: InboundNotification): 
     }
   );
 
-  await notifyPaymentReceived(wallet.orgId, amount);
+  await notifyPaymentReceived(wallet.orgId, amount, {
+    onchainTxId,
+    counterpartyAddress,
+  });
   await notifyInvoicePaidIfMatched(wallet.orgId, reconciliation);
 
   // Auto-allocation rules (e.g. "move 20% of every incoming payment to Tax
@@ -292,7 +296,27 @@ async function resolveDefaultLedgerAccountId(
   return operating?.id ?? null;
 }
 
-/** Placeholder notification hook - wire up to real email/in-app notifications once that infra exists. */
-async function notifyPaymentReceived(orgId: string, amount: bigint): Promise<void> {
+/**
+ * Broadcasts a payment-received event to any subscribed browser sessions
+ * (via lib/realtime/eventBus.ts -> /api/realtime/stream SSE), plus the
+ * existing server-side log.
+ */
+async function notifyPaymentReceived(
+  orgId: string,
+  amount: bigint,
+  meta?: { onchainTxId: string; counterpartyAddress: string }
+): Promise<void> {
   console.log(`[notify] Inbound payment received for org ${orgId}, amount=${amount}`);
+  try {
+    broadcastPaymentReceived({
+      type: "payment_received",
+      orgId,
+      amount: toDecimalString(amount),
+      counterpartyAddress: meta?.counterpartyAddress ?? "unknown",
+      onchainTransactionId: meta?.onchainTxId ?? "",
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[notify] failed to broadcast payment_received", err);
+  }
 }
