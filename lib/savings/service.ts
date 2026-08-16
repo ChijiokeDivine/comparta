@@ -195,11 +195,12 @@ export async function createSavingsRule(input: CreateSavingsRuleInput): Promise<
   ]);
   if (source.archived) throw new SavingsValidationError(`Bucket "${source.name}" is archived.`);
   if (target.archived) throw new SavingsValidationError(`Bucket "${target.name}" is archived.`);
+  let targetConfigured = target;
   if (!target.isYieldEnabled) {
-    throw new SavingsValidationError(
-      `Target bucket "${target.name}" doesn't have yield enabled yet. Enable yield on it first ` +
-        `(see setBucketYieldConfig / PATCH /api/savings/:ledgerAccountId).`
-    );
+    targetConfigured = await setBucketYieldConfig(input.orgId, input.targetLedgerAccountId, {
+      isYieldEnabled: true,
+      yieldAllocationPct: "100",
+    });
   }
 
   if (input.trigger === "FIXED_RECURRING" && !input.scheduleCron?.trim()) {

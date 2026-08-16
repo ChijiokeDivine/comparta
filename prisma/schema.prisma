@@ -494,13 +494,22 @@ model LedgerAccount {
   // every fresh inflow swept into this bucket is additionally deployed
   // into USYC (tracked in YieldPosition, valued separately) rather than
   // sitting idle. See lib/savings/sweep.ts and lib/savings/yield.ts.
-  isYieldEnabled         Boolean           @default(false)
+  //
+  // 2026-08-16: Yield is now ENABLED BY DEFAULT for every new bucket.
+  // Operator can explicitly opt a bucket out via PATCH /api/savings/:id
+  // (setBucketYieldConfig with isYieldEnabled=false). Default allocation
+  // = 100% (10000 bps) to USYC; dial down via the same endpoint if a
+  // liquid-withdrawal buffer is wanted (e.g. payroll buckets).
+  isYieldEnabled         Boolean           @default(true)
   // Basis points (0–10000) of a fresh sweep INTO this bucket that should
   // be deployed into USYC; the remainder stays liquid as an instant-
-  // withdrawal buffer. Required (non-null) iff isYieldEnabled — enforced
-  // in lib/savings/service.ts#setBucketYieldConfig (a DB CHECK can't
+  // withdrawal buffer. Defaults to 10000 (=100%) because most savings
+  // targets want full deployment; NULL-able only for backwards-compat
+  // with pre-2026-08-16 rows that predated the default-yield change.
+  // Enforced (non-null iff isYieldEnabled) in
+  // lib/savings/service.ts#setBucketYieldConfig (a DB CHECK can't
   // express "required iff sibling column is true" declaratively).
-  yieldAllocationPct     Int?
+  yieldAllocationPct     Int?              @default(10000)
   // Smallest USDC unit. Any sweep (savings or allocation) sourcing FROM
   // this bucket must never bring its liquid balance below this floor —
   // see lib/savings/sweep.ts#computeFloorConstrainedAmount. 0 (default)

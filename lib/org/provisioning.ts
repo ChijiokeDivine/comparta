@@ -66,6 +66,8 @@ export async function provisionOrgWallet(orgId: string): Promise<ProvisionOrgWal
               walletId: walletRow.id,
               name: bucket.name,
               type: bucket.type,
+              isYieldEnabled: true,
+              yieldAllocationPct: 10000,
             },
           })
         )

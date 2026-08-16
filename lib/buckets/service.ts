@@ -132,6 +132,8 @@ export async function createBucket(input: CreateBucketInput): Promise<LedgerAcco
         walletId,
         name,
         type: input.type ?? "CUSTOM",
+        isYieldEnabled: true,
+        yieldAllocationPct: 10000,
       },
     });
   } catch (err) {
