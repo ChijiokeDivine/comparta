@@ -213,7 +213,23 @@ export const authOptions: AuthOptions = {
   providers: buildProviders(),
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session: updateSession }) {
+      // Client-side `update()` calls from OnboardingForm / other pages pass
+      // an arbitrary session-shaped object via `trigger === "update"`.
+      // This is how OnboardingForm flips onboardingCompleted=true right
+      // after submitting without forcing a full re-login.  We also accept
+      // `kybStatus` here so the API route can push "APPROVED" into the
+      // token immediately after provisioning (otherwise the user sees the
+      // org "under review" until next full sign-in).
+      if (trigger === "update" && updateSession) {
+        if (typeof (updateSession as { onboardingCompleted?: boolean }).onboardingCompleted === "boolean") {
+          token.onboardingCompleted = (updateSession as { onboardingCompleted: boolean }).onboardingCompleted;
+        }
+        if (typeof (updateSession as { kybStatus?: string }).kybStatus === "string") {
+          token.kybStatus = (updateSession as { kybStatus: string }).kybStatus as never;
+        }
+      }
+
       if (user) {
         token.orgId = user.orgId;
         token.role = user.role;
@@ -239,8 +255,60 @@ export const authOptions: AuthOptions = {
         if (token.orgId) session.user.orgId = token.orgId;
         if (token.role) session.user.role = token.role;
         if (token.kybStatus) session.user.kybStatus = token.kybStatus;
+        if (typeof token.onboardingCompleted === "boolean") {
+          session.user.onboardingCompleted = token.onboardingCompleted;
+        }
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // NextAuth calls this before redirecting the user after any sign-in,
+      // sign-out, or session callback page. We can't read the session from
+      // inside the redirect callback (it hasn't been written yet on the
+      // sign-in path), but we still need Google sign-ups to land on
+      // /onboarding instead of /dashboard so they can't skip collecting the
+      // org legal name.
+      //
+      // Strategy: if the configured callback is /dashboard (or any of the
+      // protected app routes), we replace it with /onboarding. The
+      // OnboardingForm itself already contains the "are we already done?"
+      // gate and forwards completed users to /dashboard, so even a user
+      // who has finished onboarding won't get stuck here.
+      const protectedRoots = [
+        "/dashboard",
+        "/wallet",
+        "/invoices",
+        "/payroll",
+        "/savings",
+        "/contacts",
+        "/buckets",
+        "/payment-links",
+        "/allocation-rules",
+        "/recurring",
+        "/insights",
+        "/settings",
+      ];
+      const isProtected = (candidate: string) => {
+        try {
+          const u = new URL(candidate, baseUrl);
+          return protectedRoots.some((r) => u.pathname === r || u.pathname.startsWith(`${r}/`));
+        } catch {
+          return false;
+        }
+      };
+      if (isProtected(url)) {
+        const onboardingUrl = new URL("/onboarding", baseUrl).toString();
+        return onboardingUrl;
+      }
+      // Default behaviour: allow absolute URLs that share our origin,
+      // otherwise bounce to the base URL root.
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === new URL(baseUrl).origin) return url;
+      } catch {
+        // fall through
+      }
+      return baseUrl;
     },
   },
 

@@ -88,9 +88,20 @@ export default function OnboardingForm() {
         return;
       }
 
-      // Flip the JWT's onboardingCompleted flag without a full re-login.
-      await update({ onboardingCompleted: true });
-      router.push("/dashboard");
+      // Refresh BOTH onboardingCompleted + kybStatus flags on the JWT via the
+      // `trigger === "update"` jwt callback in authOptions.callbacks.jwt — otherwise
+      // the client's token still shows kybStatus=PENDING until the user logs out
+      // and back in again, which means the KYB gate keeps blocking dashboard
+      // actions (transfers/wallet/etc.) would still say "under review".
+      const nextKybStatus =
+        (data.organization as { kybStatus?: string } | undefined)?.kybStatus ?? "APPROVED";
+      await update({ onboardingCompleted: true, kybStatus: nextKybStatus });
+      // router.push("/dashboard")
+      //
+      // Use router.replace so a later back button doesn't re-submit the form on POST
+      // also refresh() is required because the session cookie changed via update())
+      router.refresh();
+      router.replace("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {

@@ -17,6 +17,10 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.orgId) redirect("/login");
 
+  if (!session.user.onboardingCompleted) {
+    redirect("/onboarding");
+  }
+
   const [org, wallet] = await Promise.all([
     prisma.organization.findUnique({
       where: { id: session.user.orgId },
