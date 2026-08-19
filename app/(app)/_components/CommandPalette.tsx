@@ -448,7 +448,7 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
               open
             </span>
           </div>
-          <span>
+          <span className="hidden md:flex">
             Press{" "}
             <kbd className="rounded border border-[#E5E9F2] bg-[#F7F8FB] px-1.5 py-0.5 font-medium text-[10px] mx-1">
               ⌘

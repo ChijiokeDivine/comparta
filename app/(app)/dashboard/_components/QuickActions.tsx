@@ -39,7 +39,7 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
 
   return (
     <>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-nowrap md:flex-wrap gap-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory pb-1 md:pb-0 mx-2 md:mx-0 px-4 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none]">
         {ACTIONS.map((action, idx) => {
           const Icon = action.icon;
           const isActive = idx === 0 && hoveredIdx === null;
@@ -65,7 +65,7 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
             </>
           );
 
-          const baseClass = `flex flex-row items-center justify-center rounded-3xl border pl-1 pr-5 py-0 md:py-1 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] w-fit ${
+          const baseClass = `flex flex-row items-center justify-center rounded-3xl border pl-1 pr-5 py-0 md:py-1 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] w-fit shrink-0 snap-start ${
             action.hideOnMobile ? "hidden md:flex" : ""
           } ${
             isHighlighted
@@ -79,7 +79,7 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
                 key={action.label}
                 title="Available once your organization's KYB is approved"
                 aria-disabled="true"
-                className={`flex flex-row items-center justify-start gap-3 rounded-2xl border border-[#E5E9F2] bg-white px-4 py-3 text-left opacity-50 cursor-not-allowed w-fit ${
+                className={`flex flex-row items-center justify-start gap-3 rounded-2xl border border-[#E5E9F2] bg-white px-4 py-3 text-left opacity-50 cursor-not-allowed w-fit shrink-0 snap-start ${
                   action.hideOnMobile ? "hidden md:flex" : ""
                 }`}
               >

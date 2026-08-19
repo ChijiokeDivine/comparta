@@ -105,7 +105,7 @@ export default function KpiCards({
             </p>
           </div>
 
-          <div className="group relative">
+          <div className="group relative hidden md:inline-block">
             <div
               className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium cursor-help ${
                 kpis.yieldDataStale
