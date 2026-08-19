@@ -158,6 +158,24 @@ export default function RegisterForm() {
     resetMessages();
     setGoogleLoading(true);
     try {
+      let providers: Record<string, unknown> | null = null;
+      try {
+        const res = await fetch("/api/auth/providers", { cache: "no-store" });
+        if (res.ok) providers = await res.json().catch(() => null);
+      } catch {
+        // Network failure to read providers — fall through and let signIn
+        // attempt to run anyway.
+      }
+
+      if (providers && !("google" in providers)) {
+        setFormError(
+          "Google sign-up isn't available on this server right now. " +
+          "Please sign up with your email and password instead, or try again later."
+        );
+        setGoogleLoading(false);
+        return;
+      }
+
       await signIn("google", { callbackUrl: "/dashboard" });
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Google sign up failed");

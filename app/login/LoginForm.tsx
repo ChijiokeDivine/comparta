@@ -103,6 +103,26 @@ export default function LoginPage() {
     setFormError("");
     setGoogleLoading(true);
     try {
+      let providers: Record<string, unknown> | null = null;
+      try {
+        const res = await fetch("/api/auth/providers", { cache: "no-store" });
+        if (res.ok) providers = await res.json().catch(() => null);
+      } catch {
+        // Network failure to read providers — fall through and let signIn
+        // attempt to run anyway; if Google really is missing the POST will
+        // just redirect back to /login with callbackUrl, which is the old
+        // behaviour, so we're not making anything worse.
+      }
+
+      if (providers && !("google" in providers)) {
+        setFormError(
+          "Google sign-in isn't available on this server right now. " +
+          "Please use your email and password, or try again later."
+        );
+        setGoogleLoading(false);
+        return;
+      }
+
       await signIn("google", { callbackUrl: "/dashboard" });
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Google login failed. Please try again.");

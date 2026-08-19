@@ -127,12 +127,39 @@ function buildProviders() {
   ];
 
   // Only register Google provider only when the user has configured it -
+  // but log a loud warning at boot if they're missing so this is easy to
+  // spot in production server logs instead of appearing as a silent
+  // "redirect back to /login?callbackUrl=" with no error param.
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
     providers.push(
       GoogleProvider({
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
+        // Explicit endpoint config bypasses Google's
+        // .well-known/openid-configuration discovery round-trip.  Discovery
+        // is the source of occasional 400s / CORS / IPv6 timeouts on
+        // restricted server networks and on some bare-www domain splits
+        // where the issuer claim mismatches the discovered host.  These
+        // endpoints are Google's stable published URLs.
+        authorization: {
+          url: "https://accounts.google.com/o/oauth2/v2/auth",
+          params: {
+            scope: "openid email profile",
+            prompt: "consent",
+            access_type: "offline",
+            response_type: "code",
+          },
+        },
+        token: "https://oauth2.googleapis.com/token",
+        userinfo: "https://openidconnect.googleapis.com/v1/userinfo",
+        issuer: "https://accounts.google.com",
       })
+    );
+  } else if (process.env.NODE_ENV !== "test") {
+    console.warn(
+      "[auth] GOOGLE_CLIENT_ID and/or GOOGLE_CLIENT_SECRET are not set — " +
+      "Google OAuth provider is NOT registered.  signIn('google') will " +
+      "redirect back to /login?callbackUrl=... with no error param."
     );
   }
 
