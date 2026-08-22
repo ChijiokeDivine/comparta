@@ -65,13 +65,12 @@ import {
 
 import {
   getConditionalModule,
-  getEnv,
   getOperatorAddress,
   getStreamModule,
   isOnchainConfigured,
   OnchainNotConfiguredError,
 } from "@/lib/onchain";
-
+import { getEnv } from "@/lib/env";
 import type { RegisterConditionInput, CreateStreamParams } from "@/lib/onchain/types";
 
 export class ProtocolNotConfiguredError extends Error {}
@@ -481,10 +480,10 @@ export async function previewNonceForActor(
 // ---------------------------------------------------------------------------
 
 export type RegisterConditionsInput = {
-  conditions: Omit<RegisterConditionInput, "earliestRelease" | "deadline"> & {
+  conditions: (Omit<RegisterConditionInput, "earliestRelease" | "deadline"> & {
     earliestRelease?: string | Date;
     deadline?: string | Date;
-  }[];
+  })[];
 };
 
 export async function registerConditionsMirror(
@@ -516,7 +515,7 @@ export async function registerConditionsMirror(
           agreementId: agreement.id,
           conditionId: typeof c.conditionId === "string" ? c.conditionId : hexlify(c.conditionId as Uint8Array),
           amount: BigInt(c.amount),
-          beneficiaries: c.beneficiaries as unknown as Prisma.JsonValue,
+          beneficiaries: c.beneficiaries as unknown as Prisma.InputJsonValue,
           earliestRelease: c.earliestRelease && c.earliestRelease !== 0n ? unixToDate(BigInt(c.earliestRelease)) : undefined,
           deadline: c.deadline && c.deadline !== 0n ? unixToDate(BigInt(c.deadline)) : undefined,
         },
@@ -768,7 +767,8 @@ export async function attachStreamToAgreementMirror(
 export async function claimStreamMirror(ctx: Ctx, id: string) {
   assertConfigured();
   const agreement = await getAgreementDbRowOrThrow(ctx.orgId, id);
-  if (!agreement.stream) {
+  const stream = agreement.stream;
+  if (!stream) {
     throw new ProtocolValidationError("Agreement has no stream attached");
   }
   const claimable = await claimableAmount(agreement.agreementId as BytesLike);
@@ -787,7 +787,7 @@ export async function claimStreamMirror(ctx: Ctx, id: string) {
         action: "CLAIM_STREAM",
         txHash: tx.hash,
         amount: claimable,
-        counterparty: agreement.stream.recipientAddress,
+        counterparty: stream.recipientAddress,
       },
       db
     );
@@ -852,7 +852,7 @@ export async function syncAgreementFromChain(orgId: string, id: string) {
             agreementId: updated.id,
             conditionId: cid,
             amount: c.amount,
-            beneficiaries: c.beneficiaries as unknown as Prisma.JsonValue,
+            beneficiaries: c.beneficiaries as unknown as Prisma.InputJsonValue,
             authorized: c.authorized,
             released: c.released,
             releasedAmount: c.releasedAmount,
