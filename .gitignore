@@ -3,7 +3,6 @@
 # dependencies
 /node_modules
 contracts/node_modules
-/types/typechain-types
 /.pnp
 .pnp.*
 .yarn/*
