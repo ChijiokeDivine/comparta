@@ -102,7 +102,7 @@ export function useHideBalances(): Ctx {
 export function maskBalance(
   formatted: string,
   hide: boolean,
-  // _keepCurrency = false
+  _keepCurrency = false
 ): string {
   if (!hide) return formatted;
   const hasDollar = formatted.trimStart().startsWith("$");
