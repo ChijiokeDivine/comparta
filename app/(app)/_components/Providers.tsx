@@ -1,11 +1,12 @@
-// app/(app)/_components/Providers.tsx
+// app/providers.tsx
 "use client";
 
 import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
 import { HideBalancesProvider } from "./HideBalancesProvider";
+// or move HideBalancesProvider to app/_components/ to avoid importing from a route group
 
-export default function Providers({
+export function Providers({
   session,
   children,
 }: {

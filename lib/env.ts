@@ -60,6 +60,23 @@ const envSchema = z.object({
   // never raw addresses, account numbers, or entity secrets. Get a key
   // at https://console.groq.com.
   GROQ_API_KEY: z.string().min(1, "GROQ_API_KEY is required"),
+
+  // On-chain protocol deployment addresses. Record these after a real
+  // broadcast (never invent addresses). See lib/docs/ONCHAIN_ARCHITECTURE.md
+  // section 18 for the Hardhat deploy flow.
+  AGREEMENT_CORE_ADDRESS: z.string().optional(),
+  CONDITIONAL_MODULE_ADDRESS: z.string().optional(),
+  STREAM_MODULE_ADDRESS: z.string().optional(),
+  ONCHAIN_USDC_ADDRESS: z.string().optional(),
+
+  // EVM RPC endpoint for Arc Testnet / Mainnet.
+  ARC_TESTNET_RPC_URL: z.string().optional(),
+  ARC_MAINNET_RPC_URL: z.string().optional(),
+
+  // Operator wallet used by the backend to submit protocol transactions.
+  // In production, prefer Circle contract interaction or an HSM-backed
+  // signer; the raw PK path is for testnet only.
+  ONCHAIN_OPERATOR_PRIVATE_KEY: z.string().optional(),
 });
 
 type Env = z.infer<typeof envSchema>;

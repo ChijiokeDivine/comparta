@@ -121,14 +121,14 @@ Do **not** duplicate the Comparta database on-chain.
 
 ## 18. Arc Testnet Deployment (Hardhat)
 
-1. Node 18+ and npm.
-2. `cd contracts && npm install`
+1. Node 18+ and pnpm.
+2. `cd contracts && pnpm install`
 3. Set env: `PRIVATE_KEY`, `ARC_TESTNET_RPC_URL`, optional `USDC_ADDRESS`, `PROTOCOL_ADMIN`.
 4. Deploy:
    ```bash
    npx hardhat run scripts/deploy.ts --network arcTestnet
    # or
-   npm run deploy:arc
+   pnpm run deploy:arc
    ```
 5. Record addresses printed by the script into env:
    - `AGREEMENT_CORE_ADDRESS`
@@ -141,13 +141,13 @@ Do **not** duplicate the Comparta database on-chain.
 Local smoke deploy:
 
 ```bash
-npm run deploy:local
+pnpm run deploy:local
 ```
 
 Tests:
 
 ```bash
-npm test
+pnpm test
 ```
 
 ## 19. Comparta Integration
@@ -178,7 +178,7 @@ npm test
 
 ## Recommended Next Steps
 
-1. `cd contracts && npm install && npm test` — confirm green suite.
+1. `cd contracts && pnpm install && pnpm test` — confirm green suite.
 2. Deploy to Arc Testnet and record real addresses.
 3. Add Prisma models for agreement mirrors + action status machine.
 4. Wire event indexer (or extend existing webhook/reconciliation workers).

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
-import Providers from "./_components/Providers";
+import { Providers } from "./_components/Providers";
 import AppShell from "./_components/AppShell";
 
 const SIGNOUT_REDIRECT = "/api/auth/signout?callbackUrl=%2Flogin";

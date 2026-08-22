@@ -20,6 +20,16 @@ function useMounted() {
   );
 }
 
+function truncateEmail(email: string, maxLocalStart = 5, minLength = 20): string {
+  if (email.length <= minLength) return email;
+  const atIndex = email.indexOf("@");
+  if (atIndex === -1) return email;
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex);
+  if (local.length <= maxLocalStart) return email;
+  return `${local.slice(0, maxLocalStart)}…${domain}`;
+}
+
 // Shown after a Google sign-up/sign-in for a user whose session has
 // onboardingCompleted === false (see auth.ts). Google only gives us email
 // + name, so this collects the org/business details the credentials
@@ -171,7 +181,7 @@ export default function OnboardingForm() {
             </h1>
             <p className="text-[#7C8CA6] mb-8 md:mb-10 text-sm md:text-base leading-relaxed">
               {session?.user?.email
-                ? `You're signed in as ${session.user.email}. Just need a couple more details.`
+                ? `You're signed in as ${truncateEmail(session.user.email)}. Just need a couple more details.`
                 : "Just a couple more details to get you started."}
             </p>
           </div>

@@ -301,10 +301,9 @@ model Organization {
   defaultLedgerAccountId String?
   kybStatus              KybStatus         @default(PENDING)
   kybApprovedAt          DateTime?
-  kybApprovedBy          String? // admin user id, manual-approval stub
+  kybApprovedBy          String?
 
-  // Circle references
-  circleEntityId         String? // Circle-side entity/customer reference, if applicable
+  circleEntityId         String?
 
   users                  User[]
   wallets                Wallet[]
@@ -324,6 +323,13 @@ model Organization {
   spendingAnomalies      SpendingAnomaly[]
   multisigSigners        MultisigSigner[]
   multisigTreasury       MultisigTreasury?
+
+  // Phase 10 — on-chain protocol mirror (required opposite sides)
+  onchainAgreements        OnchainAgreement[]        @relation("OrgOnchainAgreements")
+  onchainAgreementActions  OnchainAgreementAction[]  @relation("OrgOnchainAgreementActions")
+  onchainConditions        OnchainCondition[]        @relation("OrgOnchainConditions")
+  onchainStreams           OnchainStream[]           @relation("OrgOnchainStreams")
+
   defaultLedgerAccount   LedgerAccount?    @relation("OrganizationDefaultLedgerAccount", fields: [defaultLedgerAccountId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -1694,4 +1700,206 @@ enum MultisigProposalStatus {
   PENDING
   EXECUTED
   CANCELLED
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PHASE 10 — ON-CHAIN PROTOCOL MIRROR TABLES (lib/docs/ONCHAIN_ARCHITECTURE.md §21)
+// ─────────────────────────────────────────────────────────────────────────
+//
+// These tables are the local "materialized view" of the on-chain protocol
+// state. The authoritative source of truth is ALWAYS the contracts (never
+// these rows). Every row is written either:
+//   1. optimistically at API call time (status = PENDING, txHash stored) —
+//      then advanced to CONFIRMED / FAILED when the tx receipt lands; OR
+//   2. purely from on-chain event ingestion (indexer/crawler) — rows are
+//      upserted by (chain, agreementId) etc., never blindly inserted, so
+//      replaying events is always safe.
+//
+// Write posture: every row append-only where possible; status fields only
+// ever transition FORWARD (PENDING → CONFIRMED, never back).
+
+enum OnchainAgreementStatus {
+  CREATED
+  FUNDED
+  ACTIVE
+  SETTLED
+  CANCELLED
+  EXPIRED
+}
+
+enum OnchainAgreementModule {
+  NONE
+  CONDITIONAL
+  STREAM
+}
+
+enum OnchainProtocolAction {
+  CREATE
+  FUND
+  ACTIVATE
+  CANCEL
+  EXPIRE
+  RELEASE
+  REFUND
+  GRANT_AUTH
+  REVOKE_AUTH
+  REGISTER_CONDITION
+  AUTHORIZE_CONDITION
+  RELEASE_CONDITION
+  CREATE_STREAM
+  CLAIM_STREAM
+  CANCEL_STREAM
+}
+
+// Header row per agreement. One row per (chain, agreementId).
+// agreementId is a bytes32 on-chain; stored as hex string "0x...".
+model OnchainAgreement {
+  id          String   @id @default(cuid())
+  orgId       String
+  organization Organization @relation("OrgOnchainAgreements", fields: [orgId], references: [id], onDelete: Cascade)
+
+  chain Chain @default(ARC_TESTNET)
+  agreementId String // 0x-prefixed hex bytes32 — matches the contract's agreementId
+  @@unique([chain, agreementId])
+
+  payerAddress   String // 0x (Arc address of payer / source org wallet)
+  tokenAddress   String // 0x (USDC / EURC etc. — mirror of agreement.token field)
+  moduleType     OnchainAgreementModule @default(NONE)
+  moduleAddress  String? // set if moduleType != NONE
+  status         OnchainAgreementStatus @default(CREATED)
+
+  principal    BigInt // smallest-unit token amount (6 decimals for USDC)
+  deposited    BigInt @default(0)
+  released     BigInt @default(0)
+
+  startTime   DateTime // unix seconds on-chain, stored as native DateTime
+  endTime     DateTime
+  activatedAt DateTime?
+  metadataHash String? // 0x-prefixed bytes32 if present (points at off-chain JSON)
+
+  // Pointer back to product-level context that created this agreement, so
+  // the invoice/payroll pages can join immediately without an extra lookup.
+  referenceType LedgerReferenceType? // e.g. INVOICE / PAYROLL_RUN / INTERNAL_TRANSFER
+  referenceId   String?
+
+  // Latest onchain interaction that moved this row's status — useful for
+  // the UI "last updated" line without pulling separate action history.
+  lastTxHash      String?
+  lastTxStatus    OnchainTxStatus? @default(PENDING)
+  lastTxSubmittedAt DateTime?
+  lastTxConfirmedAt DateTime?
+
+  conditions OnchainCondition[] @relation("AgreementConditions")
+  stream     OnchainStream?     @relation("AgreementStream")
+  actions    OnchainAgreementAction[] @relation("AgreementActions")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, status])
+  @@index([orgId, createdAt])
+  @@index([payerAddress])
+  @@map("onchain_agreements")
+}
+
+// Append-only action log for an agreement. Every protocol call (write or
+// on-chain event) produces one row. Also records the identity of the
+// Comparta user who initiated the action — critical for audit.
+model OnchainAgreementAction {
+  id           String   @id @default(cuid())
+  orgId        String
+  organization Organization @relation("OrgOnchainAgreementActions", fields: [orgId], references: [id], onDelete: Cascade)
+
+  agreementId   String
+  agreement     OnchainAgreement @relation("AgreementActions", fields: [agreementId], references: [id], onDelete: Cascade)
+
+  action OnchainProtocolAction
+  actorUserId String? // which Comparta User initiated this (null for pure on-chain events read by the indexer)
+  actorAddress String? // 0x on-chain signer address, when relevant (e.g. sig-auth)
+
+  txHash       String?
+  txStatus     OnchainTxStatus @default(PENDING)
+
+  amount        BigInt?  // when relevant — fund, release, claim amounts
+  counterparty  String?  // 0x address for release / claim beneficiaries etc.
+  conditionId   String?  // 0x bytes32 for CONDITION-family actions
+  rawEventPayload Json?  // verbatim decoded event args — always retained for forensics
+  errorMessage  String?  // set if txStatus = FAILED
+
+  blockNumber Int?
+  blockHash   String?
+  logIndex    Int?
+
+  createdAt      DateTime @default(now())
+  submittedAt    DateTime?
+  confirmedAt    DateTime?
+  failedAt       DateTime?
+
+  @@index([agreementId, createdAt])
+  @@index([orgId, action])
+  @@index([txHash])
+  @@map("onchain_agreement_actions")
+}
+
+// Per-condition row — one row per (agreementId, conditionId). Mirrors
+// ConditionalPaymentModule.Condition struct plus the resolved-onchain flag.
+model OnchainCondition {
+  id          String   @id @default(cuid())
+  orgId       String
+  organization Organization @relation("OrgOnchainConditions", fields: [orgId], references: [id], onDelete: Cascade)
+
+  agreementId String
+  agreement   OnchainAgreement @relation("AgreementConditions", fields: [agreementId], references: [id], onDelete: Cascade)
+
+  conditionId String // 0x bytes32
+  @@unique([agreementId, conditionId])
+
+  amount        BigInt  // total to be split equally among beneficiaries
+  beneficiaries Json    // ordered string[] of 0x addresses
+  earliestRelease DateTime?
+  deadline        DateTime?
+
+  authorized    Boolean  @default(false)
+  released      Boolean  @default(false)
+  releasedAmount BigInt @default(0)
+
+  authorizedByUserId   String?
+  authorizedTxHash     String?
+  authorizedAt         DateTime?
+  releasedTxHash       String?
+  releasedAt           DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agreementId, authorized, released])
+  @@map("onchain_conditions")
+}
+
+// Per-stream row — 0 or 1 per agreement (a given agreement is either a
+// conditional agreement or a streaming agreement, never both). Mirrors
+// StreamModule.Stream struct plus off-chain-progress snapshots for UI.
+model OnchainStream {
+  id          String   @id @default(cuid())
+  orgId       String
+  organization Organization @relation("OrgOnchainStreams", fields: [orgId], references: [id], onDelete: Cascade)
+
+  agreementId String @unique
+  agreement   OnchainAgreement @relation("AgreementStream", fields: [agreementId], references: [id], onDelete: Cascade)
+
+  recipientAddress String
+  tokenAddress     String
+  deposited        BigInt @default(0)
+  claimed          BigInt @default(0)
+  startTime        DateTime
+  endTime          DateTime
+  cliff            DateTime?
+  cancelled        Boolean  @default(false)
+  cancelledAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([recipientAddress])
+  @@map("onchain_streams")
 }

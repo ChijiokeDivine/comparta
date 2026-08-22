@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 
 const STORAGE_KEY = "comparta.hideBalances";
 
@@ -12,42 +18,61 @@ type Ctx = {
 
 const HideBalancesContext = createContext<Ctx | null>(null);
 
-export function HideBalancesProvider({ children }: { children: React.ReactNode }) {
-  const [hideBalances, setHideBalancesState] = useState<boolean>(false);
-  const [mounted, setMounted] = useState(false);
+function readHideBalances(): boolean {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw === null) return false;
+    return raw === "1" || raw === "true";
+  } catch {
+    return false;
+  }
+}
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw !== null) {
-        setHideBalancesState(raw === "1" || raw === "true");
-      }
-    } catch {
-      // ignore storage access errors
-    } finally {
-      setMounted(true);
-    }
-  }, []);
+function subscribe(onStoreChange: () => void) {
+  // Same-tab updates via our setters dispatch this event
+  const handler = () => onStoreChange();
+  window.addEventListener("comparta-hide-balances", handler);
+  // Cross-tab updates
+  window.addEventListener("storage", handler);
+  return () => {
+    window.removeEventListener("comparta-hide-balances", handler);
+    window.removeEventListener("storage", handler);
+  };
+}
+
+function getServerSnapshot() {
+  // SSR + first client render must match
+  return false;
+}
+
+export function HideBalancesProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const hideBalances = useSyncExternalStore(
+    subscribe,
+    readHideBalances,
+    getServerSnapshot
+  );
 
   const setHideBalances = useCallback((v: boolean) => {
-    setHideBalancesState(v);
     try {
       window.localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
     } catch {
       // no-op
     }
+    window.dispatchEvent(new Event("comparta-hide-balances"));
   }, []);
 
   const toggleHideBalances = useCallback(() => {
-    setHideBalancesState((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-      } catch {
-        // no-op
-      }
-      return next;
-    });
+    const next = !readHideBalances();
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+    } catch {
+      // no-op
+    }
+    window.dispatchEvent(new Event("comparta-hide-balances"));
   }, []);
 
   const value = useMemo<Ctx>(
@@ -57,7 +82,7 @@ export function HideBalancesProvider({ children }: { children: React.ReactNode }
 
   return (
     <HideBalancesContext.Provider value={value}>
-      {mounted ? children : children}
+      {children}
     </HideBalancesContext.Provider>
   );
 }
@@ -77,12 +102,10 @@ export function useHideBalances(): Ctx {
 export function maskBalance(
   formatted: string,
   hide: boolean,
-  keepCurrency = false
+  // _keepCurrency = false
 ): string {
   if (!hide) return formatted;
-  const hasDollar = formatted.startsWith("$");
+  const hasDollar = formatted.trimStart().startsWith("$");
   const masked = "•••••";
-  if (hasDollar && keepCurrency) return `$${masked}`;
-  if (hasDollar) return `$${masked}`;
-  return masked;
+  return hasDollar ? `$${masked}` : masked;
 }
