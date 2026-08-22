@@ -23,6 +23,7 @@ import {
   ProtocolValidationError,
 } from "@/lib/onchain-agreements/service";
 
+import type { BytesLike } from "ethers";
 import { claimableAmount, getStream as onchainGetStream } from "@/lib/onchain/stream";
 
 type RouteParams = { params: Promise<{ id: string }> };
