@@ -58,7 +58,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
     let claimable = "0";
     try {
-      const amount = await claimableAmount(agreement.agreementId as any);
+      const amount = await claimableAmount(agreement.agreementId as BytesLike);
       const { toDecimalString } = await import("@/lib/circle/amount");
       claimable = toDecimalString(amount);
     } catch (_) {

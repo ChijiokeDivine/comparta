@@ -109,7 +109,9 @@ function unixToDate(ts: bigint): Date {
   return new Date(Number(ts) * 1000);
 }
 
-function dateToUnix(d: Date | string): bigint {
+function dateToUnix(d: Date | string | bigint | number): bigint {
+  if (typeof d === "bigint") return d;
+  if (typeof d === "number") return BigInt(Math.floor(d));
   const dt = typeof d === "string" ? new Date(d) : d;
   return BigInt(Math.floor(dt.getTime() / 1000));
 }
@@ -711,12 +713,16 @@ export async function createStreamAgreementMirror(
 export async function attachStreamToAgreementMirror(
   ctx: Ctx,
   id: string,
-  input: Omit<CreateStreamParams, "agreementId"> & { cliff?: string | Date }
+  input: Omit<CreateStreamParams, "agreementId" | "startTime" | "endTime" | "cliff"> & {
+    startTime: Date | string | bigint | number;
+    endTime: Date | string | bigint | number;
+    cliff?: Date | string | bigint | number;
+  }
 ) {
   assertConfigured();
   const agreement = await getAgreementDbRowOrThrow(ctx.orgId, id);
-  const startTime = BigInt(input.startTime.toString());
-  const endTime = BigInt(input.endTime.toString());
+  const startTime = dateToUnix(input.startTime);
+  const endTime = dateToUnix(input.endTime);
   const cliff = input.cliff ? dateToUnix(input.cliff) : startTime;
 
   const tx = await onchainCreateStream({
