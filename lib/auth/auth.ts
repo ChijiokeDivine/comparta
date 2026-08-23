@@ -231,6 +231,13 @@ export const authOptions: AuthOptions = {
       }
 
       if (user) {
+        // user.id is the Prisma User.id primary key. Persist it on
+        // token.id so the session callback can rely on it for the
+        // lifetime of the JWT. token.sub is the OAuth provider's own
+        // subject ID (e.g. Google OpenID sub) — do NOT use that as
+        // the DB row key, or every user.update call on the OAuth
+        // path will miss and throw "No record was found for an update".
+        token.id = user.id;
         token.orgId = user.orgId;
         token.role = user.role;
         token.onboardingCompleted = user.onboardingCompleted;
@@ -250,8 +257,11 @@ export const authOptions: AuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
+      if (session.user) {
+        // Prefer token.id (Prisma PK we stamped on sign-in / authorize)
+        // over token.sub (provider-specific OAuth identifier).
+        const dbUserId = token.id ?? token.sub;
+        if (dbUserId) session.user.id = dbUserId as string;
         if (token.orgId) session.user.orgId = token.orgId;
         if (token.role) session.user.role = token.role;
         if (token.kybStatus) session.user.kybStatus = token.kybStatus;
