@@ -8,6 +8,6 @@ export default defineConfig({
   },
   // This ensures CLI engines safely use the direct port
   datasource: {
-    url: env("DATABASE_URL"),
+    url: env("DIRECT_URL"),
   },
 });
