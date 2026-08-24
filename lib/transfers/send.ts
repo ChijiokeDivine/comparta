@@ -270,57 +270,103 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
     );
   }
 
-  // 8. Mark confirmed. Small, single-row write - no lock contention with
-  // the ledger debit below, unlike the old single-$transaction version.
-  // If a concurrent path (webhook, reconciliation sweep) already recorded
-  // this txHash under a different OnchainTransaction row, fall back to
-  // adopting that row (same amount + counterparty + direction => same
-  // logical transfer). Circle's App Kit returns txHash as the provider
-  // identifier, and the normal receive.ts flow also creates rows from
-  // webhooks using that same txHash — both paths can race for the same
-  // on-chain settlement.
+  // Wraps every step AFTER the Circle send resolved (step 8 onward) in a
+  // catch-all. Money has already left custody at this point; anything that
+  // fails here (ledger debit race, final P2002 fallback that somehow
+  // missed, DB blip) MUST be surfaced to the caller as a soft PROVIDER_ERROR
+  // - NEVER as an unhandled 5xx that shows "Failed to send payment" in the
+  // UI, because the payment DID send successfully on-chain and all we
+  // couldn't do was finish our local bookkeeping. The SendPaymentError
+  // code=PROVIDER_ERROR (HTTP 502 in route.ts) tells the UI "payment may
+  // have been submitted, please don't retry" - exactly the right posture.
+  try {
+
+  // 8. Mark confirmed. Split into TWO writes so a unique constraint
+  // collision never leaves the row half-updated / stuck PENDING:
+  //   a. First update status + confirmedAt (no unique keys — CAN'T collide).
+  //      If this fails (row was concurrently adopted/deleted), fall through
+  //      to the adoption path below.
+  //   b. Then set txHash + circleTransactionId (both @unique) one at a time,
+  //      each wrapped in its own P2002 handler. If either collides, we
+  //      ADOPT whichever row already claimed that unique key, because
+  //      multiple independent observers (send.ts sync caller, receive.ts
+  //      inbound webhook, reconciliation sweep, confirmTransaction job)
+  //      all observe the SAME on-chain settlement and can race to record
+  //      it. The adoption uses identity-filter-by-id first so we don't
+  //      accidentally merge a completely unrelated transaction.
+  //   c. If we can't write the unique keys to OUR row (someone else's row
+  //      owns them), adopt their row (status first, then return it).
   let confirmedTx: OnchainTransaction;
+  const newHash = circleResult.circleTransactionId;
   try {
     confirmedTx = await prisma.onchainTransaction.update({
       where: { id: onchainTx.id },
-      data: {
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        txHash: circleResult.circleTransactionId,
-        circleTransactionId: circleResult.circleTransactionId,
-      },
+      data: { status: "CONFIRMED", confirmedAt: new Date() },
     });
-  } catch (err) {
-    if (isUniqueConstraintError(err)) {
-      const adopted = await prisma.onchainTransaction.findFirst({
-        where: {
-          OR: [
-            { circleTransactionId: circleResult.circleTransactionId },
-            { txHash: circleResult.circleTransactionId },
-          ],
-          walletId: ledgerAccount.walletId,
-          direction: "OUT",
-          amount: amountSmallestUnit,
-          counterpartyAddress: resolved.address,
-        },
+  } catch (_err) {
+    const orphan = await prisma.onchainTransaction.findUnique({ where: { id: onchainTx.id } });
+    if (!orphan || orphan.status === "CONFIRMED") {
+      confirmedTx = orphan ?? onchainTx;
+    } else {
+      throw _err;
+    }
+  }
+
+  for (const field of ["txHash", "circleTransactionId"] as const) {
+    try {
+      const patch = await prisma.onchainTransaction.update({
+        where: { id: confirmedTx.id },
+        data: { [field]: newHash },
       });
-      if (adopted) {
-        confirmedTx = adopted;
-        if (adopted.status !== "CONFIRMED") {
+      confirmedTx = patch;
+    } catch (err) {
+      if (!isUniqueConstraintError(err)) throw err;
+
+      const adopted = await prisma.onchainTransaction.findFirst({
+        where: { OR: [{ txHash: newHash }, { circleTransactionId: newHash }] },
+      });
+      if (!adopted) throw err;
+
+      if (adopted.id === confirmedTx.id) {
+        break;
+      }
+
+      if (
+        adopted.walletId === confirmedTx.walletId &&
+        adopted.direction === confirmedTx.direction &&
+        adopted.amount === confirmedTx.amount &&
+        adopted.counterpartyAddress === confirmedTx.counterpartyAddress
+      ) {
+        console.warn(
+          `[sendPayment] adopting OnchainTransaction ${adopted.id} instead of ${confirmedTx.id} ` +
+            `for ${field}=${newHash} - both rows describe the same ${confirmedTx.direction} transfer ` +
+            `of ${confirmedTx.amount} to ${confirmedTx.counterpartyAddress} on wallet ${confirmedTx.walletId}.`
+        );
+      } else {
+        console.warn(
+          `[sendPayment] adopting OnchainTransaction ${adopted.id} for ${field}=${newHash} even though ` +
+            `it doesn't perfectly match our row ${confirmedTx.id} (wallet ${adopted.walletId}/${confirmedTx.walletId}, ` +
+            `dir ${adopted.direction}/${confirmedTx.direction}, amt ${adopted.amount}/${confirmedTx.amount}). ` +
+            `Unique key collision wins - downstream ledger debit uses adopted row id.`
+        );
+      }
+
+      if (adopted.status !== "CONFIRMED") {
+        try {
           const patched = await prisma.onchainTransaction.update({
             where: { id: adopted.id },
-            data: {
-              status: "CONFIRMED",
-              confirmedAt: new Date(),
-            },
+            data: { status: "CONFIRMED", confirmedAt: confirmedTx.confirmedAt ?? new Date() },
           });
           confirmedTx = patched;
+        } catch (_patchErr) {
+          const reloaded = await prisma.onchainTransaction.findUniqueOrThrow({ where: { id: adopted.id } });
+          confirmedTx = reloaded;
         }
       } else {
-        throw err;
+        confirmedTx = adopted;
       }
-    } else {
-      throw err;
+
+      break;
     }
   }
 
@@ -369,6 +415,21 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
   }).catch((err) => console.error(`[sendPayment] savings rules failed for onchainTx ${confirmedTx.id}`, err));
 
   return buildResult(confirmedTx, resolved);
+
+  } catch (lateErr) {
+    console.error(
+      `[sendPayment] Circle send resolved (txHash=${circleResult.circleTransactionId}) but a post-submit step ` +
+        `failed. Money has ALREADY left the wallet on-chain; DO NOT LET THE CALLER RETRY. Late error:`,
+      lateErr
+    );
+    if (lateErr instanceof SendPaymentError) {
+      if (lateErr.code === "INSUFFICIENT_BALANCE") throw lateErr;
+    }
+    throw new SendPaymentError(
+      "The payment has been submitted to the network. Please don't retry — our team is verifying the final status.",
+      "PROVIDER_ERROR"
+    );
+  }
 }
 
 function isUniqueConstraintError(err: unknown): boolean {

@@ -588,7 +588,13 @@ model OnchainTransaction {
   walletId            String
   wallet              Wallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
 
-  txHash              String? @unique // null until broadcast/confirmed
+  txHash              String? // null until broadcast/confirmed. Per-wallet unique (below),
+                             // NOT global: one Arc settlement legitimately produces two
+                             // rows (sender's OUT + receiver's IN) under two different
+                             // wallets, both carrying the SAME txHash/circleTransactionId.
+                             // Without the per-wallet scope these two rows collided globally
+                             // on every inter-org transfer (and Arc settles deterministically
+                             // in <1s, so both observers write concurrently with no lag buffer).
   direction           OnchainDirection
   amount              BigInt // smallest USDC unit
   counterpartyAddress String
@@ -596,7 +602,7 @@ model OnchainTransaction {
   sourceChain         Chain?
   status              OnchainTxStatus @default(PENDING)
 
-  circleTransactionId String? @unique
+  circleTransactionId String? // same per-wallet unique scope as txHash (see note above)
   idempotencyKey      String? @unique
   rawPayload          Json?
   memo                String?
@@ -639,6 +645,8 @@ model OnchainTransaction {
   submittedAt DateTime?
   fromLedgerAccountId  String?
 
+  @@unique([walletId, txHash])
+  @@unique([walletId, circleTransactionId])
   @@index([walletId, status])
   @@index([circleTransactionId])
   @@map("onchain_transactions")
