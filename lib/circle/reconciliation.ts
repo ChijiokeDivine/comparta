@@ -104,15 +104,33 @@ async function confirmFromMatch(
 ): Promise<void> {
   // Conditional update, not a blind one - if a concurrent sweep or a
   // late-arriving webhook already resolved this row, don't clobber it.
-  const claim = await prisma.onchainTransaction.updateMany({
-    where: { id: tx.id, status: "PENDING" },
-    data: {
-      status: "CONFIRMED",
-      confirmedAt: new Date(),
-      txHash: match.txHash ?? tx.txHash,
-      circleTransactionId: match.id ?? match.txHash ?? tx.circleTransactionId,
-    },
-  });
+  let claim: { count: number };
+  try {
+    claim = await prisma.onchainTransaction.updateMany({
+      where: { id: tx.id, status: "PENDING" },
+      data: {
+        status: "CONFIRMED",
+        confirmedAt: new Date(),
+        txHash: match.txHash ?? tx.txHash,
+        circleTransactionId: match.id ?? match.txHash ?? tx.circleTransactionId,
+      },
+    });
+  } catch (err) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code?: string }).code === "P2002"
+    ) {
+      console.warn(
+        `[reconciliation] onchainTx ${tx.id} txHash/circleTransactionId collision on reconciliation update - ` +
+        `match.id=${match.id}, match.txHash=${match.txHash}. A different OnchainTransaction row already ` +
+        `claimed this unique key. Skipping - funds are already recorded elsewhere.`
+      );
+      return;
+    }
+    throw err;
+  }
   if (claim.count === 0) return; // already resolved elsewhere
 
   const confirmedTx = await prisma.onchainTransaction.findUniqueOrThrow({ where: { id: tx.id } });

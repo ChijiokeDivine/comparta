@@ -238,7 +238,8 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
       ledgerAccount.wallet.arcAddress,
       resolved.address,
       amountSmallestUnit,
-      ledgerAccount.wallet.chain
+      ledgerAccount.wallet.chain,
+      idempotencyKey
     );
   } catch (err) {
     if (err instanceof CircleApiError) {
@@ -271,15 +272,57 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
 
   // 8. Mark confirmed. Small, single-row write - no lock contention with
   // the ledger debit below, unlike the old single-$transaction version.
-  const confirmedTx = await prisma.onchainTransaction.update({
-    where: { id: onchainTx.id },
-    data: {
-      status: "CONFIRMED",
-      confirmedAt: new Date(),
-      txHash: circleResult.circleTransactionId,
-      circleTransactionId: circleResult.circleTransactionId,
-    },
-  });
+  // If a concurrent path (webhook, reconciliation sweep) already recorded
+  // this txHash under a different OnchainTransaction row, fall back to
+  // adopting that row (same amount + counterparty + direction => same
+  // logical transfer). Circle's App Kit returns txHash as the provider
+  // identifier, and the normal receive.ts flow also creates rows from
+  // webhooks using that same txHash — both paths can race for the same
+  // on-chain settlement.
+  let confirmedTx: OnchainTransaction;
+  try {
+    confirmedTx = await prisma.onchainTransaction.update({
+      where: { id: onchainTx.id },
+      data: {
+        status: "CONFIRMED",
+        confirmedAt: new Date(),
+        txHash: circleResult.circleTransactionId,
+        circleTransactionId: circleResult.circleTransactionId,
+      },
+    });
+  } catch (err) {
+    if (isUniqueConstraintError(err)) {
+      const adopted = await prisma.onchainTransaction.findFirst({
+        where: {
+          OR: [
+            { circleTransactionId: circleResult.circleTransactionId },
+            { txHash: circleResult.circleTransactionId },
+          ],
+          walletId: ledgerAccount.walletId,
+          direction: "OUT",
+          amount: amountSmallestUnit,
+          counterpartyAddress: resolved.address,
+        },
+      });
+      if (adopted) {
+        confirmedTx = adopted;
+        if (adopted.status !== "CONFIRMED") {
+          const patched = await prisma.onchainTransaction.update({
+            where: { id: adopted.id },
+            data: {
+              status: "CONFIRMED",
+              confirmedAt: new Date(),
+            },
+          });
+          confirmedTx = patched;
+        }
+      } else {
+        throw err;
+      }
+    } else {
+      throw err;
+    }
+  }
 
   // 9. Debit the ledger. recordEntry is idempotent on
   // [referenceType, referenceId, direction] - safe even if a previous

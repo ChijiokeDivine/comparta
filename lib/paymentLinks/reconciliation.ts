@@ -291,24 +291,63 @@ export async function reconcileDepositWalletPayment(
   }
 
   const result = await prisma.$transaction(async (tx: Tx) => {
-    const onchainTx = await tx.onchainTransaction.create({
-      data: {
+    let onchainTxId: string;
+
+    const existingSweepTx = await tx.onchainTransaction.findFirst({
+      where: {
+        OR: [
+          { circleTransactionId: sweep.circleTransactionId },
+          { txHash: sweep.circleTransactionId },
+        ],
         walletId: treasury.id,
         direction: "IN",
         amount: input.amountReceived,
-        counterpartyAddress: input.depositAddress,
-        chain: treasury.chain,
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        txHash: sweep.circleTransactionId,
-        circleTransactionId: sweep.circleTransactionId,
-        memo: `Swept from payment-link deposit wallet ${input.depositAddress} for checkout session ${session.id}`,
       },
+      select: { id: true },
     });
+
+    if (existingSweepTx) {
+      onchainTxId = existingSweepTx.id;
+    } else {
+      try {
+        const onchainTx = await tx.onchainTransaction.create({
+          data: {
+            walletId: treasury.id,
+            direction: "IN",
+            amount: input.amountReceived,
+            counterpartyAddress: input.depositAddress,
+            chain: treasury.chain,
+            status: "CONFIRMED",
+            confirmedAt: new Date(),
+            txHash: sweep.circleTransactionId,
+            circleTransactionId: sweep.circleTransactionId,
+            memo: `Swept from payment-link deposit wallet ${input.depositAddress} for checkout session ${session.id}`,
+          },
+        });
+        onchainTxId = onchainTx.id;
+      } catch (err) {
+          if (
+            typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "P2002") {
+            const collided = await tx.onchainTransaction.findFirst({
+              where: {
+                OR: [
+                  { circleTransactionId: sweep.circleTransactionId },
+                  { txHash: sweep.circleTransactionId },
+                ],
+              },
+              select: { id: true },
+            });
+            if (!collided) throw err;
+            onchainTxId = collided.id;
+          } else {
+            throw err;
+          }
+        }
+    }
 
     return confirmPaymentLinkPayment(tx, {
       paymentLinkPaymentId: session.id,
-      onchainTransactionId: onchainTx.id,
+      onchainTransactionId: onchainTxId,
       amountPaid: input.amountReceived,
     });
   });
@@ -390,37 +429,90 @@ export async function issueWrongAmountRefund(
 
   try {
     await prisma.$transaction(async (tx: Tx) => {
-      const refundTx = await tx.onchainTransaction.create({
-        data: {
-          walletId: wallet.id,
-          direction: "OUT",
-          amount: session.amountPaid!,
-          counterpartyAddress: session.payerIdentifier!,
-          chain: wallet.chain,
-          sourceChain: wallet.chain,
-          status: "CONFIRMED",
-          confirmedAt: new Date(),
-          txHash: circleResult.circleTransactionId,
-          referenceType: "ADJUSTMENT",
-          referenceId: paymentLinkPaymentId,
-          memo: `Refund: wrong amount sent to payment link checkout session ${paymentLinkPaymentId}`,
-          idempotencyKey,
-          circleTransactionId: circleResult.circleTransactionId,
+      let refundTxId: string;
+
+      const existingRefund = await tx.onchainTransaction.findFirst({
+        where: {
+          OR: [
+            { idempotencyKey },
+            { circleTransactionId: circleResult.circleTransactionId },
+            { txHash: circleResult.circleTransactionId },
+          ],
         },
+        select: { id: true },
       });
 
-      await recordEntry(
-        {
-          ledgerAccountId: defaultLedgerAccountId,
-          amount: session.amountPaid!,
-          direction: "DEBIT",
-          referenceType: "ONCHAIN_TX",
-          referenceId: refundTx.id,
-        },
-        tx
-      );
+      if (existingRefund) {
+        refundTxId = existingRefund.id;
+      } else {
+        try {
+          const refundTx = await tx.onchainTransaction.create({
+            data: {
+              walletId: wallet.id,
+              direction: "OUT",
+              amount: session.amountPaid!,
+              counterpartyAddress: session.payerIdentifier!,
+              chain: wallet.chain,
+              sourceChain: wallet.chain,
+              status: "CONFIRMED",
+              confirmedAt: new Date(),
+              txHash: circleResult.circleTransactionId,
+              referenceType: "ADJUSTMENT",
+              referenceId: paymentLinkPaymentId,
+              memo: `Refund: wrong amount sent to payment link checkout session ${paymentLinkPaymentId}`,
+              idempotencyKey,
+              circleTransactionId: circleResult.circleTransactionId,
+            },
+          });
+          refundTxId = refundTx.id;
+        } catch (err) {
+          if (
+            typeof err === "object" &&
+            err !== null &&
+            "code" in err &&
+            (err as { code?: string }).code === "P2002"
+          ) {
+            const collided = await tx.onchainTransaction.findFirst({
+              where: {
+                OR: [
+                  { idempotencyKey },
+                  { circleTransactionId: circleResult.circleTransactionId },
+                  { txHash: circleResult.circleTransactionId },
+                ],
+              },
+              select: { id: true },
+            });
+            if (!collided) throw err;
+            refundTxId = collided.id;
+          } else {
+            throw err;
+          }
+        }
+      }
 
-      return refundTx;
+      const ledgerEntryExists = await tx.ledgerEntry.findFirst({
+        where: {
+          referenceType: "ONCHAIN_TX",
+          referenceId: refundTxId,
+          direction: "DEBIT",
+        },
+        select: { id: true },
+      });
+
+      if (!ledgerEntryExists) {
+        await recordEntry(
+          {
+            ledgerAccountId: defaultLedgerAccountId,
+            amount: session.amountPaid!,
+            direction: "DEBIT",
+            referenceType: "ONCHAIN_TX",
+            referenceId: refundTxId,
+          },
+          tx
+        );
+      }
+
+      return refundTxId;
     });
 
     // (intentionally no confirmation polling — App-Kit send resolves

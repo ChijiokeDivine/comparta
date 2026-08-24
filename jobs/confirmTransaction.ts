@@ -70,14 +70,49 @@ export async function confirmTransaction(onchainTransactionId: string): Promise<
   const status = await getTransactionStatus(onchainTx.circleTransactionId);
 
   if (SUCCESS_STATES.has(status.state)) {
-    const updated = await prisma.onchainTransaction.update({
-      where: { id: onchainTx.id },
-      data: {
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        txHash: status.txHash ?? onchainTx.txHash,
-      },
-    });
+    let updated: typeof onchainTx;
+    try {
+      updated = await prisma.onchainTransaction.update({
+        where: { id: onchainTx.id },
+        data: {
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          txHash: status.txHash ?? onchainTx.txHash,
+        },
+        include: { wallet: { include: { organization: true } } },
+      });
+    } catch (err) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        (err as { code?: string }).code === "P2002" &&
+        status.txHash
+      ) {
+        const adopted = await prisma.onchainTransaction.findFirst({
+          where: { txHash: status.txHash },
+          include: { wallet: { include: { organization: true } } },
+        });
+        if (adopted) {
+          if (adopted.status !== "CONFIRMED") {
+            updated = await prisma.onchainTransaction.update({
+              where: { id: adopted.id },
+              data: {
+                status: "CONFIRMED",
+                confirmedAt: new Date(),
+              },
+              include: { wallet: { include: { organization: true } } },
+            });
+          } else {
+            updated = adopted;
+          }
+        } else {
+          throw err;
+        }
+      } else {
+        throw err;
+      }
+    }
     // Best-effort, post-commit follow-up - see lib/payroll/completion.ts.
     // A no-op for any non-payroll transaction.
     await handlePayrollTransactionResolved(updated).catch((err) =>

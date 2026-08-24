@@ -40,6 +40,7 @@ import { notifyInvoicePaidIfMatched } from "@/lib/invoices/reconciliation";
 import { handleInboundTransfer, type InboundNotification } from "@/lib/transfers/receive";
 import { broadcastPaymentReceived } from "@/lib/realtime/eventBus";
 import type { Prisma } from "@/app/generated/prisma/client";
+import type { ReconcileResult } from "@/lib/invoices/reconciliation";
 
 interface CircleWalletTransferPayload {
   notificationType?: string;
@@ -212,6 +213,20 @@ async function processPaymentEvent(payload: CirclePaymentWebhookPayload): Promis
     return;
   }
 
+  const circleTxId = `circle-payment-${payment.id}`;
+  const sessionTxHash = payment.settlement?.txHash ?? null;
+
+  const preExisting = await prisma.onchainTransaction.findFirst({
+    where: {
+      OR: [
+        { circleTransactionId: circleTxId },
+        sessionTxHash ? { txHash: sessionTxHash } : { id: "__never__" },
+      ],
+    },
+    select: { id: true, circleTransactionId: true, txHash: true },
+  });
+  if (preExisting) return;
+
   const session = await prisma.paymentLinkPayment.findUnique({
     where: { id: paymentLinkPaymentId },
     include: { paymentLink: { include: { organization: { include: { wallets: { take: 1 } } } } } },
@@ -235,36 +250,69 @@ async function processPaymentEvent(payload: CirclePaymentWebhookPayload): Promis
   const settledAmountRaw = payment.settlement?.amount;
   const amountPaid = settledAmountRaw ? toSmallestUnit(settledAmountRaw) : session.amountExpected;
 
-  const reconciliation = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    // The card/ACH payment settles as a real USDC deposit to the org's Arc
-    // wallet — recorded as an inbound OnchainTransaction, exactly like a
-    // wallet-originated transfer, so the wallet balance / ledger
-    // reconciliation story (jobs/workers/reconciliation.worker.ts) stays
-    // uniform regardless of which checkout method the payer used.
-    const onchainTx = await tx.onchainTransaction.create({
-      data: {
-        walletId: wallet.id,
-        direction: "IN",
-        amount: amountPaid,
-        counterpartyAddress: session.payerIdentifier ?? "circle-payments-api",
-        chain: wallet.chain,
-        sourceChain: wallet.chain,
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        txHash: payment.settlement?.txHash,
-        circleTransactionId: `circle-payment-${payment.id}`,
-        memo: `Card/bank payment via payment link checkout session ${session.id}`,
-      },
-    });
+  let reconciliation: ReconcileResult | null = null;
+  try {
+    reconciliation = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const claim = await tx.paymentLinkPayment.updateMany({
+        where: { id: session.id, status: "PENDING" },
+        data: { status: "CONFIRMED" },
+      });
+      if (claim.count === 0) {
+        return null;
+      }
 
-    const result = await confirmPaymentLinkPayment(tx, {
-      paymentLinkPaymentId: session.id,
-      onchainTransactionId: onchainTx.id,
-      amountPaid,
-    });
+      let onchainTxId: string;
+      try {
+        const onchainTx = await tx.onchainTransaction.create({
+          data: {
+            walletId: wallet.id,
+            direction: "IN",
+            amount: amountPaid,
+            counterpartyAddress: session.payerIdentifier ?? "circle-payments-api",
+            chain: wallet.chain,
+            sourceChain: wallet.chain,
+            status: "CONFIRMED",
+            confirmedAt: new Date(),
+            txHash: sessionTxHash,
+            circleTransactionId: circleTxId,
+            memo: `Card/bank payment via payment link checkout session ${session.id}`,
+          },
+        });
+        onchainTxId = onchainTx.id;
+      } catch (err) {
+        if (isP2002(err)) {
+          const existing = await tx.onchainTransaction.findFirst({
+            where: {
+              OR: [
+                { circleTransactionId: circleTxId },
+                sessionTxHash ? { txHash: sessionTxHash } : { id: "__never__" },
+              ],
+            },
+            select: { id: true },
+          });
+          if (!existing) throw err;
+          onchainTxId = existing.id;
+        } else {
+          throw err;
+        }
+      }
 
-    return { matched: true, invoiceId: result.invoiceId };
-  });
+      const result = await confirmPaymentLinkPayment(tx, {
+        paymentLinkPaymentId: session.id,
+        onchainTransactionId: onchainTxId,
+        amountPaid,
+      });
+
+      return { matched: true, invoiceId: result.invoiceId ?? undefined };
+    });
+  } catch (err) {
+    if (isP2002(err)) {
+      return;
+    }
+    throw err;
+  }
+
+  if (reconciliation === null) return;
 
   await notifyInvoicePaidIfMatched(session.paymentLink.orgId, reconciliation);
 
@@ -274,10 +322,19 @@ async function processPaymentEvent(payload: CirclePaymentWebhookPayload): Promis
       orgId: session.paymentLink.orgId,
       amount: toDecimalString(amountPaid),
       counterpartyAddress: session.payerIdentifier ?? "circle-payments-api",
-      onchainTransactionId: `circle-payment-${payment.id}`,
+      onchainTransactionId: circleTxId,
       createdAt: new Date().toISOString(),
     });
   } catch (err) {
     console.error("[webhooks/circle-payments] failed to broadcast payment_received", err);
   }
+}
+
+function isP2002(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: string }).code === "P2002"
+  );
 }

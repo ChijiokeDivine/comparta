@@ -138,21 +138,56 @@ export async function handleInboundTransfer(notification: InboundNotification): 
 
   const { reconciliation, paymentLinkResult, onchainTxId, allocationSource } = await prisma.$transaction(
     async (tx: Prisma.TransactionClient) => {
-      const onchainTx = await tx.onchainTransaction.create({
-        data: {
-          walletId: wallet.id,
-          direction: "IN",
-          amount,
-          counterpartyAddress,
-          chain: settlementChain,
-          sourceChain,
-          status: "CONFIRMED",
-          confirmedAt: new Date(),
-          txHash: notification.txHash,
-          circleTransactionId: notification.circleTransactionId,
-          rawPayload: notification.rawPayload as never,
-        },
+      let onchainTxId: string;
+
+      const alreadyExists = await tx.onchainTransaction.findUnique({
+        where: { circleTransactionId: notification.circleTransactionId },
+        select: { id: true },
       });
+
+      if (alreadyExists) {
+        onchainTxId = alreadyExists.id;
+      } else {
+        try {
+          const onchainTx = await tx.onchainTransaction.create({
+            data: {
+              walletId: wallet.id,
+              direction: "IN",
+              amount,
+              counterpartyAddress,
+              chain: settlementChain,
+              sourceChain,
+              status: "CONFIRMED",
+              confirmedAt: new Date(),
+              txHash: notification.txHash,
+              circleTransactionId: notification.circleTransactionId,
+              rawPayload: notification.rawPayload as never,
+            },
+          });
+          onchainTxId = onchainTx.id;
+        } catch (err) {
+          if (
+            typeof err === "object" &&
+            err !== null &&
+            "code" in err &&
+            (err as { code?: string }).code === "P2002"
+          ) {
+            const collided = await tx.onchainTransaction.findFirst({
+              where: {
+                OR: [
+                  { circleTransactionId: notification.circleTransactionId },
+                  notification.txHash ? { txHash: notification.txHash } : { id: "__never__" },
+                ],
+              },
+              select: { id: true },
+            });
+            if (!collided) throw err;
+            onchainTxId = collided.id;
+          } else {
+            throw err;
+          }
+        }
+      }
 
       // Payment-link matching happens first - a clean match credits the
       // link's own receivingLedgerAccountId and handles the whole
@@ -162,7 +197,7 @@ export async function handleInboundTransfer(notification: InboundNotification): 
       const linkResult = await reconcileWalletTransferAgainstPaymentLinks(
         tx,
         wallet.orgId,
-        onchainTx.id,
+        onchainTxId,
         counterpartyAddress,
         amount
       );
@@ -177,7 +212,7 @@ export async function handleInboundTransfer(notification: InboundNotification): 
         return {
           reconciliation: { matched: Boolean(linkResult.invoiceId), invoiceId: linkResult.invoiceId },
           paymentLinkResult: linkResult,
-          onchainTxId: onchainTx.id,
+          onchainTxId,
           // Payment-link credits go to the link's own receivingLedgerAccountId,
           // not the org's default bucket - allocation rules are scoped to the
           // default-bucket path today (see module docstring above and
@@ -198,30 +233,41 @@ export async function handleInboundTransfer(notification: InboundNotification): 
         );
       }
 
-      await recordEntry(
-        {
-          ledgerAccountId: defaultLedgerAccountId,
-          amount,
-          direction: "CREDIT",
+      const ledgerEntryExists = await tx.ledgerEntry.findFirst({
+        where: {
           referenceType: "ONCHAIN_TX",
-          referenceId: onchainTx.id,
+          referenceId: onchainTxId,
+          direction: "CREDIT",
         },
-        tx
-      );
+        select: { id: true },
+      });
+
+      if (!ledgerEntryExists) {
+        await recordEntry(
+          {
+            ledgerAccountId: defaultLedgerAccountId,
+            amount,
+            direction: "CREDIT",
+            referenceType: "ONCHAIN_TX",
+            referenceId: onchainTxId,
+          },
+          tx
+        );
+      }
 
       // Legacy direct-address invoice matching - only meaningful for
       // invoices that never got a payment link (or predate Phase 4).
       const invoiceReconciliation = await reconcileInboundPaymentAgainstInvoices(
         tx,
         wallet.orgId,
-        onchainTx.id,
+        onchainTxId,
         amount
       );
 
       return {
         reconciliation: invoiceReconciliation,
         paymentLinkResult: linkResult,
-        onchainTxId: onchainTx.id,
+        onchainTxId,
         allocationSource: { orgId: wallet.orgId, ledgerAccountId: defaultLedgerAccountId },
       };
     }
