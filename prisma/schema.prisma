@@ -580,6 +580,7 @@ model LedgerEntry {
   @@index([ledgerAccountId, createdAt])
   @@index([referenceType, referenceId])
   @@map("ledger_entries")
+  @@unique([referenceType, referenceId, direction])
 }
 
 model OnchainTransaction {
@@ -635,6 +636,8 @@ model OnchainTransaction {
 
   createdAt   DateTime  @default(now())
   confirmedAt DateTime?
+  submittedAt DateTime?
+  fromLedgerAccountId  String?
 
   @@index([walletId, status])
   @@index([circleTransactionId])

@@ -22,6 +22,14 @@ export class LedgerError extends Error {
   }
 }
 
+function isUniqueConstraintError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: string }).code === "P2002"
+  );
+}
 export class InsufficientBalanceError extends LedgerError {
   constructor(ledgerAccountId: string, requested: bigint, available: bigint) {
     super(
@@ -109,6 +117,23 @@ export async function recordEntry(
         referenceId: input.referenceId,
         balanceAfter: newBalance,
       },
+    })
+    .catch(async (err) => {
+      if (isUniqueConstraintError(err)) {
+        // Already recorded by a previous attempt — return that entry as-is.
+        // Do NOT recompute balanceAfter here; the committed entry's value
+        // is the truth, ours was speculative.
+        const existing = await tx.ledgerEntry.findFirst({
+          where: {
+            referenceType: input.referenceType,
+            referenceId: input.referenceId,
+            direction: input.direction,
+          },
+        });
+        if (existing) return existing;
+      }
+    throw err;
+    
     });
 
     return {
