@@ -177,7 +177,7 @@ async function dispatchNotification(
       // (see lib/transfers/send.ts), so look up by that rather than
       // trusting any org/wallet info in the webhook body.
       if (!notification?.id) return;
-      const onchainTx = await prisma.onchainTransaction.findUnique({
+      const onchainTx = await prisma.onchainTransaction.findFirst({
         where: { circleTransactionId: notification.id },
         select: { id: true },
       });

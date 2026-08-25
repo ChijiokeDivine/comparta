@@ -98,7 +98,7 @@ export async function handleInboundTransfer(notification: InboundNotification): 
 
   // Idempotency: if we've already recorded this Circle transaction, this
   // is a redelivered webhook - no-op.
-  const existing = await prisma.onchainTransaction.findUnique({
+  const existing = await prisma.onchainTransaction.findFirst({
     where: { circleTransactionId: notification.circleTransactionId },
   });
   if (existing) return;
@@ -140,7 +140,7 @@ export async function handleInboundTransfer(notification: InboundNotification): 
     async (tx: Prisma.TransactionClient) => {
       let onchainTxId: string;
 
-      const alreadyExists = await tx.onchainTransaction.findUnique({
+      const alreadyExists = await tx.onchainTransaction.findFirst({
         where: { circleTransactionId: notification.circleTransactionId },
         select: { id: true },
       });

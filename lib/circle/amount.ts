@@ -9,6 +9,9 @@
 const USDC_DECIMALS = 6;
 const USDC_SCALE = 10n ** BigInt(USDC_DECIMALS);
 
+export function toSignedDecimalString(amount: bigint): string {
+  return amount < 0n ? `-${toDecimalString(-amount)}` : toDecimalString(amount);
+}
 /** bigint micro-USDC -> decimal string Circle's API expects, e.g. "12.34" or "10" */
 export function toDecimalString(amount: bigint): string {
   if (amount < 0n) throw new Error("toDecimalString: amount must be >= 0");

@@ -26,20 +26,16 @@ interface OverviewData {
   trend: TrendPoint[];
 }
 
-interface NlQueryTransaction {
-  id: string;
-  direction: "IN" | "OUT";
-  amount: string;
-  counterpartyDisplayName: string;
-  memo: string | null;
-  categoryName: string | null;
-  createdAt: string;
+interface NlQuerySuggestion {
+  title: string;
+  example: string;
 }
 interface NlQueryResponse {
   question: string;
-  transactions: NlQueryTransaction[];
-  totalAmount: string;
-  totalCount: number;
+  answer: string;
+  interpretedAs: string;
+  data: unknown;
+  suggestions: NlQuerySuggestion[];
 }
 
 const PRESETS = [
@@ -143,23 +139,19 @@ export default function InsightsOverviewPage() {
 
         {queryResult && (
           <div className="pt-3 border-t border-[#F2F4F8] space-y-3">
-            <p className="text-sm text-[#3E4A6B]">
-              Found <span className="font-semibold">{queryResult.totalCount}</span> transaction
-              {queryResult.totalCount === 1 ? "" : "s"} totaling{" "}
-              <span className="font-semibold">{formatMoney(queryResult.totalAmount)}</span>
-            </p>
-            {queryResult.transactions.length > 0 && (
-              <div className="rounded-xl border border-[#E5E9F2] divide-y divide-[#F2F4F8]">
-                {queryResult.transactions.slice(0, 10).map((tx) => (
-                  <div key={tx.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                    <div className="min-w-0">
-                      <p className="text-[#0B1E3F] truncate">{tx.counterpartyDisplayName}</p>
-                      <p className="text-xs text-[#7C8CA6]">{tx.categoryName ?? "Uncategorized"}</p>
-                    </div>
-                    <span className="text-[#0B1E3F] font-medium tabular-nums shrink-0">
-                      {formatMoney(tx.amount)}
-                    </span>
-                  </div>
+            <p className="text-sm text-[#3E4A6B] whitespace-pre-wrap">{queryResult.answer}</p>
+
+            {queryResult.suggestions.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {queryResult.suggestions.map((s) => (
+                  <button
+                    key={s.example}
+                    type="button"
+                    onClick={() => setQuestion(s.example)}
+                    className="px-3 py-1 rounded-full text-xs border border-[#E5E9F2] text-[#3E4A6B] hover:border-[#2A5CE6]"
+                  >
+                    {s.title}
+                  </button>
                 ))}
               </div>
             )}

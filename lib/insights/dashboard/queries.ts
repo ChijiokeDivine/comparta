@@ -7,7 +7,7 @@
 // mutates anything.
 
 import { prisma } from "@/lib/db/prisma";
-import { toDecimalString } from "@/lib/circle/amount";
+import { toDecimalString, toSignedDecimalString } from "@/lib/circle/amount";
 import { resolveCounterpartyDisplayNames } from "@/lib/insights/counterparty";
 import { listActiveCategories } from "@/lib/insights/categorization/seed";
 import type { OnchainDirection } from "@/app/generated/prisma/client";
@@ -155,7 +155,7 @@ export async function getInflowOutflowTrend(
       bucketStart,
       inflow: toDecimalString(v.inflow),
       outflow: toDecimalString(v.outflow),
-      net: toDecimalString(v.inflow - v.outflow),
+      net: toSignedDecimalString(v.inflow - v.outflow),
     }));
 }
 
