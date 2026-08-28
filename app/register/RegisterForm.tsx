@@ -6,6 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { googleErrorMessage } from "./googleErrorMessage";
+import CountrySelect from "@/app/components/onboarding/CountrySelect";
+import AccountTypeSelect, {
+  type AccountTypeValue,
+} from "@/app/components/onboarding/AccountTypeSelect";
 
 type RegisterResponse = {
   error?: string;
@@ -16,6 +20,7 @@ type RegisterResponse = {
 const STEPS = [
   { label: "Organization", title: "Tell us about your organization", hint: "Just a couple of quick details to get started." },
   { label: "Account", title: "Your sign-in email", hint: "We'll use this for login and important updates." },
+  { label: "About you", title: "A couple more details", hint: "Helps us tailor Comparta to how you'll use it." },
   { label: "Security", title: "Secure your account", hint: "Pick a strong password you don't use elsewhere." },
 ];
 
@@ -39,6 +44,8 @@ export default function RegisterForm() {
 
   const [legalName, setLegalName] = useState("");
   const [ownerName, setOwnerName] = useState("");
+  const [country, setCountry] = useState("");
+  const [accountType, setAccountType] = useState<AccountTypeValue | "">("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -75,6 +82,9 @@ export default function RegisterForm() {
       if (!t) next.email = "Email is required.";
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) next.email = "Please enter a valid email address.";
     } else if (step === 3) {
+      if (!country) next.country = "Please select your country.";
+      if (!accountType) next.accountType = "Please choose what best describes you.";
+    } else if (step === 4) {
       if (password.length < 10) next.password = "Password must be at least 10 characters.";
       if (!confirmPassword) next.confirmPassword = "Please confirm your password.";
       else if (password !== confirmPassword) next.confirmPassword = "Passwords do not match.";
@@ -119,6 +129,8 @@ export default function RegisterForm() {
         body: JSON.stringify({
           legalName,
           ownerName: ownerName || undefined,
+          country,
+          accountType,
           email,
           password,
         }),
@@ -135,7 +147,8 @@ export default function RegisterForm() {
           setFieldErrors(flat);
           if (flat.legalName || flat.ownerName) setCurrentStep(1);
           else if (flat.email) setCurrentStep(2);
-          else if (flat.password || flat.confirmPassword) setCurrentStep(3);
+          else if (flat.country || flat.accountType) setCurrentStep(3);
+          else if (flat.password || flat.confirmPassword) setCurrentStep(4);
         }
         setFormError(data.error ?? "Registration failed");
         return;
@@ -203,7 +216,6 @@ export default function RegisterForm() {
         .wizard-step-enter { animation: slideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
         @keyframes slideIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
         .anim-form-field{ margin-top: 15px}
-        .anim-form-field:nth-child(2){ margin-bottom: 25px}
         .anim-form-button{ margin-bottom: 25px}
         .continue-sec{ margin-bottom: 20px}
       `}</style>
@@ -281,7 +293,7 @@ export default function RegisterForm() {
                     <FieldError message={stepErrors.legalName || fieldErrors.legalName} />
                   </div>
 
-                  <div className="anim-form-field">
+                  <div className="anim-form-field" style={{ marginBottom: "25px" }}>
                     <label htmlFor="ownerName" className="block text-sm font-semibold text-[#0B1E3F] mb-2">Your full name <span className="font-normal text-[#7C8CA6]">(optional)</span></label>
                     <input
                       id="ownerName"
@@ -318,6 +330,33 @@ export default function RegisterForm() {
               {currentStep === 3 && (
                 <>
                   <div className="anim-form-field">
+                    <CountrySelect
+                      value={country}
+                      onChange={(value) => {
+                        setCountry(value);
+                        if (stepErrors.country) setStepErrors((s) => ({ ...s, country: "" }));
+                      }}
+                      error={stepErrors.country || fieldErrors.country}
+                      required
+                    />
+                  </div>
+
+                  <div className="anim-form-field" style={{ marginBottom: "25px" }}>
+                    <AccountTypeSelect
+                      value={accountType}
+                      onChange={(value) => {
+                        setAccountType(value);
+                        if (stepErrors.accountType) setStepErrors((s) => ({ ...s, accountType: "" }));
+                      }}
+                      error={stepErrors.accountType || fieldErrors.accountType}
+                    />
+                  </div>
+                </>
+              )}
+
+              {currentStep === 4 && (
+                <>
+                  <div className="anim-form-field">
                     <label htmlFor="password" className="block text-sm font-semibold text-[#0B1E3F] mb-2">Password <span className="font-normal text-[#7C8CA6]">(10 characters minimum)</span></label>
                     <input
                       id="password"
@@ -333,7 +372,7 @@ export default function RegisterForm() {
                     <FieldError message={stepErrors.password || fieldErrors.password} />
                   </div>
 
-                  <div className="anim-form-field">
+                  <div className="anim-form-field" style={{ marginBottom: "25px" }}>
                     <label htmlFor="confirmPassword" className="block text-sm font-semibold text-[#0B1E3F] mb-2">Confirm password</label>
                     <input
                       id="confirmPassword"
@@ -447,4 +486,3 @@ export default function RegisterForm() {
     </div>
   );
 }
-

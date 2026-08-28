@@ -1,11 +1,12 @@
 // app/api/onboarding/route.ts
 //
 // Finalizes signup for OAuth (Google) users who arrived via /onboarding.
-// A Google sign-up only gets us email + name — we need org legal name
-// before we can approve the org. This endpoint:
+// A Google sign-up only gets us email + name — we need org legal name,
+// country, and account type before we can approve the org. This endpoint:
 //
 //   1. Validates the signed-in user still requires onboarding.
-//   2. Updates organization.legalName with the submitted value.
+//   2. Updates organization.legalName, .country, and .accountType with
+//      the submitted values.
 //   3. Provisions the org's Circle Developer-Controlled Wallet on Arc
 //      and creates the four default ledger buckets (Operating, Tax
 //      Reserve, Payroll, Savings) — EXACTLY the same work as
@@ -22,7 +23,8 @@
 // Idempotent: if the org is already APPROVED and/or wallet is already
 // provisioned, provisionOrgWallet is a no-op and the status update is
 // harmless. Credential sign-ups go through /api/auth/register instead
-// (they collect legalName up front), so this is a no-op for them.
+// (they collect legalName/country/accountType up front), so this is a
+// no-op for them.
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -31,9 +33,21 @@ import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { provisionOrgWallet } from "@/lib/org/provisioning";
 
+// Keep in sync with the AccountType enum in schema.prisma.
+const ACCOUNT_TYPES = ["STUDENT", "PERSONAL", "BUSINESS", "ORGANIZATION"] as const;
+
 const bodySchema = z.object({
   legalName: z.string().trim().min(1, "Please enter your organization or business name."),
   ownerName: z.string().trim().optional(),
+  // ISO 3166-1 alpha-2 code (e.g. "US") — the value CountrySelect submits.
+  country: z
+    .string()
+    .trim()
+    .length(2, "Please select your country.")
+    .transform((v) => v.toUpperCase()),
+  accountType: z.enum(ACCOUNT_TYPES, {
+    error: () => ({ message: "Please choose what best describes you." }),
+  }),
 });
 
 export async function POST(req: Request) {
@@ -50,7 +64,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { legalName, ownerName } = parsed.data;
+  const { legalName, ownerName, country, accountType } = parsed.data;
   const orgId = session.user.orgId;
   const userId = session.user.id;
 
@@ -74,6 +88,8 @@ export async function POST(req: Request) {
         where: { id: orgId },
         data: {
           legalName,
+          country,
+          accountType,
           kybStatus: "APPROVED",
           kybApprovedAt: new Date(),
           // "onboarding" is treated as a self-approval; since Google

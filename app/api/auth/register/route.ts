@@ -1,7 +1,10 @@
 // app/api/auth/register/route.ts
 //
 // Signs up a new business: creates the Organization and its first User
-// (role: OWNER).
+// (role: OWNER). Now also collects country and accountType up front
+// (see AccountType enum in schema.prisma) — Google sign-ups collect the
+// same two fields later, in /api/onboarding, since OAuth only hands us
+// email + name.
 //
 // Every registration is auto-approved: kybStatus is set to APPROVED at
 // signup (no PENDING/manual-review path), and wallet + default-bucket
@@ -35,11 +38,23 @@ import { provisionOrgWallet } from "@/lib/org/provisioning";
 import { issueOtp } from "@/lib/otp/service";
 import { sendEmailVerificationOtpEmail } from "@/lib/notifications/notify";
 
+// Keep in sync with the AccountType enum in schema.prisma.
+const ACCOUNT_TYPES = ["STUDENT", "PERSONAL", "BUSINESS", "ORGANIZATION"] as const;
+
 const registerSchema = z.object({
   legalName: z.string().min(2, "Legal business name is required"),
   email: z.string().email(),
   password: z.string().min(10, "Password must be at least 10 characters"),
   ownerName: z.string().min(1).optional(),
+  // ISO 3166-1 alpha-2 code (e.g. "US") — the value CountrySelect submits.
+  country: z
+    .string()
+    .trim()
+    .length(2, "Please select your country.")
+    .transform((v) => v.toUpperCase()),
+  accountType: z.enum(ACCOUNT_TYPES, {
+    error: () => ({ message: "Please choose what best describes you." }),
+  }),
 });
 
 export async function POST(req: Request) {
@@ -53,7 +68,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { legalName, email, password, ownerName } = parsed.data;
+  const { legalName, email, password, ownerName, country, accountType } = parsed.data;
   const normalizedEmail = email.toLowerCase().trim();
 
   const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -66,6 +81,8 @@ export async function POST(req: Request) {
   const org = await prisma.organization.create({
     data: {
       legalName,
+      country,
+      accountType,
       kybStatus: "APPROVED",
       kybApprovedAt: new Date(),
       kybApprovedBy: "auto-approved-on-signup",
@@ -125,6 +142,8 @@ export async function POST(req: Request) {
       organization: {
         id: org.id,
         legalName: org.legalName,
+        country: org.country,
+        accountType: org.accountType,
         kybStatus: org.kybStatus,
       },
       user: {

@@ -26,6 +26,18 @@ enum UserRole {
   MEMBER
 }
 
+// "What best describes you?" — collected once at signup (credentials
+// register) or onboarding (Google sign-up) and shown as a 4-option
+// picker in both forms. Lives on Organization, not User, for the same
+// reason legalName does: it describes the tenant being onboarded, not
+// the individual signer.
+enum AccountType {
+  STUDENT
+  PERSONAL
+  BUSINESS
+  ORGANIZATION
+}
+
 enum Chain {
   ARC_TESTNET
   ARC_MAINNET
@@ -302,6 +314,14 @@ model Organization {
   kybStatus              KybStatus         @default(PENDING)
   kybApprovedAt          DateTime?
   kybApprovedBy          String?
+
+  // Collected at signup (credentials register) or onboarding (Google
+  // sign-up). Nullable rather than required so existing rows created
+  // before this field existed don't need a backfill to stay valid —
+  // new signups always populate both via the register/onboarding
+  // route's zod schema, which is where they're actually enforced.
+  country                String?           // ISO 3166-1 alpha-2 code, e.g. "US" — resolved to name/flag client-side via countries.dev
+  accountType            AccountType?
 
   circleEntityId         String?
 
