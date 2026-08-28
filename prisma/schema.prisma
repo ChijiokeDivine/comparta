@@ -321,6 +321,11 @@ model Organization {
   // new signups always populate both via the register/onboarding
   // route's zod schema, which is where they're actually enforced.
   country                String?           // ISO 3166-1 alpha-2 code, e.g. "US" — resolved to name/flag client-side via countries.dev
+  // Preferred fiat for dashboard USDC valuation (ISO 4217). Authoritative
+  // identifier; do not derive display from symbol alone. Nullable for
+  // the same backfill reason as country. When null or unsupported,
+  // balance endpoints return USDC only (no fabricated conversion).
+  preferredCurrencyCode  String?           // e.g. "NGN"
   accountType            AccountType?
 
   circleEntityId         String?
@@ -1933,4 +1938,82 @@ model OnchainStream {
 
   @@index([recipientAddress])
   @@map("onchain_streams")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// GLOBAL FIAT CURRENCY VALUATION
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Display-only USDC → local fiat valuation for the dashboard.
+// USDC is treated as ≈ 1 USD; rates come from Open Exchange Rates
+// (base = USD) and are synced hourly into FxRate. Countries and
+// currencies are seeded from REST Countries / Open Exchange Rates
+// and stored locally so the frontend never calls external FX APIs.
+//
+// Supported = currency exists in Currency catalog AND has a valid,
+// non-stale FxRate. Unsupported currencies fall back to showing
+// USDC only (no fabricated conversion).
+
+// ISO currency catalog (NGN, GHS, EUR, …). Excludes crypto / metals /
+// obsolete codes (BTC, XAU, HRK, …) — only fiat suitable for a
+// "local currency" selector.
+model Currency {
+  id          String   @id @default(cuid())
+  code        String   @unique // ISO 4217, e.g. "NGN"
+  name        String   // e.g. "Nigerian Naira"
+  symbol      String   // e.g. "₦"
+  // Explicit allow-list flag. A currency is only usable for valuation
+  // when isSupported = true AND a fresh FxRate exists for it.
+  isSupported Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("currencies")
+}
+
+// Country catalog (ISO 3166-1 alpha-2). Multiple countries may share
+// the same currency_code (e.g. EUR zone). Seeded from REST Countries;
+// not re-fetched on every dashboard load.
+model Country {
+  id             String @id @default(cuid())
+  code           String @unique // ISO 3166-1 alpha-2, e.g. "NG"
+  name           String // e.g. "Nigeria"
+  currencyCode   String // e.g. "NGN" — links logically to Currency.code
+  currencyName   String // e.g. "Nigerian Naira"
+  currencySymbol String // e.g. "₦"
+  flag           String // emoji, e.g. "🇳🇬"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([currencyCode])
+  @@map("countries")
+}
+
+// USD → quote FX rates from Open Exchange Rates. One row per
+// (base, quote). Never overwrite a valid rate with null/0/negative
+// from a bad provider response — keep the last known good rate.
+// Freshness is evaluated from sourceTimestamp / fetchedAt against
+// FX_RATE_MAX_AGE_HOURS (app config).
+model FxRate {
+  id              String   @id @default(cuid())
+  baseCurrency    String   // always "USD" for this provider
+  quoteCurrency   String   // e.g. "NGN"
+  // Decimal string-compatible; Prisma Decimal maps to PostgreSQL NUMERIC.
+  // Rate means: 1 baseCurrency = rate units of quoteCurrency.
+  rate            Decimal  @db.Decimal(24, 12)
+  source          String   @default("open_exchange_rates")
+  // Provider's own timestamp (unix → DateTime) from the rates payload.
+  sourceTimestamp DateTime
+  // When we successfully wrote this row.
+  fetchedAt       DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([baseCurrency, quoteCurrency])
+  @@index([quoteCurrency])
+  @@index([fetchedAt])
+  @@map("fx_rates")
 }
