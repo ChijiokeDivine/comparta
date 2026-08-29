@@ -5,6 +5,10 @@
 // truth). These should match within tolerance — if they diverge, the
 // periodic reconciliation job (jobs/workers/reconciliation.worker.ts)
 // will flag it, but this route surfaces the raw numbers for debugging.
+//
+// Also includes the fiat valuation of the ledger total in the org's
+// preferred currency (see lib/fx/valuation.ts). This is the endpoint
+// the dashboard should prefer for a single "balance + fiat" call.
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
@@ -13,6 +17,10 @@ import { requireApprovedOrg, UnauthenticatedError, KybNotApprovedError } from "@
 import { getUsdcBalance } from "@/lib/circle/wallets";
 import { getBalance } from "@/lib/ledger/engine";
 import { toDecimalString } from "@/lib/circle/amount";
+import {
+  valueUsdcInPreferredCurrency,
+  type FiatValuationResult,
+} from "@/lib/fx/valuation";
 
 export async function GET() {
   try {
@@ -45,11 +53,19 @@ export async function GET() {
       balance: toDecimalString(b.balanceMicroUsdc),
     }));
 
+    const fiatVal = await valueUsdcInPreferredCurrency({
+      orgId,
+      usdcMicroAmount: ledgerTotal,
+    });
+    const fiat: FiatValuationResult = fiatVal;
+
     return NextResponse.json({
       wallet: { arcAddress: wallet.arcAddress, chain: wallet.chain },
       onchainUsdcBalance: onchainUsdc,
       ledgerTotalUsdc: toDecimalString(ledgerTotal),
       buckets: bucketBalances,
+      usdc: { amount: toDecimalString(ledgerTotal) },
+      fiat,
     });
   } catch (err) {
     if (err instanceof UnauthenticatedError) {

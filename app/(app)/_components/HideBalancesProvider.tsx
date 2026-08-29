@@ -102,10 +102,37 @@ export function useHideBalances(): Ctx {
 export function maskBalance(
   formatted: string,
   hide: boolean,
-  _keepCurrency = false
+  keepCurrency = true
 ): string {
   if (!hide) return formatted;
-  const hasDollar = formatted.trimStart().startsWith("$");
+
   const masked = "•••••";
-  return hasDollar ? `$${masked}` : masked;
+  const value = formatted.trimStart();
+
+  // Common currency symbols.
+  // This covers most currencies you are likely to display.
+  const currencySymbolRegex =
+    /^([$€£¥₹₦₵₺₽₩₫₴₱₲₡₭₮₸₼₾₿₽₺₣₤₥₦₧₨₩₪₫₯₰₱₲₳₴₵₸₺₻₼₽₾₿]|R\$|HK\$|CA\$|A\$|C\$|NZ\$|S\$|CN¥|US\$|JP¥|KR₩|د\.إ|ر\.س|﷼|৳|₭|₮|₸|₼|₾|₿)/;
+
+  const match = value.match(currencySymbolRegex);
+
+  if (match && keepCurrency) {
+    return `${match[0]}${masked}`;
+  }
+
+  // Also support currency codes such as:
+  // USD 1,000.00
+  // NGN 1,000.00
+  // EUR 1,000.00
+  // GBP 1,000.00
+  const currencyCodeRegex =
+    /^([A-Z]{3})(?:\s+|(?=[0-9]))/;
+
+  const codeMatch = value.match(currencyCodeRegex);
+
+  if (codeMatch && keepCurrency) {
+    return `${codeMatch[1]} ${masked}`;
+  }
+
+  return masked;
 }

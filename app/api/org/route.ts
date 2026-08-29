@@ -6,7 +6,17 @@ import { requireAuth, UnauthenticatedError } from "@/lib/auth/kyb-gate";
 import { assertCanEditOrgProfile, OrgPermissionError } from "@/lib/auth/canManageOrg";
 
 const updateSchema = z.object({
-  legalName: z.string().min(2, "Legal business name is required").max(200),
+  legalName: z.string().min(2, "Legal business name is required").max(200).optional(),
+  country: z
+    .string()
+    .regex(/^[A-Z]{2}$/, "Country must be an ISO 3166-1 alpha-2 code")
+    .max(2)
+    .nullish(),
+  preferredCurrencyCode: z
+    .string()
+    .regex(/^[A-Z]{3}$/, "Currency must be an ISO 4217 code")
+    .max(3)
+    .nullish(),
 });
 
 export async function GET() {
@@ -21,6 +31,8 @@ export async function GET() {
         kybStatus: true,
         kybApprovedAt: true,
         createdAt: true,
+        country: true,
+        preferredCurrencyCode: true,
       },
     });
     if (!org) {
@@ -44,13 +56,34 @@ export async function PATCH(req: Request) {
     const body = await req.json().catch(() => null);
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
+      console.warn("[org] validation error", parsed.error.flatten());
       return NextResponse.json({ error: "Invalid request", issues: parsed.error.flatten() }, { status: 400 });
+    }
+
+    const updateData: {
+      legalName?: string;
+      country?: string | null;
+      preferredCurrencyCode?: string | null;
+    } = {};
+    if (parsed.data.legalName !== undefined) updateData.legalName = parsed.data.legalName;
+    if (parsed.data.country !== undefined) updateData.country = parsed.data.country;
+    if (parsed.data.preferredCurrencyCode !== undefined) {
+      updateData.preferredCurrencyCode = parsed.data.preferredCurrencyCode;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
     const org = await prisma.organization.update({
       where: { id: ctx.orgId },
-      data: { legalName: parsed.data.legalName },
-      select: { id: true, legalName: true },
+      data: updateData,
+      select: {
+        id: true,
+        legalName: true,
+        country: true,
+        preferredCurrencyCode: true,
+      },
     });
 
     return NextResponse.json({ organization: org });

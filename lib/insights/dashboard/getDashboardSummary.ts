@@ -18,6 +18,10 @@ import { toDecimalString, toSmallestUnit } from "@/lib/circle/amount";
 import { listBucketsWithBalances, type BucketSummary } from "@/lib/buckets/service";
 import { usycToUsdc } from "@/lib/savings/yield";
 import { getCachedUsycNav } from "@/lib/savings/yieldRate";
+import {
+  valueUsdcInPreferredCurrency,
+  type FiatValuationResult,
+} from "@/lib/fx/valuation";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -55,10 +59,22 @@ export interface ActivityItem {
   createdAt: string; // ISO
 }
 
+export interface DashboardFiat {
+  currency: string;
+  supported: boolean;
+  amount: string | null;
+  rate: string | null;
+  rateUpdatedAt: string | null;
+  rateStatus: "fresh" | "stale" | "unavailable";
+  symbol: string | null;
+  currencyName: string | null;
+}
+
 export interface DashboardSummary {
   kpis: DashboardKpis;
   buckets: BucketSummary[];
   activity: ActivityItem[];
+  fiat: DashboardFiat;
 }
 
 export async function getDashboardSummary(orgId: string): Promise<DashboardSummary> {
@@ -227,7 +243,24 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     .slice(0, 20);
 
-  return { kpis, buckets, activity };
+  const totalMicroUsdc = liquidBalance + deployedBalance;
+  const fiatVal = await valueUsdcInPreferredCurrency({
+    orgId,
+    usdcMicroAmount: totalMicroUsdc,
+    now,
+  });
+  const fiat: DashboardFiat = {
+    currency: fiatVal.currency,
+    supported: fiatVal.supported,
+    amount: fiatVal.amount,
+    rate: fiatVal.rate,
+    rateUpdatedAt: fiatVal.rateUpdatedAt,
+    rateStatus: fiatVal.rateStatus,
+    symbol: fiatVal.symbol,
+    currencyName: fiatVal.currencyName,
+  };
+
+  return { kpis, buckets, activity, fiat };
 }
 
 function shortenAddress(address: string): string {

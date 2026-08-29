@@ -15,7 +15,7 @@
 //                    -> setState to re-render + play tone
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { DashboardSummary } from "@/lib/insights/dashboard/getDashboardSummary";
+import type { DashboardSummary, DashboardFiat } from "@/lib/insights/dashboard/getDashboardSummary";
 import KpiCards from "./KpiCards";
 import BucketCards from "./BucketCards";
 import ActivityFeed from "./ActivityFeed";
@@ -24,6 +24,7 @@ import QuickActions from "./QuickActions";
 import { KybBanner } from "../../_components/Kyb";
 import Link from "next/link";
 import type { KybStatus } from "@/app/generated/prisma/client";
+import { useHideBalances, maskBalance } from "../../_components/HideBalancesProvider";
 
 
 type Wallet = { arcAddress: string; chain: string | null } | null;
@@ -50,6 +51,54 @@ function formatBalanceHero(decimalString: string): string {
 
   const wholeGrouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `${wholeGrouped}.${displayFrac}`;
+}
+
+function formatFiatHero(decimalString: string, symbol: string | null): string {
+  const [rawWhole, rawFrac = ""] = decimalString.split(".");
+  const whole = rawWhole || "0";
+  const wholeGrouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const frac = rawFrac ? `.${rawFrac}` : ".00";
+  const sym = symbol ?? "";
+  return `${sym}${wholeGrouped}${frac}`;
+}
+
+// function FiatHeroPrimary({ fiat }: { fiat: DashboardFiat }) {
+//   const { hideBalances } = useHideBalances();
+//   if (!fiat.supported || !fiat.amount || !fiat.rate) {
+//     return null;
+//   }
+//   const formatted = formatFiatHero(fiat.amount, fiat.symbol);
+//   const display = maskBalance(formatted, hideBalances, true);
+//   return (
+//     <div className="flex items-center gap-3">
+//       <MaskedTotalBalance formatted={display} />
+//     </div>
+//   );
+// }
+
+function UsdcHeroSubLine({ usdc, fiat }: { usdc: string; fiat: DashboardFiat }) {
+  const { hideBalances } = useHideBalances();
+  if (fiat.supported && fiat.amount && fiat.rate) {
+    const statusHint =
+      fiat.rateStatus === "stale" ? (
+        <span className="ml-2 text-[10px] uppercase tracking-wider text-[#B08800] bg-[#FFF7D9] px-1.5 py-0.5 rounded">
+          rate stale
+        </span>
+      ) : null;
+    const masked = maskBalance(
+      `${formatBalanceHero(usdc)} USDC`,
+      hideBalances,
+      true
+    );
+    return (
+      <p className="text-sm text-[#7C8CA6] mt-1.5">
+        <span className="mr-1">≈</span>
+        <span className="font-medium text-[#0B1E3F]">{masked}</span>
+        {statusHint}
+      </p>
+    );
+  }
+  return null;
 }
 
 export default function DashboardRealtimeClient({
@@ -133,6 +182,16 @@ export default function DashboardRealtimeClient({
     };
   }, [refreshData, playTone]);
 
+  const fiatSupported =
+    summary.fiat.supported && !!summary.fiat.amount && !!summary.fiat.rate;
+  const heroPrimary = fiatSupported
+    ? summary.fiat.amount!
+    : summary.kpis.totalBalance;
+  const heroSymbol = fiatSupported ? summary.fiat.symbol : "$";
+  const heroFormatted = fiatSupported
+    ? formatFiatHero(heroPrimary, heroSymbol)
+    : formatBalanceHero(heroPrimary);
+
   return (
     <div className="space-y-6">
       <KybBanner status={kybStatus} />
@@ -140,13 +199,14 @@ export default function DashboardRealtimeClient({
       <div className="md:mt-5 relative">
         <p className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-1">Total balance</p>
         <div className="flex items-center gap-3">
-          <MaskedTotalBalance formatted={formatBalanceHero(summary.kpis.totalBalance)} />
+          <MaskedTotalBalance formatted={heroFormatted} />
           {isRefreshing && (
-            <span className="text-[10px] uppercase tracking-wider text-[#7C8CA6] animate-pulse">
-              updating…
-            </span>
+            <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border border-[#7C8CA6] border-t-transparent" />
           )}
         </div>
+        {fiatSupported ? (
+          <UsdcHeroSubLine usdc={summary.kpis.totalBalance} fiat={summary.fiat} />
+        ) : null}
       </div>
 
       <QuickActions disabled={financialActionsDisabled} wallet={wallet} />
