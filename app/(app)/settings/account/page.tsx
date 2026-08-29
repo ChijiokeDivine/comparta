@@ -290,15 +290,7 @@ export default function AccountSettingsPage() {
               {selectedCountry.currencyName}
               <span className="ml-2 text-[#7C8CA6] font-normal">({selectedCountry.currencyCode})</span>
             </p>
-            <p className="text-[11px] text-[#7C8CA6] mt-1">
-              Example: <span className="font-medium text-[#0B1E3F]">1,000 USDC</span>
-              {" ≈ "}
-              <span className="font-medium text-[#0B1E3F]">
-                {selectedCountry.currencySymbol}
-                {/* placeholder rate preview — actual computed server-side */}
-                1,340,250
-              </span>
-            </p>
+           
           </div>
         )}
 

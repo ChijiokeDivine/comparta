@@ -81,7 +81,7 @@ function UsdcHeroSubLine({ usdc, fiat }: { usdc: string; fiat: DashboardFiat }) 
   if (fiat.supported && fiat.amount && fiat.rate) {
     const statusHint =
       fiat.rateStatus === "stale" ? (
-        <span className="ml-2 text-[10px] uppercase tracking-wider text-[#B08800] bg-[#FFF7D9] px-1.5 py-0.5 rounded">
+        <span className="ml-2 text-[9px] uppercase tracking-wider text-[#B08800] bg-[#FFF7D9] px-1.5 py-0.5 rounded">
           rate stale
         </span>
       ) : null;
@@ -92,9 +92,9 @@ function UsdcHeroSubLine({ usdc, fiat }: { usdc: string; fiat: DashboardFiat }) 
     );
     return (
       <p className="text-sm text-[#7C8CA6] mt-1.5">
-        <span className="mr-1">≈</span>
+        {/* <span className="mr-1">≈</span>
         <span className="font-medium text-[#0B1E3F]">{masked}</span>
-        {statusHint}
+        {statusHint} */}
       </p>
     );
   }
@@ -197,7 +197,7 @@ export default function DashboardRealtimeClient({
       <KybBanner status={kybStatus} />
 
       <div className="md:mt-5 relative">
-        <p className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-1">Total balance</p>
+        <p className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-2">Total balance</p>
         <div className="flex items-center gap-3">
           <MaskedTotalBalance formatted={heroFormatted} />
           {isRefreshing && (
