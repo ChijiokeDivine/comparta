@@ -196,7 +196,7 @@ export default function Home() {
               trigger: stack,
               start: "top top",
               end: "bottom bottom",
-              scrub: 2,
+              scrub: 1,
               invalidateOnRefresh: true,
             },
           });
@@ -795,10 +795,10 @@ export default function Home() {
 
         <div
           ref={stackRef}
-          className="relative h-[450vh] md:h-[500vh]"
+          className="relative h-[280vh] md:h-[320vh]"
         >
           <div className="sticky top-0 h-screen flex items-center justify-center px-4 sm:px-6 md:px-10">
-            <div className="relative w-full max-w-3xl lg:max-w-3xl 2xl:max-w-[800px] h-[30vh] md:h-[72vh]">
+            <div className="relative w-full max-w-3xl lg:max-w-3xl 2xl:max-w-[900px] h-[30vh] md:h-[72vh]">
               {[
                 { src: "/dashboard.webp", label: "Move money", alt: "Comparta move money" },
                 { src: "/VcnS1TWU8Hk2UfNqEK734kaF9VU.webp", label: "Get paid", alt: "Comparta get paid" },

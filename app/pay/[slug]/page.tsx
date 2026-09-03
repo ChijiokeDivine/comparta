@@ -55,6 +55,7 @@ export default function PayLinkPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [copied, setCopied] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     fetch(`/api/pay/${params.slug}`)
@@ -71,7 +72,7 @@ export default function PayLinkPage() {
   }, [params.slug]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || pendingMethod !== "card") return;
     async function poll() {
       try {
         const res = await fetch(`/api/pay/${params.slug}/session/${sessionId}`);
@@ -91,7 +92,29 @@ export default function PayLinkPage() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [sessionId, params.slug]);
+  }, [sessionId, pendingMethod, params.slug]);
+
+  // Wallet path: SSE, pushed from the Circle webhook via
+  // reconcileDepositWalletPayment -> broadcastPaymentLinkSessionUpdate.
+  useEffect(() => {
+    if (!sessionId || pendingMethod !== "wallet") return;
+    const es = new EventSource(`/api/pay/${params.slug}/session/${sessionId}/stream`);
+    esRef.current = es;
+    es.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      setSession((prev) => ({ ...(prev ?? {}), ...data }) as Session);
+      if (data.status === "CONFIRMED" || data.status === "FAILED" || data.status === "WRONG_AMOUNT_REFUNDED") {
+        es.close();
+      }
+    };
+    es.onerror = () => {
+      // EventSource auto-reconnects on transient drops; nothing to do.
+    };
+    return () => {
+      es.close();
+      esRef.current = null;
+    };
+  }, [sessionId, pendingMethod, params.slug]);
 
   function resolveAmount(): string | undefined {
     if (!link) return undefined;

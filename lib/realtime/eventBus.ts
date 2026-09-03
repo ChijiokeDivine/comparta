@@ -18,7 +18,23 @@ export type PaymentReceivedEvent = {
   createdAt: string;
 };
 
-export type RealtimeEvent = PaymentReceivedEvent;
+export type PaymentLinkSessionEvent = {
+  type: "payment_link_session_update";
+  paymentLinkPaymentId: string;
+  status: "PENDING" | "SWEEPING" | "CONFIRMED" | "FAILED" | "WRONG_AMOUNT_REFUNDED";
+  amountPaid?: string;
+  failureReason?: string | null;
+};
+
+export type RealtimeEvent = PaymentReceivedEvent | PaymentLinkSessionEvent;
+
+function sessionChannel(paymentLinkPaymentId: string): string {
+  return `paymentLinkPayment:${paymentLinkPaymentId}`;
+}
+
+export function broadcastPaymentLinkSessionUpdate(event: PaymentLinkSessionEvent): void {
+  bus.emit(sessionChannel(event.paymentLinkPaymentId), event);
+}
 
 const bus = new EventEmitter();
 bus.setMaxListeners(1000);
@@ -51,4 +67,20 @@ export function subscribeOrg(
   return () => {
     bus.off(channel, wrapped);
   };
+}
+
+export function subscribePaymentLinkSession(
+  paymentLinkPaymentId: string,
+  handler: (event: PaymentLinkSessionEvent) => void
+): UnsubscribeFn {
+  const channel = sessionChannel(paymentLinkPaymentId);
+  const wrapped = (ev: PaymentLinkSessionEvent) => {
+    try {
+      handler(ev);
+    } catch (err) {
+      console.error("[realtime] subscriber handler threw for channel", channel, err);
+    }
+  };
+  bus.on(channel, wrapped);
+  return () => bus.off(channel, wrapped);
 }
