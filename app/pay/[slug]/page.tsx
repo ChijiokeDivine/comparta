@@ -17,6 +17,13 @@ interface PublicPaymentLink {
   amount: string | null;
   payable: boolean;
   unavailableReason: UnavailableReason | null;
+  lastSession: {
+    status: "PENDING" | "CONFIRMED" | "FAILED" | "WRONG_AMOUNT_REFUNDED" | "SWEEPING" | null;
+    amountPaid: string | null;
+    amountExpected: string | null;
+    failureReason: string | null;
+    confirmedAt: string | null;
+  } | null;
 }
 
 interface Session {
@@ -205,6 +212,68 @@ export default function PayLinkPage() {
         ) : loadError || !link ? (
           <div className="rounded-2xl border border-[#E5E9F2] bg-white p-8 text-center">
             <p className="text-sm text-[#7C8CA6]">{loadError ?? "Failed to load payment link"}</p>
+          </div>
+        ) : !link.payable && link.unavailableReason === "USED_UP" && link.lastSession?.status === "CONFIRMED" ? (
+          <div className="rounded-2xl border border-[#E5E9F2] bg-white p-6 sm:p-8 space-y-6 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
+              <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-emerald-600" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-[#0B1E3F]">{link.orgLegalName || "Payment link"}</p>
+              <h2 className="text-xl font-semibold text-emerald-700">Payment received. Thank you!</h2>
+              {link.description && (
+                <p className="text-sm text-[#3E4A6B]">{link.description}</p>
+              )}
+            </div>
+            <div className="rounded-xl bg-[#F7F8FB] p-4 text-left space-y-1.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-[#7C8CA6]">Amount paid</span>
+                <span className="font-semibold text-[#0B1E3F] tabular-nums">
+                  {formatUSDC(link.lastSession.amountPaid ?? link.amount ?? "0")}
+                </span>
+              </div>
+              {link.lastSession.confirmedAt && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#7C8CA6]">Confirmed</span>
+                  <span className="text-[#0B1E3F]">
+                    {new Date(link.lastSession.confirmedAt).toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : !link.payable && link.unavailableReason === "EXPIRED" && link.lastSession?.status === "CONFIRMED" ? (
+          <div className="rounded-2xl border border-[#E5E9F2] bg-white p-6 sm:p-8 space-y-6 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
+              <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-emerald-600" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-[#0B1E3F]">{link.orgLegalName || "Payment link"}</p>
+              <h2 className="text-xl font-semibold text-emerald-700">Payment received. Thank you!</h2>
+              {link.description && (
+                <p className="text-sm text-[#3E4A6B]">{link.description}</p>
+              )}
+            </div>
+            <div className="rounded-xl bg-[#F7F8FB] p-4 text-left space-y-1.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-[#7C8CA6]">Amount paid</span>
+                <span className="font-semibold text-[#0B1E3F] tabular-nums">
+                  {formatUSDC(link.lastSession.amountPaid ?? link.amount ?? "0")}
+                </span>
+              </div>
+              {link.lastSession.confirmedAt && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#7C8CA6]">Confirmed</span>
+                  <span className="text-[#0B1E3F]">
+                    {new Date(link.lastSession.confirmedAt).toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         ) : !link.payable ? (
           <div className="rounded-2xl border border-[#E5E9F2] bg-white p-8 text-center space-y-2">

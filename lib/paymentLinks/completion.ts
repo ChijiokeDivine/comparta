@@ -76,6 +76,12 @@ export async function confirmPaymentLinkPayment(
     where: { id: link.id },
     data: {
       useCount: newUseCount,
+      // Webhook-confirmation counters — bumped inside the same DB tx that
+      // confirms the session, so they can never diverge from the set of
+      // rows actually marked CONFIRMED.
+      payments: { increment: 1 },
+      collected: { increment: input.amountPaid },
+      received: { increment: input.amountPaid },
       ...(exhausted ? { status: "EXPIRED" } : {}),
     },
   });

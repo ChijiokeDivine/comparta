@@ -1,210 +1,52 @@
-// lib/payroll/payees.ts
+// lib/paymentLinks/slug.ts
 //
-// CRUD for Payee - the formal payroll relationship, distinct from
-// Contact (the general address book). Mirrors the shape of
-// lib/contacts/service.ts. Never touches PayrollRun/PayrollRunItem -
-// run generation lives in lib/payroll/runs.ts and reads Payee rows
-// read-only.
+// Generates the short, URL-safe slug used in /pay/[slug]. Same posture as
+// the username claim flow (lib/identity/username.ts +
+// app/api/username/claim/route.ts): the real uniqueness guarantee is the
+// database's unique constraint on PaymentLink.slug, not a pre-check -
+// this module just picks a good candidate and retries on collision.
 
-import { prisma } from "@/lib/db/prisma";
-import { toSmallestUnit } from "@/lib/circle/amount";
-import { normalizePayeeIdentifier, PayeeIdentifierFormatError } from "./identifier";
-import type { Payee, PayType, IdentifierType } from "@/app/generated/prisma/client";
+import { customAlphabet } from "nanoid";
 
-export { PayeeIdentifierFormatError };
+// Unambiguous alphabet: no 0/O, 1/I/l, so a slug read aloud or copied by
+// hand is never misheard/mistyped into a different valid slug.
+const SLUG_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ";
+const SLUG_LENGTH = 10;
 
-export class PayeeValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "PayeeValidationError";
-  }
+const generateCandidate = customAlphabet(SLUG_ALPHABET, SLUG_LENGTH);
+
+export function generateSlugCandidate(): string {
+  return generateCandidate();
 }
 
-export class PayeeNotFoundError extends Error {
-  constructor() {
-    super("Payee not found");
-    this.name = "PayeeNotFoundError";
-  }
-}
-
-export class PayeeInUseError extends Error {
-  constructor(runCount: number) {
-    super(
-      `This payee appears in ${runCount} payroll run(s) and can't be deleted. Deactivate it instead to keep it out of future runs while preserving history.`
-    );
-    this.name = "PayeeInUseError";
-  }
-}
-
-function parseDefaultAmount(raw: string | null | undefined): bigint | null {
-  if (raw === null || raw === undefined || raw.trim() === "") return null;
-  let smallest: bigint;
-  try {
-    smallest = toSmallestUnit(raw);
-  } catch {
-    throw new PayeeValidationError(`"${raw}" isn't a valid USDC amount.`);
-  }
-  if (smallest <= 0n) {
-    throw new PayeeValidationError("Default amount must be greater than zero.");
-  }
-  return smallest;
-}
-
-export interface CreatePayeeInput {
-  orgId: string;
-  name: string;
-  identifier: string;
-  payType?: PayType; // defaults to CONTRACT
-  defaultAmount?: string | null; // decimal string, e.g. "2500.00"
-  notes?: string;
-  contactId?: string;
-}
-
-export async function createPayee(input: CreatePayeeInput): Promise<Payee> {
-  const name = input.name.trim();
-  if (!name) throw new PayeeValidationError("Payee name is required.");
-
-  const { identifier, identifierType } = normalizePayeeIdentifier(input.identifier);
-  const defaultAmount = parseDefaultAmount(input.defaultAmount);
-
-  if (input.contactId) {
-    const contact = await prisma.contact.findFirst({ where: { id: input.contactId, orgId: input.orgId } });
-    if (!contact) {
-      throw new PayeeValidationError("The selected contact does not belong to this organization.");
-    }
-  }
-
-  try {
-    return await prisma.payee.create({
-      data: {
-        orgId: input.orgId,
-        name,
-        identifier,
-        identifierType,
-        payType: input.payType ?? "CONTRACT",
-        defaultAmount,
-        notes: input.notes?.trim() || null,
-        contactId: input.contactId ?? null,
-      },
-    });
-  } catch (err) {
-    if (isUniqueConstraintError(err)) {
-      throw new PayeeValidationError(`A payee with identifier "${identifier}" already exists for this organization.`);
-    }
-    throw err;
-  }
-}
-
-/** Convenience for the "add from address book" UI flow - pre-fills name/identifier from an existing Contact. */
-export async function createPayeeFromContact(
-  orgId: string,
-  contactId: string,
-  extra: Omit<CreatePayeeInput, "orgId" | "name" | "identifier" | "contactId">
-): Promise<Payee> {
-  const contact = await prisma.contact.findFirst({ where: { id: contactId, orgId } });
-  if (!contact) throw new PayeeValidationError("Contact not found.");
-
-  return createPayee({
-    orgId,
-    name: contact.displayName,
-    identifier: contact.identifier,
-    contactId: contact.id,
-    ...extra,
-  });
-}
-
-export async function listPayees(orgId: string, options: { active?: boolean } = {}): Promise<Payee[]> {
-  return prisma.payee.findMany({
-    where: { orgId, ...(options.active !== undefined ? { active: options.active } : {}) },
-    orderBy: [{ active: "desc" }, { name: "asc" }],
-  });
-}
-
-export async function getPayee(orgId: string, payeeId: string): Promise<Payee> {
-  const payee = await prisma.payee.findFirst({ where: { id: payeeId, orgId } });
-  if (!payee) throw new PayeeNotFoundError();
-  return payee;
-}
-
-export interface UpdatePayeeInput {
-  name?: string;
-  identifier?: string;
-  payType?: PayType;
-  defaultAmount?: string | null; // pass null explicitly to clear
-  notes?: string | null;
-  active?: boolean;
-  contactId?: string | null;
-}
-
-export async function updatePayee(orgId: string, payeeId: string, input: UpdatePayeeInput): Promise<Payee> {
-  await getPayee(orgId, payeeId); // ownership check
-
-  const data: {
-    name?: string;
-    identifier?: string;
-    identifierType?: IdentifierType;
-    payType?: PayType;
-    defaultAmount?: bigint | null;
-    notes?: string | null;
-    active?: boolean;
-    contactId?: string | null;
-  } = {};
-
-  if (input.name !== undefined) {
-    const name = input.name.trim();
-    if (!name) throw new PayeeValidationError("Payee name is required.");
-    data.name = name;
-  }
-  if (input.identifier !== undefined) {
-    const { identifier, identifierType } = normalizePayeeIdentifier(input.identifier);
-    data.identifier = identifier;
-    data.identifierType = identifierType;
-  }
-  if (input.payType !== undefined) data.payType = input.payType;
-  if (input.defaultAmount !== undefined) data.defaultAmount = parseDefaultAmount(input.defaultAmount);
-  if (input.notes !== undefined) data.notes = input.notes?.trim() || null;
-  if (input.active !== undefined) data.active = input.active;
-  if (input.contactId !== undefined) {
-    if (input.contactId) {
-      const contact = await prisma.contact.findFirst({ where: { id: input.contactId, orgId } });
-      if (!contact) throw new PayeeValidationError("The selected contact does not belong to this organization.");
-    }
-    data.contactId = input.contactId;
-  }
-
-  try {
-    return await prisma.payee.update({ where: { id: payeeId }, data });
-  } catch (err) {
-    if (isUniqueConstraintError(err)) {
-      throw new PayeeValidationError(`A payee with identifier "${data.identifier}" already exists for this organization.`);
-    }
-    throw err;
-  }
-}
-
-/** Convenience wrapper - the common case of removing a payee from future runs without losing their history. */
-export async function deactivatePayee(orgId: string, payeeId: string): Promise<Payee> {
-  return updatePayee(orgId, payeeId, { active: false });
-}
+const MAX_SLUG_ATTEMPTS = 5;
 
 /**
- * Hard-deletes a payee that has never appeared in a payroll run. A payee
- * with run history is kept for audit purposes (PayrollRunItem.payeeId is
- * onDelete: Restrict, so this would fail at the DB level anyway) -
- * deactivate instead.
+ * Runs `attempt(slug)` with fresh candidate slugs until it succeeds,
+ * retrying only on a unique-constraint violation (P2002) - any other
+ * error from `attempt` propagates immediately. At 10 chars over a
+ * 55-character alphabet the birthday-bound collision odds are
+ * astronomically small; MAX_SLUG_ATTEMPTS exists purely to fail loudly
+ * instead of looping forever if something is systematically wrong (e.g.
+ * the alphabet/length constants were shrunk without updating this).
  */
-export async function deletePayee(orgId: string, payeeId: string): Promise<void> {
-  await getPayee(orgId, payeeId); // ownership check
-
-  const runItemCount = await prisma.payrollRunItem.count({ where: { payeeId } });
-  if (runItemCount > 0) {
-    const runCount = await prisma.payrollRunItem
-      .findMany({ where: { payeeId }, select: { payrollRunId: true }, distinct: ["payrollRunId"] })
-      .then((rows) => rows.length);
-    throw new PayeeInUseError(runCount);
+export async function withUniqueSlug<T>(
+  attempt: (slug: string) => Promise<T>
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < MAX_SLUG_ATTEMPTS; i++) {
+    const slug = generateSlugCandidate();
+    try {
+      return await attempt(slug);
+    } catch (err) {
+      if (!isUniqueConstraintError(err)) throw err;
+      lastErr = err;
+    }
   }
-
-  await prisma.payee.delete({ where: { id: payeeId } });
+  throw new Error(
+    `Failed to generate a unique payment link slug after ${MAX_SLUG_ATTEMPTS} attempts`,
+    { cause: lastErr }
+  );
 }
 
 function isUniqueConstraintError(err: unknown): boolean {

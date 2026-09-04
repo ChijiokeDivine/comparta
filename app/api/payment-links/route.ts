@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireAuth, requireApprovedOrg, UnauthenticatedError, KybNotApprovedError } from "@/lib/auth/kyb-gate";
 import { createPaymentLink, listPaymentLinks, PaymentLinkValidationError } from "@/lib/paymentLinks/service";
 import { serializePaymentLink } from "@/lib/paymentLinks/serialize";
+import { toDecimalString } from "@/lib/circle/amount";
 
 const VALID_STATUSES = ["ACTIVE", "PAUSED", "EXPIRED"] as const;
 
@@ -37,7 +38,12 @@ export async function GET(req: Request) {
     return NextResponse.json({
       paymentLinks: links.map((link) => ({
         ...serializePaymentLink(link),
-        confirmedPaymentCount: link._count.payments,
+        // Payments, collected, received are denormalized counter columns on
+        // the PaymentLink row — updated atomically by confirmPaymentLinkPayment
+        // inside the same tx that marks a session CONFIRMED.
+        confirmedPaymentCount: link.payments,
+        totalCollected: toDecimalString(link.collected),
+        totalReceived: toDecimalString(link.received),
       })),
     });
   } catch (err) {

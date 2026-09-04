@@ -856,13 +856,30 @@ model PaymentLink {
   maxUses   Int? // null = unlimited
   useCount  Int  @default(0)
 
+  // ── Denormalized aggregate counters, updated synchronously by
+  //    confirmPaymentLinkPayment() inside the same DB tx that confirms a
+  //    session. This avoids N+1 aggregate queries on every merchant
+  //    dashboard render and gives the webhook-confirmation path a single
+  //    authoritative write for "what numbers does the UI show".
+  //
+  //    payments  = number of CONFIRMED PaymentLinkPayment rows
+  //    collected = sum of amountPaid for those rows (smallest USDC unit)
+  //    received  = same number as collected; kept as a distinct column for
+  //                naming clarity in the merchant-facing UI ("collected" vs
+  //                "received" are synonyms in this system today, but having
+  //                both columns avoids a future migration if a distinction
+  //                is ever introduced, e.g. gross vs net of fees)
+  payments  Int    @default(0)
+  collected BigInt @default(0)
+  received  BigInt @default(0)
+
   // Which internal balance bucket a successful payment credits. Must
   // belong to the same org (enforced in lib/paymentLinks/service.ts).
   receivingLedgerAccountId String
   receivingLedgerAccount   LedgerAccount @relation(fields: [receivingLedgerAccountId], references: [id], onDelete: Restrict)
 
-  payments PaymentLinkPayment[]
-  invoice  Invoice? // back-reference: at most one invoice may attach to this link
+  paymentSessions PaymentLinkPayment[]
+  invoice         Invoice? // back-reference: at most one invoice may attach to this link
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

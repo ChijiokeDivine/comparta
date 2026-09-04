@@ -137,11 +137,10 @@ export interface ListPaymentLinksFilter {
 export async function listPaymentLinks(
   orgId: string,
   filter: ListPaymentLinksFilter = {}
-): Promise<(PaymentLink & { _count: { payments: number } })[]> {
+): Promise<PaymentLink[]> {
   return prisma.paymentLink.findMany({
     where: { orgId, ...(filter.status ? { status: filter.status } : {}) },
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { payments: { where: { status: "CONFIRMED" } } } } },
   });
 }
 
@@ -168,7 +167,7 @@ export interface PaymentLinkUsageStats {
 
 export async function getPaymentLinkWithUsage(orgId: string, id: string): Promise<PaymentLinkUsageStats> {
   const link = await getPaymentLink(orgId, id);
-  const payments = await prisma.paymentLinkPayment.findMany({
+  const paymentSessions = await prisma.paymentLinkPayment.findMany({
     where: { paymentLinkId: id },
     orderBy: { createdAt: "desc" },
     select: {
@@ -182,10 +181,10 @@ export async function getPaymentLinkWithUsage(orgId: string, id: string): Promis
     },
   });
 
-  const confirmed = payments.filter((p) => p.status === "CONFIRMED");
-  const totalCollected = confirmed.reduce((sum, p) => sum + (p.amountPaid ?? 0n), 0n);
+  const confirmedPaymentCount = link.payments;
+  const totalCollected = link.collected;
 
-  return { link, confirmedPaymentCount: confirmed.length, totalCollected, payments };
+  return { link, confirmedPaymentCount, totalCollected, payments: paymentSessions };
 }
 
 /** Pauses an ACTIVE link - payer-facing checkout starts returning "unavailable". Idempotent. */

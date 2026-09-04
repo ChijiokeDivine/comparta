@@ -49,6 +49,18 @@ export interface PublicPaymentLinkView {
   amount: string | null; // decimal string; null for OPEN_AMOUNT
   payable: boolean;
   unavailableReason: PaymentLinkNotPayableCode | null;
+  // Filled in when !payable AND the most recent session for this link is
+  // in a terminal state (CONFIRMED / FAILED / WRONG_AMOUNT_REFUNDED). Lets
+  // the pay page show a proper result screen when a payer re-opens the
+  // link URL after completing a checkout (same-tab SSE state doesn't
+  // survive a refresh/tab-close).
+  lastSession: {
+    status: "PENDING" | "CONFIRMED" | "FAILED" | "WRONG_AMOUNT_REFUNDED" | "SWEEPING" | null;
+    amountPaid: string | null;
+    amountExpected: string | null;
+    failureReason: string | null;
+    confirmedAt: string | null;
+  } | null;
 }
 
 /**
@@ -66,7 +78,20 @@ export interface PublicPaymentLinkView {
 export async function getPublicPaymentLink(slug: string): Promise<PublicPaymentLinkView> {
   const link = await prisma.paymentLink.findUnique({
     where: { slug },
-    include: { organization: { select: { legalName: true } } },
+    include: {
+      organization: { select: { legalName: true } },
+      paymentSessions: {
+        take: 1,
+        orderBy: { createdAt: "desc" },
+        select: {
+          status: true,
+          amountPaid: true,
+          amountExpected: true,
+          failureReason: true,
+          confirmedAt: true,
+        },
+      },
+    },
   });
 
   if (!link) {
@@ -79,6 +104,7 @@ export async function getPublicPaymentLink(slug: string): Promise<PublicPaymentL
       amount: null,
       payable: false,
       unavailableReason: "NOT_FOUND",
+      lastSession: null,
     };
   }
 
@@ -93,6 +119,17 @@ export async function getPublicPaymentLink(slug: string): Promise<PublicPaymentL
           ? "USED_UP"
           : null;
 
+  const rawLast = link.paymentSessions[0] ?? null;
+  const lastSession: PublicPaymentLinkView["lastSession"] = rawLast
+    ? {
+        status: rawLast.status as NonNullable<PublicPaymentLinkView["lastSession"]>["status"],
+        amountPaid: rawLast.amountPaid !== null ? toDecimalString(rawLast.amountPaid) : null,
+        amountExpected: toDecimalString(rawLast.amountExpected),
+        failureReason: rawLast.failureReason,
+        confirmedAt: rawLast.confirmedAt ? rawLast.confirmedAt.toISOString() : null,
+      }
+    : null;
+
   return {
     id: link.id,
     slug: link.slug,
@@ -102,6 +139,7 @@ export async function getPublicPaymentLink(slug: string): Promise<PublicPaymentL
     amount: link.amount !== null ? toDecimalString(link.amount) : null,
     payable: unavailableReason === null,
     unavailableReason,
+    lastSession,
   };
 }
 

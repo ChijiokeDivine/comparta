@@ -21,6 +21,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
         url: `/pay/${link.slug}`,
         confirmedPaymentCount,
         totalCollected: toDecimalString(totalCollected),
+        totalReceived: toDecimalString(link.received),
       },
       payments: payments.map((p) => ({
         ...p,
