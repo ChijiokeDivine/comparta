@@ -181,8 +181,15 @@ export async function getPaymentLinkWithUsage(orgId: string, id: string): Promis
     },
   });
 
-  const confirmedPaymentCount = link.payments;
-  const totalCollected = link.collected;
+  // Only count sessions that actually settled.
+  const confirmed = paymentSessions.filter(
+    (p) => p.confirmedAt != null || p.status === "CONFIRMED"
+  );
+  const confirmedPaymentCount = confirmed.length;
+  const totalCollected = confirmed.reduce(
+    (sum, p) => sum + (p.amountPaid ?? 0n),
+    0n
+  );
 
   return { link, confirmedPaymentCount, totalCollected, payments: paymentSessions };
 }
