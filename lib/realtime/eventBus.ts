@@ -1,13 +1,18 @@
 // lib/realtime/eventBus.ts
+//
+// Cross-instance realtime via Redis pub/sub, with local EventEmitter fan-out
+// and graceful fallback when Redis lacks PUBLISH (e.g. Upstash ACL NOPERM).
+
 import { EventEmitter } from "node:events";
-import { getRawRedisClient } from "@/jobs/queue";
 import type IORedis from "ioredis";
+import { getRawRedisClient } from "@/jobs/queue";
 
 type RealtimeGlobals = typeof globalThis & {
   __compartaRealtimeSub?: IORedis;
 };
 
 const g = globalThis as RealtimeGlobals;
+
 export type PaymentReceivedEvent = {
   type: "payment_received";
   orgId: string;
@@ -37,41 +42,54 @@ function orgChannel(orgId: string): string {
   return `${CHANNEL_PREFIX}org:${orgId}`;
 }
 
-// Local fan-out so multiple subscribers in the same process don't each
-// need their own Redis subscription.
 const localBus = new EventEmitter();
 localBus.setMaxListeners(1000);
 
 let subscriberReady: Promise<void> | null = null;
 const activeChannels = new Set<string>();
 
+/** Log each distinct Redis permission/error once per process */
+const loggedRedisMessages = new Set<string>();
+
+function logRedisOnce(prefix: string, err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  if (loggedRedisMessages.has(message)) return;
+  loggedRedisMessages.add(message);
+  console.error(
+    `${prefix} ${message} (further identical errors this process will be suppressed). ` +
+      `SSE across instances needs Redis PUBLISH/SUBSCRIBE. Polling still works without it. ` +
+      `On Upstash: enable Pub/Sub or use a token with publish+subscribe permissions.`
+  );
+}
+
 function ensureSubscriber(): Promise<void> {
   if (subscriberReady) return subscriberReady;
 
   subscriberReady = (async () => {
-    // Duplicate connection required for SUBSCRIBE mode
-    const sub = getRawRedisClient().duplicate();
-    sub.on("error", (err) => {
-      console.error("[realtime] redis subscriber error:", err.message);
-    });
+    try {
+      const sub = getRawRedisClient().duplicate();
+      sub.on("error", (err: Error) => {
+        logRedisOnce("[realtime] redis subscriber error:", err);
+      });
 
-    sub.on("message", (channel, message) => {
-      try {
-        const event = JSON.parse(message) as RealtimeEvent;
-        localBus.emit(channel, event);
-      } catch (err) {
-        console.error("[realtime] failed to parse redis message", err);
+      sub.on("message", (channel: string, message: string) => {
+        try {
+          const event = JSON.parse(message) as RealtimeEvent;
+          localBus.emit(channel, event);
+        } catch (err) {
+          console.error("[realtime] failed to parse redis message", err);
+        }
+      });
+
+      if (activeChannels.size > 0) {
+        await sub.subscribe(...Array.from(activeChannels));
       }
-    });
 
-    // If the process already has channels from earlier subscribe*() calls
-    // that raced this init, subscribe them now.
-    if (activeChannels.size > 0) {
-      await sub.subscribe(...Array.from(activeChannels));
+      g.__compartaRealtimeSub = sub;
+    } catch (err) {
+      logRedisOnce("[realtime] failed to init redis subscriber:", err);
+      // Leave subscriberReady resolved so we don't retry-storm; local bus still works
     }
-
-    // Expose for subscribe helpers
-    g.__compartaRealtimeSub = sub;
   })();
 
   return subscriberReady;
@@ -81,38 +99,36 @@ async function subscribeChannel(channel: string): Promise<void> {
   activeChannels.add(channel);
   await ensureSubscriber();
   const sub = g.__compartaRealtimeSub;
-  if (sub) {
-    // ioredis subscribe is idempotent for already-subscribed channels
+  if (!sub) return;
+  try {
     await sub.subscribe(channel);
+  } catch (err) {
+    logRedisOnce("[realtime] redis subscribe failed:", err);
   }
 }
 
 async function unsubscribeChannel(channel: string): Promise<void> {
   activeChannels.delete(channel);
   const sub = g.__compartaRealtimeSub;
-  if (sub && activeChannels.size === 0) {
-    // keep connection; only unsubscribe this channel
-  }
-  if (sub) {
-    try {
-      await sub.unsubscribe(channel);
-    } catch {
-      // ignore
-    }
+  if (!sub) return;
+  try {
+    await sub.unsubscribe(channel);
+  } catch {
+    // ignore
   }
 }
 
 function publish(channel: string, event: RealtimeEvent): void {
+  // Always notify same-process listeners (SSE on this instance, dashboard, etc.)
+  localBus.emit(channel, event);
+
   try {
     const redis = getRawRedisClient();
     void redis.publish(channel, JSON.stringify(event)).catch((err) => {
-      console.error("[realtime] redis publish failed", err);
-      // Fallback: same-process listeners still get the event
-      localBus.emit(channel, event);
+      logRedisOnce("[realtime] redis publish failed:", err);
     });
   } catch (err) {
-    console.error("[realtime] redis unavailable, local-only emit", err);
-    localBus.emit(channel, event);
+    logRedisOnce("[realtime] redis unavailable:", err);
   }
 }
 
@@ -121,9 +137,7 @@ export function broadcastPaymentLinkSessionUpdate(event: PaymentLinkSessionEvent
 }
 
 export function broadcastPaymentReceived(event: PaymentReceivedEvent): void {
-  const channel = orgChannel(event.orgId);
-  publish(channel, event);
-  // keep wildcard for any global listeners
+  publish(orgChannel(event.orgId), event);
   publish(`${CHANNEL_PREFIX}*`, event);
 }
 

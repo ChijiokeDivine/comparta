@@ -205,10 +205,6 @@ export async function reconcileDepositWalletPayment(
     data: { status: "SWEEPING" },
   });
   if (claim.count === 0) {
-    // Either no session has this deposit address at all, or one does but
-    // isn't PENDING anymore (already swept, already flagged, or a
-    // duplicate delivery of this same webhook) - either way there's
-    // nothing new to do here.
     const exists = await prisma.paymentLinkPayment.findUnique({
       where: { depositAddress: input.depositAddress },
       select: { id: true },
@@ -218,14 +214,21 @@ export async function reconcileDepositWalletPayment(
 
   const session = await prisma.paymentLinkPayment.findUniqueOrThrow({
     where: { depositAddress: input.depositAddress },
-    include: { paymentLink: { include: { organization: { include: { wallets: { take: 1 } } } } } },
+    include: {
+      paymentLink: {
+        include: { organization: { include: { wallets: { take: 1 } } } },
+      },
+    },
   });
 
   const treasury = session.paymentLink.organization.wallets[0];
   if (!treasury) {
     await prisma.paymentLinkPayment.update({
       where: { id: session.id },
-      data: { failureReason: "Org has no treasury wallet configured - deposit wallet funds need manual handling." },
+      data: {
+        failureReason:
+          "Org has no treasury wallet configured - deposit wallet funds need manual handling.",
+      },
     });
     console.error(
       `[paymentLinks] Org ${session.paymentLink.orgId} has no treasury wallet - cannot sweep deposit wallet ` +
@@ -241,15 +244,11 @@ export async function reconcileDepositWalletPayment(
   }
 
   if (input.amountReceived !== session.amountExpected) {
-    // Funds sit isolated in this session's own single-purpose deposit
-    // wallet rather than being auto-credited to the org's default ledger
-    // bucket - safer than the amount-heuristic path above, at the cost of
-    // needing a manual sweep-or-refund decision instead of an automatic
-    // refund.
     await prisma.paymentLinkPayment.update({
       where: { id: session.id },
       data: {
-        failureReason: `Deposit wallet received ${input.amountReceived} but this session expects ` +
+        failureReason:
+          `Deposit wallet received ${input.amountReceived} but this session expects ` +
           `${session.amountExpected} - left unswept for manual review.`,
       },
     });
@@ -274,7 +273,10 @@ export async function reconcileDepositWalletPayment(
   } catch (err) {
     await prisma.paymentLinkPayment.update({
       where: { id: session.id },
-      data: { failureReason: "Sweep to the org's treasury wallet failed - funds remain in the deposit wallet." },
+      data: {
+        failureReason:
+          "Sweep to the org's treasury wallet failed - funds remain in the deposit wallet.",
+      },
     });
     console.error(
       `[paymentLinks] CRITICAL: failed to sweep deposit wallet ${input.depositAddress} (session ${session.id}, ` +
@@ -290,44 +292,49 @@ export async function reconcileDepositWalletPayment(
     return { kind: "sweep_failed" };
   }
 
-  const result = await prisma.$transaction(async (tx: Tx) => {
-    let onchainTxId: string;
+  // Sweep already left the deposit wallet. If this DB tx fails, leave SWEEPING
+  // so outbound webhook recovery (or a manual script) can finish confirmation.
+  let result: { paymentLinkId: string };
+  try {
+    result = await prisma.$transaction(async (tx: Tx) => {
+      let onchainTxId: string;
 
-    const existingSweepTx = await tx.onchainTransaction.findFirst({
-      where: {
-        OR: [
-          { circleTransactionId: sweep.circleTransactionId },
-          { txHash: sweep.circleTransactionId },
-        ],
-        walletId: treasury.id,
-        direction: "IN",
-        amount: input.amountReceived,
-      },
-      select: { id: true },
-    });
+      const existingSweepTx = await tx.onchainTransaction.findFirst({
+        where: {
+          OR: [
+            { circleTransactionId: sweep.circleTransactionId },
+            { txHash: sweep.circleTransactionId },
+          ],
+        },
+        select: { id: true },
+      });
 
-    if (existingSweepTx) {
-      onchainTxId = existingSweepTx.id;
-    } else {
-      try {
-        const onchainTx = await tx.onchainTransaction.create({
-          data: {
-            walletId: treasury.id,
-            direction: "IN",
-            amount: input.amountReceived,
-            counterpartyAddress: input.depositAddress,
-            chain: treasury.chain,
-            status: "CONFIRMED",
-            confirmedAt: new Date(),
-            txHash: sweep.circleTransactionId,
-            circleTransactionId: sweep.circleTransactionId,
-            memo: `Swept from payment-link deposit wallet ${input.depositAddress} for checkout session ${session.id}`,
-          },
-        });
-        onchainTxId = onchainTx.id;
-      } catch (err) {
+      if (existingSweepTx) {
+        onchainTxId = existingSweepTx.id;
+      } else {
+        try {
+          const onchainTx = await tx.onchainTransaction.create({
+            data: {
+              walletId: treasury.id,
+              direction: "IN",
+              amount: input.amountReceived,
+              counterpartyAddress: input.depositAddress,
+              chain: treasury.chain,
+              status: "CONFIRMED",
+              confirmedAt: new Date(),
+              txHash: sweep.circleTransactionId,
+              circleTransactionId: sweep.circleTransactionId,
+              memo: `Swept from payment-link deposit wallet ${input.depositAddress} for checkout session ${session.id}`,
+            },
+          });
+          onchainTxId = onchainTx.id;
+        } catch (err) {
           if (
-            typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "P2002") {
+            typeof err === "object" &&
+            err !== null &&
+            "code" in err &&
+            (err as { code?: string }).code === "P2002"
+          ) {
             const collided = await tx.onchainTransaction.findFirst({
               where: {
                 OR: [
@@ -343,14 +350,27 @@ export async function reconcileDepositWalletPayment(
             throw err;
           }
         }
-    }
+      }
 
-    return confirmPaymentLinkPayment(tx, {
-      paymentLinkPaymentId: session.id,
-      onchainTransactionId: onchainTxId,
-      amountPaid: input.amountReceived,
+      return confirmPaymentLinkPayment(tx, {
+        paymentLinkPaymentId: session.id,
+        onchainTransactionId: onchainTxId,
+        amountPaid: input.amountReceived,
+      });
     });
-  });
+  } catch (err) {
+    console.error(
+      `[paymentLinks] CRITICAL: sweep succeeded but confirm failed for session ${session.id}. ` +
+        `Funds are at treasury; session left SWEEPING for outbound recovery.`,
+      err
+    );
+    await flagPaymentForManualReconciliation(
+      session.paymentLink.orgId,
+      session.id,
+      `Sweep of ${input.depositAddress} succeeded but confirmPaymentLinkPayment failed. Session ${session.id} stuck SWEEPING.`
+    );
+    return { kind: "sweep_failed" };
+  }
 
   try {
     broadcastPaymentReceived({
@@ -376,10 +396,8 @@ export async function reconcileDepositWalletPayment(
     console.error("[paymentLinks] failed to push session status update for deposit sweep", err);
   }
 
-
   return { kind: "swept", paymentLinkId: result.paymentLinkId };
 }
-
 /**
  * Submits the actual refund transaction for a WRONG_AMOUNT_REFUNDED
  * session. Called AFTER the transaction that recorded the inbound
