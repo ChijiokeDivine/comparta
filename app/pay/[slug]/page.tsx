@@ -29,7 +29,7 @@ interface PublicPaymentLink {
 interface Session {
   id: string;
   method: "WALLET" | "CARD";
-  status: "PENDING" | "CONFIRMED" | "FAILED" | "WRONG_AMOUNT_REFUNDED";
+  status: "PENDING" | "SWEEPING" | "CONFIRMED" | "FAILED" | "WRONG_AMOUNT_REFUNDED";
   amountExpected: string;
   amountPaid: string | null;
   failureReason: string | null;
@@ -42,7 +42,8 @@ const UNAVAILABLE_MESSAGE: Record<UnavailableReason, string> = {
   USED_UP: "This payment link has already been used.",
 };
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 4000;
+const TERMINAL = new Set(["CONFIRMED", "FAILED", "WRONG_AMOUNT_REFUNDED"]);
 
 export default function PayLinkPage() {
   const params = useParams<{ slug: string }>();
@@ -78,46 +79,82 @@ export default function PayLinkPage() {
       .finally(() => setLoading(false));
   }, [params.slug]);
 
+  // Card path: poll session status
   useEffect(() => {
     if (!sessionId || pendingMethod !== "card") return;
+
+    let stopped = false;
+
     async function poll() {
+      if (stopped) return;
       try {
         const res = await fetch(`/api/pay/${params.slug}/session/${sessionId}`);
-        if (!res.ok) return;
+        if (!res.ok || stopped) return;
         const data = await res.json();
         setSession(data.session);
-        if (data.session.status !== "PENDING" && pollRef.current) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
+        if (TERMINAL.has(data.session.status)) {
+          stopped = true;
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
         }
       } catch {
-        // transient — keep polling, don't surface a flashing error
+        // keep polling
       }
     }
+
     poll();
     pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      stopped = true;
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
     };
   }, [sessionId, pendingMethod, params.slug]);
 
-  // Wallet path: SSE, pushed from the Circle webhook via
-  // reconcileDepositWalletPayment -> broadcastPaymentLinkSessionUpdate.
+  // Wallet path: SSE + polling fallback
   useEffect(() => {
     if (!sessionId || pendingMethod !== "wallet") return;
+
+    let stopped = false;
     const es = new EventSource(`/api/pay/${params.slug}/session/${sessionId}/stream`);
     esRef.current = es;
+
     es.onmessage = (e) => {
       const data = JSON.parse(e.data);
       setSession((prev) => ({ ...(prev ?? {}), ...data }) as Session);
-      if (data.status === "CONFIRMED" || data.status === "FAILED" || data.status === "WRONG_AMOUNT_REFUNDED") {
+      if (TERMINAL.has(data.status)) {
+        stopped = true;
         es.close();
       }
     };
     es.onerror = () => {
-      // EventSource auto-reconnects on transient drops; nothing to do.
+      // EventSource auto-reconnects on transient drops
     };
+
+    const pollId = setInterval(async () => {
+      if (stopped) return;
+      try {
+        const res = await fetch(`/api/pay/${params.slug}/session/${sessionId}`);
+        if (!res.ok || stopped) return;
+        const data = await res.json();
+        setSession(data.session);
+        if (TERMINAL.has(data.session.status)) {
+          stopped = true;
+          clearInterval(pollId);
+          es.close();
+        }
+      } catch {
+        // ignore
+      }
+    }, POLL_INTERVAL_MS);
+
     return () => {
+      stopped = true;
+      clearInterval(pollId);
       es.close();
       esRef.current = null;
     };
@@ -317,6 +354,11 @@ export default function PayLinkPage() {
             {session?.status === "CONFIRMED" && (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 text-center">
                 Payment received. Thank you!
+              </div>
+            )}
+            {session?.status === "SWEEPING" && (
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800 text-center">
+                Payment detected - confirming…
               </div>
             )}
             {session?.status === "FAILED" && (

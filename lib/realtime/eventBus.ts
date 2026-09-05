@@ -1,14 +1,13 @@
 // lib/realtime/eventBus.ts
-//
-// In-process pub/sub for realtime dashboard updates.
-//
-// Single-server deployment is fine for today: native Node EventEmitter.
-// When Comparta scales to multiple Next.js instances, swap the emit/on
-// implementations for Redis PubSub (ioredis already in package.json) — the
-// public `broadcastPaymentReceived` / `subscribeOrg` surface stays identical.
-
 import { EventEmitter } from "node:events";
+import { getRawRedisClient } from "@/jobs/queue";
+import type IORedis from "ioredis";
 
+type RealtimeGlobals = typeof globalThis & {
+  __compartaRealtimeSub?: IORedis;
+};
+
+const g = globalThis as RealtimeGlobals;
 export type PaymentReceivedEvent = {
   type: "payment_received";
   orgId: string;
@@ -28,25 +27,104 @@ export type PaymentLinkSessionEvent = {
 
 export type RealtimeEvent = PaymentReceivedEvent | PaymentLinkSessionEvent;
 
+const CHANNEL_PREFIX = "comparta:realtime:";
+
 function sessionChannel(paymentLinkPaymentId: string): string {
-  return `paymentLinkPayment:${paymentLinkPaymentId}`;
+  return `${CHANNEL_PREFIX}paymentLinkPayment:${paymentLinkPaymentId}`;
+}
+
+function orgChannel(orgId: string): string {
+  return `${CHANNEL_PREFIX}org:${orgId}`;
+}
+
+// Local fan-out so multiple subscribers in the same process don't each
+// need their own Redis subscription.
+const localBus = new EventEmitter();
+localBus.setMaxListeners(1000);
+
+let subscriberReady: Promise<void> | null = null;
+const activeChannels = new Set<string>();
+
+function ensureSubscriber(): Promise<void> {
+  if (subscriberReady) return subscriberReady;
+
+  subscriberReady = (async () => {
+    // Duplicate connection required for SUBSCRIBE mode
+    const sub = getRawRedisClient().duplicate();
+    sub.on("error", (err) => {
+      console.error("[realtime] redis subscriber error:", err.message);
+    });
+
+    sub.on("message", (channel, message) => {
+      try {
+        const event = JSON.parse(message) as RealtimeEvent;
+        localBus.emit(channel, event);
+      } catch (err) {
+        console.error("[realtime] failed to parse redis message", err);
+      }
+    });
+
+    // If the process already has channels from earlier subscribe*() calls
+    // that raced this init, subscribe them now.
+    if (activeChannels.size > 0) {
+      await sub.subscribe(...Array.from(activeChannels));
+    }
+
+    // Expose for subscribe helpers
+    g.__compartaRealtimeSub = sub;
+  })();
+
+  return subscriberReady;
+}
+
+async function subscribeChannel(channel: string): Promise<void> {
+  activeChannels.add(channel);
+  await ensureSubscriber();
+  const sub = g.__compartaRealtimeSub;
+  if (sub) {
+    // ioredis subscribe is idempotent for already-subscribed channels
+    await sub.subscribe(channel);
+  }
+}
+
+async function unsubscribeChannel(channel: string): Promise<void> {
+  activeChannels.delete(channel);
+  const sub = g.__compartaRealtimeSub;
+  if (sub && activeChannels.size === 0) {
+    // keep connection; only unsubscribe this channel
+  }
+  if (sub) {
+    try {
+      await sub.unsubscribe(channel);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function publish(channel: string, event: RealtimeEvent): void {
+  try {
+    const redis = getRawRedisClient();
+    void redis.publish(channel, JSON.stringify(event)).catch((err) => {
+      console.error("[realtime] redis publish failed", err);
+      // Fallback: same-process listeners still get the event
+      localBus.emit(channel, event);
+    });
+  } catch (err) {
+    console.error("[realtime] redis unavailable, local-only emit", err);
+    localBus.emit(channel, event);
+  }
 }
 
 export function broadcastPaymentLinkSessionUpdate(event: PaymentLinkSessionEvent): void {
-  bus.emit(sessionChannel(event.paymentLinkPaymentId), event);
-}
-
-const bus = new EventEmitter();
-bus.setMaxListeners(1000);
-
-function orgChannel(orgId: string): string {
-  return `org:${orgId}`;
+  publish(sessionChannel(event.paymentLinkPaymentId), event);
 }
 
 export function broadcastPaymentReceived(event: PaymentReceivedEvent): void {
   const channel = orgChannel(event.orgId);
-  bus.emit(channel, event);
-  bus.emit("*", event);
+  publish(channel, event);
+  // keep wildcard for any global listeners
+  publish(`${CHANNEL_PREFIX}*`, event);
 }
 
 export type UnsubscribeFn = () => void;
@@ -60,12 +138,15 @@ export function subscribeOrg(
     try {
       handler(ev);
     } catch (err) {
-      console.error("[realtime] subscriber handler threw for channel", channel, err);
+      console.error("[realtime] subscriber handler threw", channel, err);
     }
   };
-  bus.on(channel, wrapped);
+  localBus.on(channel, wrapped);
+  void subscribeChannel(channel);
+
   return () => {
-    bus.off(channel, wrapped);
+    localBus.off(channel, wrapped);
+    void unsubscribeChannel(channel);
   };
 }
 
@@ -78,9 +159,14 @@ export function subscribePaymentLinkSession(
     try {
       handler(ev);
     } catch (err) {
-      console.error("[realtime] subscriber handler threw for channel", channel, err);
+      console.error("[realtime] subscriber handler threw", channel, err);
     }
   };
-  bus.on(channel, wrapped);
-  return () => bus.off(channel, wrapped);
+  localBus.on(channel, wrapped);
+  void subscribeChannel(channel);
+
+  return () => {
+    localBus.off(channel, wrapped);
+    void unsubscribeChannel(channel);
+  };
 }

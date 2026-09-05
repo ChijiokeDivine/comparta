@@ -32,6 +32,7 @@ import { handleInboundTransfer, type InboundNotification } from "@/lib/transfers
 import { confirmTransaction } from "@/jobs/confirmTransaction";
 import { reconcileDepositWalletPayment } from "@/lib/paymentLinks/reconciliation";
 import { toSmallestUnit } from "@/lib/circle/amount";
+import { confirmPaymentLinkPayment } from "@/lib/paymentLinks/completion";
 
 interface CircleWebhookPayload {
   subscriptionId?: string;
@@ -173,16 +174,103 @@ async function dispatchNotification(
     }
 
     case "transactions.outbound": {
-      // Our own OnchainTransaction rows are keyed by circleTransactionId
-      // (see lib/transfers/send.ts), so look up by that rather than
-      // trusting any org/wallet info in the webhook body.
       if (!notification?.id) return;
+
+      // Existing path: our OnchainTransaction rows keyed by circleTransactionId
       const onchainTx = await prisma.onchainTransaction.findFirst({
         where: { circleTransactionId: notification.id },
         select: { id: true },
       });
       if (onchainTx) {
         await confirmTransaction(onchainTx.id);
+        return;
+      }
+
+      // Recovery: deposit-wallet sweep completed on-chain but confirmPaymentLinkPayment
+      // never committed (session left in SWEEPING after a successful sendTransaction).
+      if (
+        notification.state === "COMPLETE" &&
+        notification.walletId &&
+        notification.sourceAddress
+      ) {
+        const stuck = await prisma.paymentLinkPayment.findFirst({
+          where: {
+            depositWalletId: notification.walletId,
+            status: "SWEEPING",
+          },
+          include: {
+            paymentLink: {
+              include: { organization: { include: { wallets: { take: 1 } } } },
+            },
+          },
+        });
+
+        if (stuck?.paymentLink.organization.wallets[0]) {
+          const treasury = stuck.paymentLink.organization.wallets[0];
+          const amount = stuck.amountExpected;
+
+          await prisma.$transaction(async (tx) => {
+            let onchainTxId: string;
+            const existing = await tx.onchainTransaction.findFirst({
+              where: {
+                OR: [
+                  { circleTransactionId: notification.id },
+                  { txHash: notification.txHash ?? notification.id },
+                ],
+              },
+              select: { id: true },
+            });
+
+            if (existing) {
+              onchainTxId = existing.id;
+            } else {
+              const created = await tx.onchainTransaction.create({
+                data: {
+                  walletId: treasury.id,
+                  direction: "IN",
+                  amount,
+                  counterpartyAddress: stuck.depositAddress!,
+                  chain: treasury.chain,
+                  status: "CONFIRMED",
+                  confirmedAt: new Date(),
+                  txHash: notification.txHash ?? notification.id,
+                  circleTransactionId: notification.id,
+                  memo: `Recovered sweep from payment-link deposit wallet ${stuck.depositAddress} for session ${stuck.id}`,
+                },
+              });
+              onchainTxId = created.id;
+            }
+
+            await confirmPaymentLinkPayment(tx, {
+              paymentLinkPaymentId: stuck.id,
+              onchainTransactionId: onchainTxId,
+              amountPaid: amount,
+            });
+          });
+
+          const { broadcastPaymentLinkSessionUpdate, broadcastPaymentReceived } =
+            await import("@/lib/realtime/eventBus");
+          const { toDecimalString } = await import("@/lib/circle/amount");
+
+          broadcastPaymentLinkSessionUpdate({
+            type: "payment_link_session_update",
+            paymentLinkPaymentId: stuck.id,
+            status: "CONFIRMED",
+            amountPaid: toDecimalString(amount),
+          });
+          broadcastPaymentReceived({
+            type: "payment_received",
+            orgId: stuck.paymentLink.orgId,
+            amount: toDecimalString(amount),
+            counterpartyAddress: stuck.depositAddress ?? "",
+            onchainTransactionId: stuck.id,
+            createdAt: new Date().toISOString(),
+          });
+
+          console.log(
+            `[webhooks/circle] recovered stuck SWEEPING session ${stuck.id} via outbound webhook`
+          );
+        }
       }
       return;
     }
