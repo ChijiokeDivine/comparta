@@ -17,7 +17,9 @@
 //          (credits the receiving org's ledger)
 //        - "transactions.outbound" -> jobs/confirmTransaction.ts's
 //          confirmTransaction(), so an outbound send resolves as soon as
-//          the webhook arrives rather than waiting for the next poll
+//          the webhook arrives rather than waiting for the next poll.
+//          Also recovers deposit-wallet sweeps that completed on-chain but
+//          left PaymentLinkPayment stuck in SWEEPING.
 //        - anything else -> logged and marked processed, no-op
 //
 // Circle expects a 200 response quickly; heavier processing being done
@@ -31,8 +33,12 @@ import { verifyCircleWebhookSignature } from "@/lib/circle/webhookVerify";
 import { handleInboundTransfer, type InboundNotification } from "@/lib/transfers/receive";
 import { confirmTransaction } from "@/jobs/confirmTransaction";
 import { reconcileDepositWalletPayment } from "@/lib/paymentLinks/reconciliation";
-import { toSmallestUnit } from "@/lib/circle/amount";
 import { confirmPaymentLinkPayment } from "@/lib/paymentLinks/completion";
+import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
+import {
+  broadcastPaymentLinkSessionUpdate,
+  broadcastPaymentReceived,
+} from "@/lib/realtime/eventBus";
 
 interface CircleWebhookPayload {
   subscriptionId?: string;
@@ -69,7 +75,9 @@ export async function POST(req: Request) {
   }
 
   const eventType =
-    typeof parsedPayload === "object" && parsedPayload !== null && "notificationType" in parsedPayload
+    typeof parsedPayload === "object" &&
+    parsedPayload !== null &&
+    "notificationType" in parsedPayload
       ? String((parsedPayload as Record<string, unknown>).notificationType)
       : undefined;
 
@@ -127,8 +135,16 @@ async function dispatchNotification(
 
   switch (eventType) {
     case "transactions.inbound": {
-      if (!notification?.id || !notification.walletId || !notification.blockchain || !notification.amounts) {
-        console.warn("[webhooks/circle] inbound notification missing required fields, skipping", payload);
+      if (
+        !notification?.id ||
+        !notification.walletId ||
+        !notification.blockchain ||
+        !notification.amounts
+      ) {
+        console.warn(
+          "[webhooks/circle] inbound notification missing required fields, skipping",
+          payload
+        );
         return;
       }
 
@@ -145,7 +161,10 @@ async function dispatchNotification(
         });
         if (depositMatch) {
           if (!notification.amounts[0]) {
-            console.warn("[webhooks/circle] deposit-wallet inbound notification missing amount, skipping", payload);
+            console.warn(
+              "[webhooks/circle] deposit-wallet inbound notification missing amount, skipping",
+              payload
+            );
             return;
           }
           await reconcileDepositWalletPayment({
@@ -176,22 +195,30 @@ async function dispatchNotification(
     case "transactions.outbound": {
       if (!notification?.id) return;
 
-      // Existing path: our OnchainTransaction rows keyed by circleTransactionId
+      // Normal path: outbound we already tracked as an OnchainTransaction
       const onchainTx = await prisma.onchainTransaction.findFirst({
-        where: { circleTransactionId: notification.id },
+        where: {
+          OR: [
+            { circleTransactionId: notification.id },
+            ...(notification.txHash
+              ? [{ txHash: notification.txHash }]
+              : []),
+          ],
+        },
         select: { id: true },
       });
       if (onchainTx) {
         await confirmTransaction(onchainTx.id);
-        return;
+        // Fall through: still try SWEEPING recovery in case this tx was
+        // the deposit-wallet sweep and the session never got confirmed.
       }
 
-      // Recovery: deposit-wallet sweep completed on-chain but confirmPaymentLinkPayment
-      // never committed (session left in SWEEPING after a successful sendTransaction).
+      // Recovery: deposit-wallet sweep completed on-chain but
+      // confirmPaymentLinkPayment never committed (session left SWEEPING).
+      const state = (notification.state ?? notification.status ?? "").toUpperCase();
       if (
-        notification.state === "COMPLETE" &&
-        notification.walletId &&
-        notification.sourceAddress
+        (state === "COMPLETE" || state === "CONFIRMED") &&
+        notification.walletId
       ) {
         const stuck = await prisma.paymentLinkPayment.findFirst({
           where: {
@@ -200,7 +227,9 @@ async function dispatchNotification(
           },
           include: {
             paymentLink: {
-              include: { organization: { include: { wallets: { take: 1 } } } },
+              include: {
+                organization: { include: { wallets: { take: 1 } } },
+              },
             },
           },
         });
@@ -208,75 +237,96 @@ async function dispatchNotification(
         if (stuck?.paymentLink.organization.wallets[0]) {
           const treasury = stuck.paymentLink.organization.wallets[0];
           const amount = stuck.amountExpected;
+          const txHash = notification.txHash ?? notification.id;
 
-          await prisma.$transaction(async (tx) => {
-            let onchainTxId: string;
-            const existing = await tx.onchainTransaction.findFirst({
-              where: {
-                OR: [
-                  { circleTransactionId: notification.id },
-                  { txHash: notification.txHash ?? notification.id },
-                ],
-              },
-              select: { id: true },
+          try {
+            await prisma.$transaction(async (tx) => {
+              const existing = await tx.onchainTransaction.findFirst({
+                where: {
+                  OR: [
+                    { circleTransactionId: notification.id },
+                    { txHash },
+                  ],
+                },
+                select: { id: true },
+              });
+
+              let onchainTxId: string;
+              if (existing) {
+                onchainTxId = existing.id;
+              } else {
+                const created = await tx.onchainTransaction.create({
+                  data: {
+                    walletId: treasury.id,
+                    direction: "IN",
+                    amount,
+                    counterpartyAddress: stuck.depositAddress!,
+                    chain: treasury.chain,
+                    status: "CONFIRMED",
+                    confirmedAt: new Date(),
+                    txHash,
+                    circleTransactionId: notification.id,
+                    memo: `Recovered sweep from deposit wallet for session ${stuck.id}`,
+                  },
+                });
+                onchainTxId = created.id;
+              }
+
+              await confirmPaymentLinkPayment(tx, {
+                paymentLinkPaymentId: stuck.id,
+                onchainTransactionId: onchainTxId,
+                amountPaid: amount,
+              });
             });
 
-            if (existing) {
-              onchainTxId = existing.id;
-            } else {
-              const created = await tx.onchainTransaction.create({
-                data: {
-                  walletId: treasury.id,
-                  direction: "IN",
-                  amount,
-                  counterpartyAddress: stuck.depositAddress!,
-                  chain: treasury.chain,
-                  status: "CONFIRMED",
-                  confirmedAt: new Date(),
-                  txHash: notification.txHash ?? notification.id,
-                  circleTransactionId: notification.id,
-                  memo: `Recovered sweep from payment-link deposit wallet ${stuck.depositAddress} for session ${stuck.id}`,
-                },
+            try {
+              broadcastPaymentLinkSessionUpdate({
+                type: "payment_link_session_update",
+                paymentLinkPaymentId: stuck.id,
+                status: "CONFIRMED",
+                amountPaid: toDecimalString(amount),
               });
-              onchainTxId = created.id;
+            } catch (err) {
+              console.error(
+                "[webhooks/circle] failed to broadcast session update after recovery",
+                err
+              );
             }
 
-            await confirmPaymentLinkPayment(tx, {
-              paymentLinkPaymentId: stuck.id,
-              onchainTransactionId: onchainTxId,
-              amountPaid: amount,
-            });
-          });
+            try {
+              broadcastPaymentReceived({
+                type: "payment_received",
+                orgId: stuck.paymentLink.orgId,
+                amount: toDecimalString(amount),
+                counterpartyAddress: stuck.depositAddress ?? "",
+                onchainTransactionId: stuck.id,
+                createdAt: new Date().toISOString(),
+              });
+            } catch (err) {
+              console.error(
+                "[webhooks/circle] failed to broadcast payment_received after recovery",
+                err
+              );
+            }
 
-          const { broadcastPaymentLinkSessionUpdate, broadcastPaymentReceived } =
-            await import("@/lib/realtime/eventBus");
-          const { toDecimalString } = await import("@/lib/circle/amount");
-
-          broadcastPaymentLinkSessionUpdate({
-            type: "payment_link_session_update",
-            paymentLinkPaymentId: stuck.id,
-            status: "CONFIRMED",
-            amountPaid: toDecimalString(amount),
-          });
-          broadcastPaymentReceived({
-            type: "payment_received",
-            orgId: stuck.paymentLink.orgId,
-            amount: toDecimalString(amount),
-            counterpartyAddress: stuck.depositAddress ?? "",
-            onchainTransactionId: stuck.id,
-            createdAt: new Date().toISOString(),
-          });
-
-          console.log(
-            `[webhooks/circle] recovered stuck SWEEPING session ${stuck.id} via outbound webhook`
-          );
+            console.log(
+              `[webhooks/circle] recovered SWEEPING session ${stuck.id} via outbound`
+            );
+          } catch (err) {
+            console.error(
+              `[webhooks/circle] failed to recover SWEEPING session ${stuck.id}`,
+              err
+            );
+          }
         }
       }
       return;
     }
 
     default:
-      console.log(`[webhooks/circle] received event ${eventType ?? "unknown"} - no handler, ignoring`);
+      console.log(
+        `[webhooks/circle] received event ${eventType ?? "unknown"} - no handler, ignoring`
+      );
       return;
   }
 }
