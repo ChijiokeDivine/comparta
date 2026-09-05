@@ -5,7 +5,7 @@ import "./globals.css";
 import { Providers } from "./(app)/_components/Providers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
-
+import { Analytics } from "@vercel/analytics/next"
 
 const manrope = Manrope({
   variable: "--font-Manrope",
@@ -153,11 +153,13 @@ export default async function RootLayout({
     <html lang="en" className={`${manrope.variable} h-full antialiased`}>
       <body className={`${manrope.className} min-h-full flex flex-col`}>
         <Providers session={session}>{children}</Providers>
+        <Analytics />
       </body>
       <Script
         src="https://cdn.lordicon.com/lordicon.js"
         strategy="afterInteractive"
       />
     </html>
+    
   );
 }
