@@ -11,6 +11,13 @@
 // Concurrency: recordEntry() takes a row lock (SELECT ... FOR UPDATE) on
 // the target LedgerAccount for the duration of the transaction, so two
 // concurrent writes to the same account can never race on balanceAfter.
+//
+// Idempotency: (referenceType, referenceId, direction) is treated as a
+// natural key. Callers that retry after a partial failure MUST pass the
+// same referenceId so a second call returns the existing entry instead of
+// double-crediting. We look up BEFORE create — never create-then-catch
+// inside an interactive transaction (a unique violation aborts the PG
+// transaction; any follow-up query on that tx throws 25P02).
 
 import { Prisma, LedgerDirection, LedgerReferenceType } from "../../app/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
@@ -22,14 +29,6 @@ export class LedgerError extends Error {
   }
 }
 
-function isUniqueConstraintError(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: string }).code === "P2002"
-  );
-}
 export class InsufficientBalanceError extends LedgerError {
   constructor(ledgerAccountId: string, requested: bigint, available: bigint) {
     super(
@@ -88,7 +87,11 @@ export interface LedgerEntryResult {
 
 /**
  * The only sanctioned way to mutate a ledger account's balance. Wraps the
- * read-lock-write cycle in a single Postgres transaction.
+ * read-lock-write cycle in a single Postgres transaction (or reuses
+ * externalTx when the caller is already inside one).
+ *
+ * Safe under retry: if an entry for (referenceType, referenceId, direction)
+ * already exists, that entry is returned and balance is NOT adjusted again.
  */
 export async function recordEntry(
   input: RecordEntryInput,
@@ -97,9 +100,34 @@ export async function recordEntry(
   if (input.amount <= 0n) {
     throw new LedgerError("recordEntry: amount must be a positive bigint");
   }
+  if (!input.referenceId?.trim()) {
+    throw new LedgerError("recordEntry: referenceId is required for idempotency");
+  }
 
   const run = async (tx: Tx): Promise<LedgerEntryResult> => {
+    // Lock the account first so concurrent retries serialize on the same row.
     const currentBalance = await lockAndGetBalance(tx, input.ledgerAccountId);
+
+    // Idempotent short-circuit AFTER the lock so two concurrent first-writes
+    // still serialize: the second sees the row the first committed (or is
+    // still holding the lock until the first finishes).
+    const already = await tx.ledgerEntry.findFirst({
+      where: {
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
+        direction: input.direction,
+      },
+    });
+    if (already) {
+      return {
+        id: already.id,
+        ledgerAccountId: already.ledgerAccountId,
+        amount: already.amount,
+        direction: already.direction,
+        balanceAfter: already.balanceAfter,
+        createdAt: already.createdAt,
+      };
+    }
 
     const delta = input.direction === "CREDIT" ? input.amount : -input.amount;
     const newBalance = currentBalance + delta;
@@ -117,23 +145,6 @@ export async function recordEntry(
         referenceId: input.referenceId,
         balanceAfter: newBalance,
       },
-    })
-    .catch(async (err) => {
-      if (isUniqueConstraintError(err)) {
-        // Already recorded by a previous attempt — return that entry as-is.
-        // Do NOT recompute balanceAfter here; the committed entry's value
-        // is the truth, ours was speculative.
-        const existing = await tx.ledgerEntry.findFirst({
-          where: {
-            referenceType: input.referenceType,
-            referenceId: input.referenceId,
-            direction: input.direction,
-          },
-        });
-        if (existing) return existing;
-      }
-    throw err;
-    
     });
 
     return {
@@ -173,14 +184,6 @@ export async function transferBetweenLedgerAccounts(
   amount: bigint,
   referenceType: LedgerReferenceType,
   referenceId: string,
-  // Added for the bucket-management/allocation-rules phase: lets a caller
-  // that's already inside its own interactive transaction (e.g. the
-  // allocation engine writing an AllocationRuleExecution row alongside the
-  // transfer) reuse that transaction instead of nesting a second one.
-  // Prisma doesn't support nested interactive transactions - passing the
-  // existing `tx` through is the only safe way to compose this with other
-  // writes. Omit it (as every pre-existing caller does) to keep the old
-  // standalone-transaction behavior.
   externalTx?: Tx
 ): Promise<{ debit: LedgerEntryResult; credit: LedgerEntryResult }> {
   if (fromLedgerAccountId === toLedgerAccountId) {
@@ -190,7 +193,9 @@ export async function transferBetweenLedgerAccounts(
     throw new LedgerError("transferBetweenLedgerAccounts: amount must be a positive bigint");
   }
 
-  const run = async (tx: Tx): Promise<{ debit: LedgerEntryResult; credit: LedgerEntryResult }> => {
+  const run = async (
+    tx: Tx
+  ): Promise<{ debit: LedgerEntryResult; credit: LedgerEntryResult }> => {
     // Lock accounts in a stable order (by id) to avoid deadlocks when two
     // transfers move money between the same pair of accounts in opposite
     // directions concurrently.

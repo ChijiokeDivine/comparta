@@ -1,26 +1,25 @@
 // app/api/webhooks/circle/route.ts
 //
-// Ingests Circle's webhook notifications (wallet transactions, challenge
-// status changes, etc). Order of operations matters here:
+// Ingests Circle wallet transaction webhooks.
 //
-//   1. Read the RAW body (needed byte-for-byte for signature verification)
-//   2. Verify X-Circle-Signature against Circle's published public key
-//   3. Persist the raw payload to WebhookEvent UNCONDITIONALLY, before any
-//      processing - so a bug in step 4 can never lose an event. Even
-//      requests that fail signature verification are stored (with
-//      signatureOk: false) for audit/debugging, but are never processed.
-//   4. Process, dispatching on notificationType:
-//        - "transactions.inbound"  -> checked first against
-//          PaymentLinkPayment.depositAddress (lib/paymentLinks/
-//          reconciliation.ts#reconcileDepositWalletPayment - payment-link
-//          wallet-checkout deposits); otherwise lib/transfers/receive.ts
-//          (credits the receiving org's ledger)
-//        - "transactions.outbound" -> jobs/confirmTransaction.ts's
-//          confirmTransaction(), so an outbound send resolves as soon as
-//          the webhook arrives rather than waiting for the next poll.
-//          Also recovers deposit-wallet sweeps that completed on-chain but
-//          left PaymentLinkPayment stuck in SWEEPING.
-//        - anything else -> logged and marked processed, no-op
+// Order of operations:
+//   1. Read RAW body (signature verification is byte-sensitive)
+//   2. Verify X-Circle-Signature
+//   3. Persist WebhookEvent unconditionally (never lose an event)
+//   4. Dispatch:
+//        - transactions.inbound  → deposit-wallet payment-link path first,
+//          else treasury receive path
+//        - transactions.outbound → confirm known OnchainTransactions; also
+//          recover payment-link sessions left in SWEEPING after a successful
+//          on-chain sweep whose confirm step failed
+//
+// Money safety rules in this file:
+//   - Deposit wallets are never treated as treasury wallets
+//   - Confirm is idempotent: only SWEEPING → CONFIRMED; ledger uses
+//     (ONCHAIN_TX, onchainTxId) as reference so retries cannot double-credit
+//   - OnchainTransaction find-or-create is OUTSIDE the confirm transaction
+//     so a unique-constraint collision never aborts the confirm tx (25P02)
+//   - Always return 200 after durable storage so Circle does not retry-storm
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
@@ -144,26 +143,29 @@ async function dispatchNotification(
         return;
       }
 
+      // Payment-link deposit wallets are not in the Wallet table. Match by
+      // depositAddress (case-insensitive) BEFORE treasury receive handling.
       if (notification.destinationAddress) {
-        // Case-insensitive match: Circle and our stored depositAddress may differ in checksum casing
-        const dest = notification.destinationAddress.toLowerCase();
         const depositMatch = await prisma.paymentLinkPayment.findFirst({
           where: {
-            depositAddress: { equals: dest, mode: "insensitive" },
+            depositAddress: {
+              equals: notification.destinationAddress,
+              mode: "insensitive",
+            },
           },
           select: { id: true, depositAddress: true },
         });
 
-        if (depositMatch) {
+        if (depositMatch?.depositAddress) {
           if (!notification.amounts[0]) {
             console.warn(
-              "[webhooks/circle] deposit-wallet inbound notification missing amount, skipping",
+              "[webhooks/circle] deposit-wallet inbound missing amount, skipping",
               payload
             );
             return;
           }
           await reconcileDepositWalletPayment({
-            depositAddress: depositMatch.depositAddress!,
+            depositAddress: depositMatch.depositAddress,
             amountReceived: toSmallestUnit(notification.amounts[0]),
           });
           return;
@@ -190,7 +192,8 @@ async function dispatchNotification(
     case "transactions.outbound": {
       if (!notification?.id) return;
 
-      const onchainTx = await prisma.onchainTransaction.findFirst({
+      // Confirm any outbound we already tracked (treasury sends, etc.)
+      const tracked = await prisma.onchainTransaction.findFirst({
         where: {
           OR: [
             { circleTransactionId: notification.id },
@@ -199,136 +202,18 @@ async function dispatchNotification(
         },
         select: { id: true },
       });
-      if (onchainTx) {
-        await confirmTransaction(onchainTx.id);
+      if (tracked) {
+        await confirmTransaction(tracked.id);
       }
 
-      // Recovery: deposit-wallet sweep completed on-chain but session left SWEEPING
+      // Recover payment-link sessions stuck in SWEEPING after a successful
+      // on-chain sweep whose confirm step previously failed.
       const state = (notification.state ?? notification.status ?? "").toUpperCase();
-      if ((state === "COMPLETE" || state === "CONFIRMED") && notification.walletId) {
-        const stuck = await prisma.paymentLinkPayment.findFirst({
-          where: {
-            depositWalletId: notification.walletId,
-            status: "SWEEPING",
-          },
-          include: {
-            paymentLink: {
-              include: {
-                organization: { include: { wallets: { take: 1 } } },
-              },
-            },
-          },
-        });
-
-        if (stuck?.paymentLink.organization.wallets[0]) {
-          const treasury = stuck.paymentLink.organization.wallets[0];
-          const amount = stuck.amountExpected;
-          const txHash = notification.txHash ?? notification.id;
-
-          try {
-            await prisma.$transaction(async (tx) => {
-              let existing = await tx.onchainTransaction.findFirst({
-                where: {
-                  OR: [
-                    { circleTransactionId: notification.id },
-                    { txHash },
-                  ],
-                },
-                select: { id: true },
-              });
-
-              let onchainTxId: string;
-
-              if (existing) {
-                onchainTxId = existing.id;
-              } else {
-                try {
-                  const created = await tx.onchainTransaction.create({
-                    data: {
-                      walletId: treasury.id,
-                      direction: "IN",
-                      amount,
-                      counterpartyAddress: stuck.depositAddress!,
-                      chain: treasury.chain,
-                      status: "CONFIRMED",
-                      confirmedAt: new Date(),
-                      txHash,
-                      circleTransactionId: notification.id,
-                      memo: `Recovered sweep from deposit wallet for session ${stuck.id}`,
-                    },
-                  });
-                  onchainTxId = created.id;
-                } catch (err) {
-                  // Row already exists (race / prior partial write)
-                  if (!isPrismaUniqueViolation(err)) throw err;
-                  existing = await tx.onchainTransaction.findFirst({
-                    where: {
-                      OR: [
-                        { circleTransactionId: notification.id },
-                        { txHash },
-                      ],
-                    },
-                    select: { id: true },
-                  });
-                  if (!existing) throw err;
-                  onchainTxId = existing.id;
-                }
-              }
-
-              // Idempotent: only confirm if still SWEEPING
-              const stillStuck = await tx.paymentLinkPayment.findFirst({
-                where: { id: stuck.id, status: "SWEEPING" },
-                select: { id: true },
-              });
-              if (!stillStuck) return;
-
-              await confirmPaymentLinkPayment(tx, {
-                paymentLinkPaymentId: stuck.id,
-                onchainTransactionId: onchainTxId,
-                amountPaid: amount,
-              });
-            });
-
-            try {
-              broadcastPaymentLinkSessionUpdate({
-                type: "payment_link_session_update",
-                paymentLinkPaymentId: stuck.id,
-                status: "CONFIRMED",
-                amountPaid: toDecimalString(amount),
-              });
-            } catch (err) {
-              console.error(
-                "[webhooks/circle] failed to broadcast session update after recovery",
-                err
-              );
-            }
-
-            try {
-              broadcastPaymentReceived({
-                type: "payment_received",
-                orgId: stuck.paymentLink.orgId,
-                amount: toDecimalString(amount),
-                counterpartyAddress: stuck.depositAddress ?? "",
-                onchainTransactionId: stuck.id,
-                createdAt: new Date().toISOString(),
-              });
-            } catch (err) {
-              console.error(
-                "[webhooks/circle] failed to broadcast payment_received after recovery",
-                err
-              );
-            }
-
-            console.log(
-              `[webhooks/circle] recovered SWEEPING session ${stuck.id} via outbound`
-            );
-          } catch (err) {
-            console.error(
-              `[webhooks/circle] failed to recover SWEEPING session ${stuck.id}`,
-              err
-            );
-          }
-        }
+      if (
+        (state === "COMPLETE" || state === "CONFIRMED") &&
+        notification.walletId
+      ) {
+        await recoverStuckDepositSweep(notification);
       }
       return;
     }
@@ -339,4 +224,171 @@ async function dispatchNotification(
       );
       return;
   }
+}
+
+/**
+ * If a deposit-wallet outbound completed but PaymentLinkPayment is still
+ * SWEEPING, finish confirmation exactly once.
+ *
+ * Money safety:
+ * - amountPaid is always session.amountExpected (never webhook amounts[0],
+ *   which is often "0" for gas-only notifications)
+ * - Ledger credit is keyed by onchainTransactionId → no double-credit on retry
+ * - Session is only confirmed while status is still SWEEPING
+ * - OnchainTransaction is resolved outside the confirm transaction so a
+ *   unique conflict cannot abort the confirm transaction
+ */
+async function recoverStuckDepositSweep(
+  notification: NonNullable<CircleWebhookPayload["notification"]>
+): Promise<void> {
+  if (!notification.id || !notification.walletId) return;
+
+  const stuck = await prisma.paymentLinkPayment.findFirst({
+    where: {
+      depositWalletId: notification.walletId,
+      status: "SWEEPING",
+    },
+    include: {
+      paymentLink: {
+        include: {
+          organization: { include: { wallets: { take: 1 } } },
+        },
+      },
+    },
+  });
+
+  if (!stuck) return;
+
+  const treasury = stuck.paymentLink.organization.wallets[0];
+  if (!treasury) {
+    console.error(
+      `[webhooks/circle] SWEEPING session ${stuck.id} has no treasury wallet — cannot recover`
+    );
+    return;
+  }
+
+  const amount = stuck.amountExpected;
+  if (amount <= 0n) {
+    console.error(
+      `[webhooks/circle] SWEEPING session ${stuck.id} has non-positive amountExpected — refusing recovery`
+    );
+    return;
+  }
+
+  const txHash = notification.txHash ?? notification.id;
+
+  // ── Step 1: resolve OnchainTransaction (committed independently) ──────
+  let onchainTxId: string;
+
+  const existing = await prisma.onchainTransaction.findFirst({
+    where: {
+      OR: [
+        { circleTransactionId: notification.id },
+        { txHash },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (existing) {
+    onchainTxId = existing.id;
+  } else {
+    try {
+      const created = await prisma.onchainTransaction.create({
+        data: {
+          walletId: treasury.id,
+          direction: "IN",
+          amount,
+          counterpartyAddress: stuck.depositAddress ?? notification.sourceAddress ?? "unknown",
+          chain: treasury.chain,
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          txHash,
+          circleTransactionId: notification.id,
+          memo: `Recovered payment-link deposit sweep for session ${stuck.id}`,
+        },
+        select: { id: true },
+      });
+      onchainTxId = created.id;
+    } catch (err) {
+      if (!isPrismaUniqueViolation(err)) {
+        console.error(
+          `[webhooks/circle] failed to create OnchainTransaction for SWEEPING session ${stuck.id}`,
+          err
+        );
+        throw err;
+      }
+      const again = await prisma.onchainTransaction.findFirst({
+        where: {
+          OR: [
+            { circleTransactionId: notification.id },
+            { txHash },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!again) {
+        console.error(
+          `[webhooks/circle] P2002 on OnchainTransaction but row not found for session ${stuck.id}`
+        );
+        throw err;
+      }
+      onchainTxId = again.id;
+    }
+  }
+
+  // ── Step 2: confirm in a clean transaction (ledger + counters + status) ─
+  try {
+    await prisma.$transaction(async (tx) => {
+      const stillStuck = await tx.paymentLinkPayment.findFirst({
+        where: { id: stuck.id, status: "SWEEPING" },
+        select: { id: true },
+      });
+      // Another worker already confirmed — do nothing (no double counters)
+      if (!stillStuck) return;
+
+      await confirmPaymentLinkPayment(tx, {
+        paymentLinkPaymentId: stuck.id,
+        onchainTransactionId: onchainTxId,
+        amountPaid: amount,
+      });
+    });
+  } catch (err) {
+    // Root cause must be visible — not masked by a later 25P02
+    console.error(
+      `[webhooks/circle] confirmPaymentLinkPayment failed for SWEEPING session ${stuck.id} ` +
+        `(onchainTx=${onchainTxId}, amount=${amount.toString()})`,
+      err
+    );
+    throw err;
+  }
+
+  // ── Step 3: best-effort realtime (never affects money state) ───────────
+  try {
+    broadcastPaymentLinkSessionUpdate({
+      type: "payment_link_session_update",
+      paymentLinkPaymentId: stuck.id,
+      status: "CONFIRMED",
+      amountPaid: toDecimalString(amount),
+    });
+  } catch (err) {
+    console.error("[webhooks/circle] broadcast session update failed after recovery", err);
+  }
+
+  try {
+    broadcastPaymentReceived({
+      type: "payment_received",
+      orgId: stuck.paymentLink.orgId,
+      amount: toDecimalString(amount),
+      counterpartyAddress: stuck.depositAddress ?? "",
+      onchainTransactionId: onchainTxId,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[webhooks/circle] broadcast payment_received failed after recovery", err);
+  }
+
+  console.log(
+    `[webhooks/circle] recovered SWEEPING session ${stuck.id} → CONFIRMED (onchainTx=${onchainTxId})`
+  );
 }
