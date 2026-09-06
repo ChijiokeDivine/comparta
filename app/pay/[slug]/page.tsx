@@ -351,9 +351,18 @@ export default function PayLinkPage() {
               </div>
             )}
 
-            {session?.status === "CONFIRMED" && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 text-center">
-                Payment received. Thank you!
+            {session?.status === "CONFIRMED" && sessionId && (
+              <div className="space-y-3">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 text-center">
+                  Payment received. Thank you!
+                </div>
+                <a
+                  href={`/api/pay/${params.slug}/session/${sessionId}/receipt`}
+                  className="btn-3d btn-3d--neutral w-full text-center block"
+                  download
+                >
+                  Download receipt (PDF)
+                </a>
               </div>
             )}
             {session?.status === "SWEEPING" && (

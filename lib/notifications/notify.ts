@@ -23,6 +23,19 @@ export interface InvoiceEmailContext {
   publicUrl: string;
 }
 
+export interface PaymentReceivedEmailContext {
+  orgLegalName: string;
+  recipientEmails: string[];
+  amount: string; // decimal, e.g. "20.00"
+  currency: string; // "USDC"
+  description: string | null;
+  paymentId: string;
+  linkSlug: string;
+  confirmedAt: Date;
+  method: "WALLET" | "CARD";
+  dashboardUrl: string; // e.g. https://www.comparta.xyz/payment-links/{id}
+}
+
 function formatMoneyEmail(decimalString: string): string {
   const [whole, frac = ""] = decimalString.split(".");
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -426,6 +439,131 @@ async function sendOtpEmail(
 
   console.log(
     `[notify] OTP email (${kind}) sent to ${ctx.recipientEmail} (id=${data?.id ?? "?"})`
+  );
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// PAYMENT LINK — payment received (merchant / receiver)
+// ─────────────────────────────────────────────────────────────────────────
+
+
+function buildPaymentReceivedEmailHtml(ctx: PaymentReceivedEmailContext): string {
+  const amountLine = `${formatMoneyEmail(ctx.amount)} ${ctx.currency}`;
+  const when = formatDateEmail(ctx.confirmedAt);
+  const desc = ctx.description?.trim() || "Payment link";
+
+  return `<!DOCTYPE html>
+    <html lang="en">
+    <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment received</title>
+    </head>
+    <body style="margin:0;padding:0;background-color:#F7F8FB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding:40px 6px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#FFFFFF;border:1px solid #E5E9F2;border-radius:16px;">
+            <tr>
+              <td style="padding:40px 36px 32px;">
+                <p style="margin:0 0 24px;font-size:13px;font-weight:700;color:#2A5CE6;letter-spacing:0.02em;">Comparta</p>
+                <span style="display:inline-block;padding:4px 12px;border-radius:999px;background:#ECFDF5;color:#047857;font-size:12px;font-weight:600;border:1px solid #A7F3D0;">Payment received</span>
+                <h1 style="margin:14px 0 28px;font-size:20px;font-weight:700;color:#0B1E3F;line-height:1.3;">You received ${amountLine}</h1>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F7F8FB;border-radius:12px;margin-bottom:24px;">
+                  <tr>
+                    <td style="padding:18px 10px;">
+                      <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:#7C8CA6;text-transform:uppercase;letter-spacing:0.05em;">Amount</p>
+                      <p style="margin:0;font-size:28px;font-weight:700;color:#0B1E3F;font-variant-numeric:tabular-nums;">${amountLine}</p>
+                    </td>
+                  </tr>
+                </table>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                  <tr>
+                    <td style="padding:0 0 10px;font-size:13px;color:#7C8CA6;">For</td>
+                    <td style="padding:0 0 10px;font-size:13px;color:#0B1E3F;font-weight:600;text-align:right;">${desc}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-top:1px solid #F2F4F8;font-size:13px;color:#7C8CA6;">Confirmed</td>
+                    <td style="padding:10px 0;border-top:1px solid #F2F4F8;font-size:13px;color:#0B1E3F;font-weight:600;text-align:right;">${when}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-top:1px solid #F2F4F8;font-size:13px;color:#7C8CA6;">Method</td>
+                    <td style="padding:10px 0;border-top:1px solid #F2F4F8;font-size:13px;color:#0B1E3F;font-weight:600;text-align:right;">${ctx.method === "WALLET" ? "Wallet" : "Card / bank"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding-top:10px;border-top:1px solid #F2F4F8;font-size:13px;color:#7C8CA6;">Reference</td>
+                    <td style="padding-top:10px;border-top:1px solid #F2F4F8;font-size:12px;color:#0B1E3F;font-weight:600;text-align:right;font-family:Menlo,Consolas,monospace;">${ctx.paymentId.slice(0, 8)}…${ctx.paymentId.slice(-4)}</td>
+                  </tr>
+                </table>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="center" style="background-color:#2A5CE6;border-radius:10px;">
+                      <a href="${ctx.dashboardUrl}" target="_blank" rel="noopener noreferrer" style="display:block;padding:13px 24px;font-size:14px;font-weight:600;color:#FFFFFF;text-decoration:none;">View in Comparta</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 36px 28px;border-top:1px solid #F2F4F8;">
+                <p style="margin:0;font-size:11px;color:#B3BDD1;line-height:1.6;">Comparta · Payment confirmed on-chain</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    </body>
+    </html>`;
+  }
+
+function buildPaymentReceivedEmailText(ctx: PaymentReceivedEmailContext): string {
+  return `Payment received — ${formatMoneyEmail(ctx.amount)} ${ctx.currency}
+
+    For: ${ctx.description?.trim() || "Payment link"}
+    Confirmed: ${formatDateEmail(ctx.confirmedAt)}
+    Method: ${ctx.method}
+    Reference: ${ctx.paymentId}
+
+    ${ctx.dashboardUrl}
+
+    - Comparta`;
+  }
+
+/** Emails the merchant (OWNER/ADMIN) when a payment-link payment is confirmed. Best-effort. */
+export async function sendPaymentReceivedEmail(ctx: PaymentReceivedEmailContext): Promise<void> {
+  if (!ctx.recipientEmails.length) {
+    console.log(`[notify] no recipient emails for payment ${ctx.paymentId}`);
+    return;
+  }
+  if (!resend) {
+    console.log(
+      `[notify] RESEND_API_KEY not set - would email payment ${ctx.paymentId} to ${ctx.recipientEmails.join(", ")}`
+    );
+    return;
+  }
+
+  const subject = `Payment received: ${formatMoneyEmail(ctx.amount)} ${ctx.currency}`;
+
+  const { data, error } = await resend.emails.send({
+    from: RESEND_FROM,
+    to: ctx.recipientEmails,
+    subject,
+    html: buildPaymentReceivedEmailHtml(ctx),
+    text: buildPaymentReceivedEmailText(ctx),
+    tags: [
+      { name: "category", value: "payment-link-received" },
+      { name: "payment_id", value: ctx.paymentId },
+    ],
+  });
+
+  if (error) {
+    console.error(`[notify] resend failed for payment ${ctx.paymentId}`, error);
+    return;
+  }
+  console.log(
+    `[notify] payment ${ctx.paymentId} emailed to ${ctx.recipientEmails.join(", ")} (id=${data?.id ?? "?"})`
   );
 }
 
