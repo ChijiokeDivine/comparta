@@ -1,6 +1,8 @@
 <div align="center">
 
 # Comparta
+<img width="1920" height="1080" alt="screenshot_1 5x_postspark_2026-08-29_20-47-37" src="https://github.com/user-attachments/assets/5f51a78f-eabd-4c2b-8853-1c1913503c54" />
+
 
 **Smart Financial Operating System for Modern Teams**
 
