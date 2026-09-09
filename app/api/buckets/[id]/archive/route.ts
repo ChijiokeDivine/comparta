@@ -17,6 +17,7 @@ import {
   BucketHasDependenciesError,
 } from "@/lib/buckets/service";
 import { toDecimalString } from "@/lib/circle/amount";
+import { serializeBucket } from "@/lib/buckets/serialize";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -25,7 +26,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     assertCanManageBucket(ctx, id);
 
     const bucket = await archiveBucket(ctx.orgId, id, ctx.userId);
-    return NextResponse.json({ bucket });
+    return NextResponse.json({ bucket: serializeBucket(bucket) });
   } catch (err) {
     if (err instanceof UnauthenticatedError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

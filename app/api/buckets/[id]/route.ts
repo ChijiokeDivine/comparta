@@ -14,6 +14,7 @@ import {
   BucketValidationError,
   BucketArchivedError,
 } from "@/lib/buckets/service";
+import { serializeBucket } from "@/lib/buckets/serialize";
 
 const renameSchema = z.object({ name: z.string().min(1).max(100) }).strict();
 
@@ -41,7 +42,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const bucket = await renameBucket(ctx.orgId, id, parsed.data.name);
-    return NextResponse.json({ bucket });
+    return NextResponse.json({ bucket: serializeBucket(bucket) });
   } catch (err) {
     return handleError(err);
   }

@@ -14,6 +14,9 @@ import {
   listBucketsWithBalances,
   BucketValidationError,
 } from "@/lib/buckets/service";
+import { serializeBucket } from "@/lib/buckets/serialize";
+
+
 
 const LEDGER_ACCOUNT_TYPES = ["OPERATING", "RESERVE", "PAYROLL", "SAVINGS", "CUSTOM"] as const;
 
@@ -53,7 +56,7 @@ export async function POST(req: Request) {
     }
 
     const bucket = await createBucket({ orgId: ctx.orgId, ...parsed.data });
-    return NextResponse.json({ bucket }, { status: 201 });
+    return NextResponse.json({ bucket: serializeBucket(bucket) }, { status: 201 });
   } catch (err) {
     return handleError(err);
   }
