@@ -18,7 +18,12 @@ import {
   UnifiedBalanceError,
   type UnifiedBalanceSnapshot,
 } from "./unifiedBalance";
+import {
+  getUnifiedBalanceProvisionChains,
+  toCircleBlockchain,
+} from "./circleBlockchains";
 import type { Chain } from "@/app/generated/prisma/client";
+
 export class CircleApiError extends Error {
   constructor(message: string, public readonly cause?: unknown) {
     super(message);
@@ -59,42 +64,143 @@ export interface CreatedWallet {
   circleWalletId: string;
   arcAddress: string;
   chain: string;
+  /** Circle wallet set used for this create — persist on Wallet.circleWalletSetId */
+  walletSetId: string;
+  chainWallets: Array<{
+    chain: Chain;
+    circleWalletId: string;
+    address: string;
+    circleBlockchain: string;
+  }>;
 }
 
 /**
- * Provisions a new Circle Developer-Controlled Wallet on Arc for an org.
- * Uses a Smart Contract Account (SCA) wallet, which is what Circle
- * recommends for application-controlled custody.
+ * Provisions SCAs on every Unified Balance source chain for an org under
+ * the same wallet set + refId so addresses stay consistent across EVM
+ * chains. Primary Arc wallet is what Wallet.arcAddress / circleWalletId
+ * point at; per-chain ids live in WalletChain rows.
  */
 export async function createWalletForOrg(orgId: string): Promise<CreatedWallet> {
   const client = getCircleClient();
   const walletSetId = await getOrCreateWalletSet();
-  const blockchain = getArcBlockchain();
+  const chains = getUnifiedBalanceProvisionChains();
+  // SDK types blockchains as Blockchain[]; our mapper returns string codes
+  // that are valid Circle chain codes at runtime.
+  const blockchains = chains.map(toCircleBlockchain) as Parameters<
+    typeof client.createWallets
+  >[0]["blockchains"];
 
   try {
     const res = await client.createWallets({
-      blockchains: [blockchain],
+      blockchains,
       accountType: "SCA",
       count: 1,
       walletSetId,
       metadata: [{ name: `org:${orgId}`, refId: orgId }],
     });
 
-    const wallet = res.data?.wallets?.[0];
-    if (!wallet?.id || !wallet?.address) {
+    const wallets = res.data?.wallets ?? [];
+    if (wallets.length === 0) {
       throw new CircleApiError(
-        `Circle createWallets returned no usable wallet for org ${orgId}`
+        `Circle createWallets returned no wallets for org ${orgId}`
       );
     }
 
+    const byCircleChain = new Map(
+      wallets.map((w) => [String(w.blockchain), w])
+    );
+
+    const chainWallets: CreatedWallet["chainWallets"] = [];
+    for (const chain of chains) {
+      const code = toCircleBlockchain(chain);
+      const w = byCircleChain.get(code);
+      if (!w?.id || !w?.address) {
+        throw new CircleApiError(
+          `Circle createWallets missing wallet for ${code} (org ${orgId})`
+        );
+      }
+      chainWallets.push({
+        chain,
+        circleWalletId: w.id,
+        address: w.address,
+        circleBlockchain: code,
+      });
+    }
+
+    const arc =
+      chainWallets.find(
+        (c) => c.chain === "ARC_TESTNET" || c.chain === "ARC_MAINNET"
+      ) ?? chainWallets[0];
+
     return {
-      circleWalletId: wallet.id,
-      arcAddress: wallet.address,
-      chain: blockchain,
+      circleWalletId: arc.circleWalletId,
+      arcAddress: arc.address,
+      chain: arc.circleBlockchain,
+      walletSetId,
+      chainWallets,
     };
   } catch (err) {
-    throw new CircleApiError(`Failed to create Arc wallet for org ${orgId}`, err);
+    if (err instanceof CircleApiError) throw err;
+    throw new CircleApiError(`Failed to create wallets for org ${orgId}`, err);
   }
+}
+
+/**
+ * Ensures SCAs exist on every Unified Balance source chain for an existing
+ * Arc-only wallet. Idempotent: skips chains already present in DB; creates
+ * only the missing Circle blockchains under the same wallet set + refId.
+ */
+export async function ensureUnifiedBalanceChainWallets(params: {
+  orgId: string;
+  walletId: string;
+  existingCircleWalletSetId: string | null | undefined;
+  existingChains: Chain[];
+}): Promise<Array<{ chain: Chain; circleWalletId: string; address: string }>> {
+  const client = getCircleClient();
+  const walletSetId =
+    params.existingCircleWalletSetId || (await getOrCreateWalletSet());
+
+  const needed = getUnifiedBalanceProvisionChains().filter(
+    (c) => !params.existingChains.includes(c)
+  );
+  if (needed.length === 0) return [];
+
+  const blockchains = needed.map(toCircleBlockchain) as Parameters<
+    typeof client.createWallets
+  >[0]["blockchains"];
+
+  const res = await client.createWallets({
+    blockchains,
+    accountType: "SCA",
+    count: 1,
+    walletSetId,
+    metadata: [{ name: `org:${params.orgId}`, refId: params.orgId }],
+  });
+
+  const wallets = res.data?.wallets ?? [];
+  const byCircleChain = new Map(
+    wallets.map((w) => [String(w.blockchain), w])
+  );
+
+  const created: Array<{ chain: Chain; circleWalletId: string; address: string }> =
+    [];
+
+  for (const chain of needed) {
+    const code = toCircleBlockchain(chain);
+    const w = byCircleChain.get(code);
+    if (!w?.id || !w?.address) {
+      throw new CircleApiError(
+        `ensureUnifiedBalanceChainWallets: missing ${code} for org ${params.orgId}`
+      );
+    }
+    created.push({
+      chain,
+      circleWalletId: w.id,
+      address: w.address,
+    });
+  }
+
+  return created;
 }
 
 /**
@@ -111,7 +217,9 @@ export async function createWalletForOrg(orgId: string): Promise<CreatedWallet> 
  * same body, kept separate so a change to one provisioning path can't
  * silently affect the other.
  */
-export async function createWalletForPaymentLinkPayment(paymentLinkPaymentId: string): Promise<CreatedWallet> {
+export async function createWalletForPaymentLinkPayment(
+  paymentLinkPaymentId: string
+): Promise<CreatedWallet> {
   const client = getCircleClient();
   const walletSetId = await getOrCreateWalletSet();
   const blockchain = getArcBlockchain();
@@ -122,7 +230,12 @@ export async function createWalletForPaymentLinkPayment(paymentLinkPaymentId: st
       accountType: "SCA",
       count: 1,
       walletSetId,
-      metadata: [{ name: `payment-link-payment:${paymentLinkPaymentId}`, refId: paymentLinkPaymentId }],
+      metadata: [
+        {
+          name: `payment-link-payment:${paymentLinkPaymentId}`,
+          refId: paymentLinkPaymentId,
+        },
+      ],
     });
 
     const wallet = res.data?.wallets?.[0];
@@ -132,10 +245,22 @@ export async function createWalletForPaymentLinkPayment(paymentLinkPaymentId: st
       );
     }
 
+    const compartaChain: Chain =
+      blockchain === "ARC" ? "ARC_MAINNET" : "ARC_TESTNET";
+
     return {
       circleWalletId: wallet.id,
       arcAddress: wallet.address,
       chain: blockchain,
+      walletSetId,
+      chainWallets: [
+        {
+          chain: compartaChain,
+          circleWalletId: wallet.id,
+          address: wallet.address,
+          circleBlockchain: blockchain,
+        },
+      ],
     };
   } catch (err) {
     throw new CircleApiError(
@@ -152,7 +277,9 @@ export interface WalletBalance {
 }
 
 /** Reads all token balances for a wallet directly from Circle (source of truth on-chain). */
-export async function getWalletBalance(circleWalletId: string): Promise<WalletBalance[]> {
+export async function getWalletBalance(
+  circleWalletId: string
+): Promise<WalletBalance[]> {
   const client = getCircleClient();
   try {
     const res = await client.getWalletTokenBalance({ id: circleWalletId });
@@ -276,11 +403,16 @@ export interface TransactionStatus {
  * `arcAddress` (same address on every EVM chain — see that module's
  * docstring for the assumption this rests on).
  */
-export async function getUnifiedUsdcBalance(walletAddress: string): Promise<UnifiedBalanceSnapshot> {
+export async function getUnifiedUsdcBalance(
+  walletAddress: string
+): Promise<UnifiedBalanceSnapshot> {
   try {
     return await getUnifiedBalance(walletAddress);
   } catch (err) {
-    throw new CircleApiError(`Failed to fetch Unified Balance for ${walletAddress}`, err);
+    throw new CircleApiError(
+      `Failed to fetch Unified Balance for ${walletAddress}`,
+      err
+    );
   }
 }
 
@@ -297,11 +429,21 @@ export async function depositIntoUnifiedBalance(
   sourceChain: Chain
 ): Promise<{ depositedTo: string; txHash: string; explorerUrl?: string }> {
   if (amount <= 0n) {
-    throw new CircleApiError("depositIntoUnifiedBalance: amount must be positive");
+    throw new CircleApiError(
+      "depositIntoUnifiedBalance: amount must be positive"
+    );
   }
   try {
-    const result = await depositToUnifiedBalance(walletAddress, amount, sourceChain);
-    return { depositedTo: result.depositedTo, txHash: result.txHash, explorerUrl: result.explorerUrl };
+    const result = await depositToUnifiedBalance(
+      walletAddress,
+      amount,
+      sourceChain
+    );
+    return {
+      depositedTo: result.depositedTo,
+      txHash: result.txHash,
+      explorerUrl: result.explorerUrl,
+    };
   } catch (err) {
     if (err instanceof UnifiedBalanceError) {
       throw new CircleApiError(
@@ -329,11 +471,18 @@ export async function sendUnifiedBalancePayment(
   destinationChain: Chain
 ): Promise<SendResult> {
   if (amount <= 0n) {
-    throw new CircleApiError("sendUnifiedBalancePayment: amount must be positive");
+    throw new CircleApiError(
+      "sendUnifiedBalancePayment: amount must be positive"
+    );
   }
 
   try {
-    const result = await spendFromUnifiedBalance(fromAddress, toAddress, amount, destinationChain);
+    const result = await spendFromUnifiedBalance(
+      fromAddress,
+      toAddress,
+      amount,
+      destinationChain
+    );
     return {
       circleTransactionId: result.txHash,
       state: result.state,
@@ -359,7 +508,9 @@ export async function getTransactionStatus(
     const res = await client.getTransaction({ id: circleTransactionId });
     const tx = res.data?.transaction;
     if (!tx) {
-      throw new CircleApiError(`Circle getTransaction returned no data for ${circleTransactionId}`);
+      throw new CircleApiError(
+        `Circle getTransaction returned no data for ${circleTransactionId}`
+      );
     }
     return {
       id: tx.id ?? circleTransactionId,

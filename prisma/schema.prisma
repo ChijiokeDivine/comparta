@@ -517,6 +517,8 @@ model Wallet {
   arcAddress     String @unique // 0x... address on Arc
   chain          Chain  @default(ARC_TESTNET)
 
+  chainWallets   WalletChain[]
+
   ledgerAccounts   LedgerAccount[]
   onchainTxs       OnchainTransaction[]
 
@@ -525,6 +527,25 @@ model Wallet {
 
   @@index([orgId])
   @@map("wallets")
+}
+
+// prisma/schema.prisma — add after model Wallet
+
+model WalletChain {
+  id             String   @id @default(cuid())
+  walletId       String
+  wallet         Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  chain          Chain
+  circleWalletId String   @unique
+  address        String   // should match Wallet.arcAddress for EVM under same set+refId
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([walletId, chain])
+  @@index([walletId])
+  @@map("wallet_chains")
 }
 
 // Internal balance "buckets" (Operating / Tax / Payroll / Savings / custom).

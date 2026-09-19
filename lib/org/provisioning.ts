@@ -1,8 +1,16 @@
 // lib/org/provisioning.ts
 //
-// Provisions an org's single Circle Developer-Controlled Wallet on Arc,
-// then creates the four default LedgerAccount buckets (Operating, Tax
-// Reserve, Payroll, Savings), all backed by that one wallet.
+// Provisions an org's Circle Developer-Controlled Wallet(s) for Unified
+// Balance source chains (Arc + ETH/Base/Arbitrum Sepolia, etc.), then
+// creates the four default LedgerAccount buckets (Operating, Tax Reserve,
+// Payroll, Savings), all backed by the primary Arc Wallet row.
+//
+// createWalletForOrg() now creates one SCA per Unified Balance chain under
+// the same wallet set + refId=orgId so addresses stay consistent across
+// EVM chains. We persist:
+//   - one Wallet row (Arc = primary treasury / ledger anchor)
+//   - one WalletChain row per provisioned chain (needed so App Kit can
+//     sign deposits on non-Arc chains)
 //
 // This used to live inline in app/api/org/kyb/approve/route.ts. It's
 // pulled out here so app/api/auth/register/route.ts can call the exact
@@ -16,6 +24,8 @@
 // toggled over the org's lifetime - e.g. an org provisioned at signup
 // under demo mode must never be re-provisioned (and billed a second
 // Circle wallet) if /api/org/kyb/approve is ever also called for it.
+// Multi-chain backfill for *existing* orgs is a separate script
+// (scripts/backfill-unified-balance-wallets.ts), not done here.
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { createWalletForOrg } from "@/lib/circle/wallets";
@@ -37,14 +47,16 @@ export interface ProvisionOrgWalletResult {
 export async function provisionOrgWallet(orgId: string): Promise<ProvisionOrgWalletResult> {
   const existing = await prisma.wallet.findFirst({ where: { orgId } });
   if (existing) {
-    const ledgerAccounts = await prisma.ledgerAccount.findMany({ where: { orgId, walletId: existing.id } });
+    const ledgerAccounts = await prisma.ledgerAccount.findMany({
+      where: { orgId, walletId: existing.id },
+    });
     return { wallet: existing, ledgerAccounts, alreadyProvisioned: true };
   }
 
   // Circle call happens outside the DB transaction (it's a network call to
   // a third party and shouldn't hold a Postgres transaction open); if the
   // subsequent DB writes fail we log loudly rather than silently orphaning
-  // a Circle wallet with no local record.
+  // Circle wallet(s) with no local record.
   const circleWallet = await createWalletForOrg(orgId);
 
   try {
@@ -54,9 +66,33 @@ export async function provisionOrgWallet(orgId: string): Promise<ProvisionOrgWal
           orgId,
           circleWalletId: circleWallet.circleWalletId,
           arcAddress: circleWallet.arcAddress,
-          chain: circleWallet.chain === "ARC" ? "ARC_MAINNET" : "ARC_TESTNET",
+          // Prefer explicit chain from the Arc entry when present; fall back
+          // to the Circle blockchain code string ("ARC" vs "ARC-TESTNET").
+          chain:
+            circleWallet.chainWallets.find(
+              (c) => c.chain === "ARC_TESTNET" || c.chain === "ARC_MAINNET"
+            )?.chain ??
+            (circleWallet.chain === "ARC" || circleWallet.chain === "ARC-MAINNET"
+              ? "ARC_MAINNET"
+              : "ARC_TESTNET"),
+          circleWalletSetId: circleWallet.walletSetId ?? undefined,
         },
       });
+
+      // One WalletChain row per Unified Balance source chain so deposit
+      // can resolve the correct Circle wallet id/address for sourceChain.
+      await Promise.all(
+        circleWallet.chainWallets.map((cw) =>
+          tx.walletChain.create({
+            data: {
+              walletId: walletRow.id,
+              chain: cw.chain,
+              circleWalletId: cw.circleWalletId,
+              address: cw.address,
+            },
+          })
+        )
+      );
 
       const ledgerAccounts = await Promise.all(
         DEFAULT_LEDGER_BUCKETS.map((bucket) =>
@@ -76,11 +112,17 @@ export async function provisionOrgWallet(orgId: string): Promise<ProvisionOrgWal
       return { walletRow, ledgerAccounts };
     });
 
-    return { wallet: result.walletRow, ledgerAccounts: result.ledgerAccounts, alreadyProvisioned: false };
+    return {
+      wallet: result.walletRow,
+      ledgerAccounts: result.ledgerAccounts,
+      alreadyProvisioned: false,
+    };
   } catch (err) {
     console.error(
-      `[provisioning] CRITICAL: Circle wallet ${circleWallet.circleWalletId} (${circleWallet.arcAddress}) ` +
-        `was created for org ${orgId} but the follow-up DB write failed. Manual reconciliation needed.`,
+      `[provisioning] CRITICAL: Circle wallet(s) for org ${orgId} were created ` +
+        `(primary ${circleWallet.circleWalletId} @ ${circleWallet.arcAddress}, ` +
+        `${circleWallet.chainWallets.length} chain(s)) but the follow-up DB write failed. ` +
+        `Manual reconciliation needed.`,
       err
     );
     throw err;
