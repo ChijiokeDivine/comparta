@@ -46,11 +46,11 @@ export default async function WalletPage() {
   const onchainUsdc =
     isApproved && wallet ? await getUsdcBalance(wallet.circleWalletId).catch(() => null) : null;
 
-  // Unified Balance (Circle Gateway) — merged USDC across every chain
+  // Unified Balance (Circle Gateway) - merged USDC across every chain
   // Comparta accepts deposits on (Arc Testnet, Base Sepolia, Ethereum
   // Sepolia, Arbitrum Sepolia, HyperEVM Testnet; see
   // lib/circle/unifiedBalance.ts for why Celo/Monad testnet aren't
-  // included yet). Best-effort like onchainUsdc above — a slow/failing
+  // included yet). Best-effort like onchainUsdc above - a slow/failing
   // Gateway call should never break the rest of the wallet page.
   const unifiedBalance =
     isApproved && wallet ? await getUnifiedUsdcBalance(wallet.arcAddress).catch(() => null) : null;
@@ -133,7 +133,7 @@ export default async function WalletPage() {
             <div>
               <h2 className="text-sm font-semibold text-[#0B1E3F]">Unified Balance</h2>
               <p className="text-xs text-[#7C8CA6] mt-1">
-                USDC merged across every chain this wallet accepts deposits on — same address,
+                USDC merged across every chain this wallet accepts deposits on - same address,
                 spendable to any of them.
               </p>
             </div>
@@ -163,7 +163,7 @@ export default async function WalletPage() {
                     <Image src="/usdc.png" alt="USDC" width={15} height={15} className="rounded-full shrink-0" />
                     {formatMoney(toDecimalString(unifiedBalance.totalPending))}
                   </p>
-                  <p className="text-xs text-[#7C8CA6] mt-1">Not yet spendable — awaiting source-chain finality</p>
+                  <p className="text-xs text-[#7C8CA6] mt-1">Not yet spendable - awaiting source-chain finality</p>
                 </div>
               </div>
 
@@ -183,7 +183,7 @@ export default async function WalletPage() {
             </>
           ) : (
             <p className="text-sm text-[#7C8CA6] pt-4 border-t border-[#F2F4F8]">
-              Couldn't reach Circle Gateway just now — try refreshing.
+              Couldn't reach Circle Gateway just now - try refreshing.
             </p>
           )}
         </div>

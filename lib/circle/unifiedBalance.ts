@@ -7,16 +7,16 @@
 // bridging first.
 //
 // This is the SECOND (and only other) module allowed to call App Kit
-// directly — see lib/circle/appKit.ts's module docstring, which owns Send.
+// directly - see lib/circle/appKit.ts's module docstring, which owns Send.
 // This module reuses that file's memoized adapter/kit singletons
 // (getCircleWalletsAdapter/getAppKit) rather than constructing its own, so
 // CIRCLE_API_KEY/CIRCLE_ENTITY_SECRET are still wired into an App Kit
 // adapter in exactly one place codebase-wide.
 //
 // WHICH CHAINS ARE ACTUALLY WIRED HERE, AND WHY (checked against
-// docs.arc.io/app-kit/references/supported-blockchains on 2026-09-18 —
+// docs.arc.io/app-kit/references/supported-blockchains on 2026-09-18 -
 // re-check before trusting this list if it's been a while): ARC_TESTNET,
-// ETH_SEPOLIA, BASE_SEPOLIA, ARBITRUM_SEPOLIA, HYPEREVM_TESTNET —
+// ETH_SEPOLIA, BASE_SEPOLIA, ARBITRUM_SEPOLIA, HYPEREVM_TESTNET -
 // confirmed "Unified Balance: yes" on that page, and the only chains
 // toUnifiedBalanceChain() below will map. Celo and Monad Testnet were
 // requested but are intentionally absent from the Chain enum itself
@@ -26,22 +26,22 @@
 // Gateway does not support Unified Balance there yet. Per
 // lib/circle/appKit.ts's precedent for ARC_MAINNET: guessing a chain
 // literal Circle hasn't documented as Unified-Balance-supported is worse
-// than failing loudly, especially for something that moves real USDC —
+// than failing loudly, especially for something that moves real USDC -
 // so re-add either only once Circle's docs confirm support, updating the
 // Chain enum, UNIFIED_BALANCE_SUPPORTED_CHAINS, and
 // toUnifiedBalanceChain() together.
 //
 // STILL ON TESTNET: networkType is hardcoded to "testnet" below
 // (getUnifiedBalance) and every chain literal this module maps to is a
-// testnet chain. Flip that — and re-verify each chain's MAINNET Unified
-// Balance support against the same docs page — before pointing this at
+// testnet chain. Flip that - and re-verify each chain's MAINNET Unified
+// Balance support against the same docs page - before pointing this at
 // production funds.
 //
 // ADDRESS ASSUMPTION THAT NEEDS A LIVE-TESTNET CHECK BEFORE THIS IS
 // TRUSTED IN PRODUCTION: this module deliberately does NOT provision any
 // new per-chain wallet record (Wallet.arcAddress / createWalletForOrg are
 // untouched). It assumes the org's existing SCA wallet address is valid
-// as a deposit/spend address on every chain listed above — true for how
+// as a deposit/spend address on every chain listed above - true for how
 // Circle SCA wallets are deterministically deployed across EVM chains,
 // per Circle's docs, but this repo has not yet confirmed it against a
 // real cross-chain deposit landing on a Comparta-custodied address. Send
@@ -50,7 +50,7 @@
 // invoice funds.
 //
 // WHAT THIS MODULE DOES NOT DO: it doesn't listen for deposits (no
-// webhook — see chainMapping.ts's module docstring for why Circle's
+// webhook - see chainMapping.ts's module docstring for why Circle's
 // existing webhook system doesn't cover these chains) and it doesn't
 // persist any balance snapshot. Every call here hits Gateway live, same
 // posture as getUsdcBalance() in wallets.ts for the single-chain case.
@@ -67,7 +67,7 @@ export class UnifiedBalanceError extends Error {
 }
 
 /** Thrown by toUnifiedBalanceChain() for a Chain we know isn't (or isn't
- * yet confirmed) Unified-Balance-supported — see module docstring. */
+ * yet confirmed) Unified-Balance-supported - see module docstring. */
 export class UnifiedBalanceUnsupportedChainError extends UnifiedBalanceError {}
 
 /**
@@ -93,8 +93,8 @@ export function isUnifiedBalanceSupported(chain: Chain): boolean {
  * Throws UnifiedBalanceUnsupportedChainError for anything not in
  * UNIFIED_BALANCE_SUPPORTED_CHAINS. In practice this should only ever hit
  * the `default` case today, since Celo/Monad Testnet were kept out of the
- * Chain enum entirely rather than passed through and blocked here — see
- * module docstring — but this stays defensive in case the enum grows
+ * Chain enum entirely rather than passed through and blocked here - see
+ * module docstring - but this stays defensive in case the enum grows
  * again before this function does.
  */
 export function toUnifiedBalanceChain(
@@ -114,7 +114,7 @@ export function toUnifiedBalanceChain(
     default:
       throw new UnifiedBalanceUnsupportedChainError(
         `No Unified Balance chain literal mapped for Comparta chain "${chain}". Checked ` +
-          `docs.arc.io/app-kit/references/supported-blockchains on 2026-09-18 — re-check there ` +
+          `docs.arc.io/app-kit/references/supported-blockchains on 2026-09-18 - re-check there ` +
           `before wiring this chain in.`
       );
   }
@@ -135,7 +135,7 @@ export interface UnifiedBalanceSnapshot {
 /**
  * Reads the Unified Balance for `address` across every chain in
  * UNIFIED_BALANCE_SUPPORTED_CHAINS, by address (no adapter/signing key
- * needed — this is a read, same posture as getUsdcBalance() in
+ * needed - this is a read, same posture as getUsdcBalance() in
  * wallets.ts). Chains with zero confirmed/pending balance are still
  * included in `byChain` so the UI can show "$0 on Ethereum Sepolia"
  * rather than omitting the chain entirely.
@@ -146,7 +146,7 @@ export async function getUnifiedBalance(address: string): Promise<UnifiedBalance
 
   // Typed loosely (not against @circle-fin/app-kit's own types) because
   // this repo's installed App Kit version's exact getBalances() return
-  // shape wasn't available to check while writing this — the field names
+  // shape wasn't available to check while writing this - the field names
   // below are copied verbatim from docs.arc.io/app-kit/tutorials/
   // unified-balance/check-unified-balance. Re-verify against the actual
   // installed package's .d.ts if this throws at runtime.
@@ -191,7 +191,7 @@ export async function getUnifiedBalance(address: string): Promise<UnifiedBalance
   for (const depositor of breakdown) {
     for (const entry of depositor.breakdown ?? []) {
       const internalChain = CHAIN_LITERAL_TO_INTERNAL[entry.chain];
-      if (!internalChain) continue; // chain we didn't ask about — ignore rather than guess
+      if (!internalChain) continue; // chain we didn't ask about - ignore rather than guess
       const totals = perChainTotals.get(internalChain) ?? { confirmed: 0n, pending: 0n };
       totals.confirmed += toSmallestUnit(entry.confirmedBalance ?? "0");
       totals.pending += toSmallestUnit(entry.pendingBalance ?? "0");
@@ -220,11 +220,11 @@ export interface UnifiedBalanceSpendResult {
  * Spends `amount` (bigint, smallest USDC unit) from the Unified Balance
  * at `fromAddress`, delivered to `toAddress` on `destinationChain`. Lets
  * App Kit auto-select which confirmed source-chain balances to draw from
- * (no explicit `allocations` — see docs.arc.io/app-kit/tutorials/
+ * (no explicit `allocations` - see docs.arc.io/app-kit/tutorials/
  * unified-balance/select-source-blockchains) rather than Comparta trying
  * to pre-compute a route itself.
  *
- * Like sendViaAppKit() in appKit.ts, this only submits the spend — it
+ * Like sendViaAppKit() in appKit.ts, this only submits the spend - it
  * does not write any LedgerEntry/OnchainTransaction rows. See
  * lib/transfers/sendUnified.ts for that bookkeeping, and for why (same
  * as appKit.ts) a successful call here is treated as immediately final
@@ -246,7 +246,7 @@ export async function spendFromUnifiedBalance(
   const chain = toUnifiedBalanceChain(destinationChain); // throws for unsupported chains
 
   try {
-    // Cast for the same reason as getUnifiedBalance() above — result
+    // Cast for the same reason as getUnifiedBalance() above - result
     // shape copied from docs.arc.io's spend() examples, not verified
     // against this repo's installed @circle-fin/app-kit .d.ts.
     const result = (await kit.unifiedBalance.spend({
