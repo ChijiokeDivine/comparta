@@ -14,6 +14,7 @@ import { sendViaAppKit, AppKitSendError } from "./appKit";
 import {
   getUnifiedBalance,
   spendFromUnifiedBalance,
+  depositToUnifiedBalance,
   UnifiedBalanceError,
   type UnifiedBalanceSnapshot,
 } from "./unifiedBalance";
@@ -280,6 +281,36 @@ export async function getUnifiedUsdcBalance(walletAddress: string): Promise<Unif
     return await getUnifiedBalance(walletAddress);
   } catch (err) {
     throw new CircleApiError(`Failed to fetch Unified Balance for ${walletAddress}`, err);
+  }
+}
+
+/**
+ * Moves USDC already sitting as a plain balance at `walletAddress` on
+ * `sourceChain` into Circle Gateway's Unified Balance — required before
+ * any of it will show up in getUnifiedUsdcBalance() or be spendable via
+ * sendUnifiedBalancePayment(). See lib/circle/unifiedBalance.ts's module
+ * docstring: arriving at the address is not enough on its own.
+ */
+export async function depositIntoUnifiedBalance(
+  walletAddress: string,
+  amount: bigint,
+  sourceChain: Chain
+): Promise<{ depositedTo: string; txHash: string; explorerUrl?: string }> {
+  if (amount <= 0n) {
+    throw new CircleApiError("depositIntoUnifiedBalance: amount must be positive");
+  }
+  try {
+    const result = await depositToUnifiedBalance(walletAddress, amount, sourceChain);
+    return { depositedTo: result.depositedTo, txHash: result.txHash, explorerUrl: result.explorerUrl };
+  } catch (err) {
+    if (err instanceof UnifiedBalanceError) {
+      throw new CircleApiError(
+        `Failed to deposit ${toDecimalString(amount)} USDC into Unified Balance from ` +
+          `${walletAddress} on ${sourceChain}`,
+        err.cause ?? err
+      );
+    }
+    throw err;
   }
 }
 
