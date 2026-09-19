@@ -43,10 +43,7 @@ export default async function UnifiedBalanceSpendPage() {
       <KybBanner status={org.kybStatus} />
       <div>
         <h1 className="text-xl font-semibold text-[#0B1E3F]">Spend Unified Balance</h1>
-        <p className="text-sm text-[#7C8CA6] mt-1">
-          Sends to any address on any chain your Unified Balance supports — App Kit draws from
-          whichever confirmed source-chain balances cover the amount.
-        </p>
+     
       </div>
       <UnifiedSpendForm buckets={buckets} disabled={org.kybStatus !== "APPROVED"} />
     </div>
