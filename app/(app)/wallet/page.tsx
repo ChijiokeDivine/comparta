@@ -12,6 +12,7 @@ import { StatusPill } from "@/app/components/StatusPill";
 import { formatMoney } from "@/app/invoices/_components/format";
 import CopyAddressButton from "./_components/CopyAddressButton";
 import type { Metadata } from "next";
+import { Info } from "lucide-react";
 import Image from "next/image";
 
 export const metadata: Metadata = {
@@ -130,12 +131,31 @@ export default async function WalletPage() {
       {wallet && isApproved && (
         <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
+            <div className="relative group inline-flex items-center gap-1.5">
               <h2 className="text-sm font-semibold text-[#0B1E3F]">Unified Balance</h2>
-              <p className="text-xs text-[#7C8CA6] mt-1">
-                USDC merged across every chain this wallet accepts deposits on - same address,
-                spendable to any of them.
-              </p>
+
+              <div className="relative hidden md:block">
+                <Info className="h-3.5 w-3.5 text-[#7C8CA6] cursor-help" />
+
+                {/* Tooltip */}
+                <div
+                  className="
+                    absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                    px-2.5 py-1.5 text-xs font-medium text-white
+                    bg-[#0B1E3F] rounded-md shadow-lg
+                    opacity-0 invisible group-hover:opacity-100 group-hover:visible
+                    transition-all duration-150
+                    pointer-events-none z-50
+                    md:w-[300px] text-center leading-relaxed
+                  "
+                >
+                  USDC merged across every chain this wallet accepts deposits on - same address,
+                  spendable to any of them.
+
+                  {/* Arrow */}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#0B1E3F]" />
+                </div>
+              </div>
             </div>
             {unifiedBalance && (
               <Link
@@ -158,12 +178,24 @@ export default async function WalletPage() {
                   </p>
                 </div>
                 <div>
-                  <p className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-2">Pending</p>
-                  <p className="md:text-lg text-sm font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
+                  <p className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-2 inline-flex items-center gap-1.5">
+                    Pending
+                    <span className="relative group/tooltip inline-flex">
+                      <Info className="size-3.5 shrink-0 cursor-help text-[#7C8CA6]" />
+                      <span
+                        role="tooltip"
+                        className="pointer-events-none absolute left-1/2 bottom-full z-50 mb-2 w-max max-w-[220px] -translate-x-1/2 rounded-md bg-[#0B1E3F] px-2.5 py-1.5 text-xs font-normal text-white opacity-0 shadow-md transition-opacity duration-150 group-hover/tooltip:opacity-100"
+                      >
+                        Not yet spendable - awaiting source-chain finality
+                         {/* Arrow */}
+                        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#0B1E3F]" />
+                      </span>
+                    </span>
+                  </p>
+                  <p className="md:text-lg text-sm font-semibold text-[#0B1E3F] tabular-nums flex items-center gap-1.5">
                     <Image src="/usdc.png" alt="USDC" width={15} height={15} className="rounded-full shrink-0" />
                     {formatMoney(toDecimalString(unifiedBalance.totalPending))}
                   </p>
-                  <p className="text-xs text-[#7C8CA6] mt-1">Not yet spendable - awaiting source-chain finality</p>
                 </div>
               </div>
 
