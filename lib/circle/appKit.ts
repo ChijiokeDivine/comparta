@@ -16,17 +16,31 @@
 // instead of a raw createTransaction REST call. Nothing about custody
 // changes; only how the transaction is submitted does.
 //
+// UPDATE (Unified Balance rollout): the paragraph below used to say
+// Comparta was single-chain (Arc only) and that adopting Unified Balance
+// "would mean adopting a materially different, heavier custody/deposit
+// model for no benefit." That's no longer true — Comparta now accepts
+// USDC deposits on Base Sepolia, Ethereum Sepolia, Arbitrum Sepolia, and
+// HyperEVM Testnet (in addition to Arc Testnet) and merges them into one
+// spendable balance via Circle Gateway. That capability lives in the
+// SIBLING module lib/circle/unifiedBalance.ts, not here — kept separate
+// from this file (Send) rather than folded in, because the two have very
+// different rollout risk profiles: Send is already live in production
+// payroll/invoice flows; Unified Balance is new. lib/circle/unifiedBalance.ts
+// is therefore the SECOND (and only other) module allowed to touch App
+// Kit directly — it reuses getCircleWalletsAdapter() below rather than
+// constructing its own adapter, so there is still exactly one place
+// credentials get wired into an App Kit adapter.
+//
 // WHAT DIDN'T MIGRATE, AND WHY (see lib/circle/wallets.ts for these):
 //   - Wallet creation (createWalletForOrg) — App Kit has no wallet-
 //     provisioning capability; every example takes an existing wallet
 //     address as input. Stays on the raw Developer-Controlled Wallets API.
-//   - Balance reads (getWalletBalance/getUsdcBalance) — App Kit's balance
-//     concept is Unified Balance (kit.getBalances()), built around Circle
-//     Gateway's cross-chain deposit-and-spend model. Comparta is
-//     single-chain (Arc only) and doesn't use Gateway, so adopting
-//     Unified Balance here would mean adopting a materially different,
-//     heavier custody/deposit model for no benefit — a plain balance
-//     query stays on the raw REST call.
+//   - Balance reads for a SINGLE chain (getWalletBalance/getUsdcBalance)
+//     — these remain on the raw REST call; they answer "what does this
+//     wallet hold on the chain it was created on," which Unified Balance
+//     doesn't replace (Unified Balance is specifically the CROSS-chain
+//     merged view — see unifiedBalance.ts).
 //   - USYC deploy/redeem (lib/savings/yield.ts, lib/circle/usyc.ts) — not
 //     covered by App Kit's Send/Bridge/Swap/Unified-Balance surface at
 //     all. USYC conversion is regulated money-market-fund share
@@ -85,6 +99,26 @@ function getAdapter(): ReturnType<typeof createCircleWalletsAdapter> {
     });
   }
   return globalForAppKit.circleWalletsAdapter;
+}
+
+/**
+ * Exported so lib/circle/unifiedBalance.ts (the only other module allowed
+ * to touch App Kit — see the module docstring above) can spend on behalf
+ * of a Comparta-custodied wallet without constructing a second adapter
+ * instance from scratch. Same memoized singleton this file's own
+ * sendViaAppKit() already uses.
+ */
+export function getCircleWalletsAdapter(): ReturnType<typeof createCircleWalletsAdapter> {
+  return getAdapter();
+}
+
+/**
+ * Exported for the same reason as getCircleWalletsAdapter() above —
+ * unifiedBalance.ts calls kit.unifiedBalance.* on this same memoized
+ * AppKit instance rather than constructing its own.
+ */
+export function getAppKit(): AppKit {
+  return getKit();
 }
 
 /**

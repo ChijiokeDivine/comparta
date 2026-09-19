@@ -11,6 +11,13 @@ import { getEnv } from "@/lib/env";
 import { toDecimalString } from "./amount";
 import { randomUUID } from "node:crypto";
 import { sendViaAppKit, AppKitSendError } from "./appKit";
+import {
+  getUnifiedBalance,
+  spendFromUnifiedBalance,
+  UnifiedBalanceError,
+  type UnifiedBalanceSnapshot,
+} from "./unifiedBalance";
+import type { Chain } from "@/app/generated/prisma/client";
 export class CircleApiError extends Error {
   constructor(message: string, public readonly cause?: unknown) {
     super(message);
@@ -256,6 +263,61 @@ export interface TransactionStatus {
   state: string; // INITIATED | PENDING_RISK_SCREENING | QUEUED | SENT | CONFIRMED | COMPLETE | FAILED | CANCELLED | DENIED
   txHash?: string;
   amounts?: string[];
+}
+
+/**
+ * Cross-chain counterpart to getUsdcBalance() above. Returns the org
+ * wallet's Unified Balance — USDC confirmed/pending across every chain
+ * Comparta has wired into Circle Gateway's Unified Balance (Arc Testnet,
+ * Base Sepolia, Ethereum Sepolia, Arbitrum Sepolia, HyperEVM Testnet —
+ * see lib/circle/unifiedBalance.ts for the authoritative list and why
+ * Celo/Monad testnet aren't in it yet), keyed by the wallet's existing
+ * `arcAddress` (same address on every EVM chain — see that module's
+ * docstring for the assumption this rests on).
+ */
+export async function getUnifiedUsdcBalance(walletAddress: string): Promise<UnifiedBalanceSnapshot> {
+  try {
+    return await getUnifiedBalance(walletAddress);
+  } catch (err) {
+    throw new CircleApiError(`Failed to fetch Unified Balance for ${walletAddress}`, err);
+  }
+}
+
+/**
+ * Cross-chain counterpart to sendTransaction() above. Spends from the
+ * wallet's Unified Balance (auto-drawing from whichever confirmed
+ * source-chain balances cover `amount`) and delivers it to `toAddress` on
+ * `destinationChain`. Throws CircleApiError (wrapping
+ * UnifiedBalanceUnsupportedChainError) for a destination chain Comparta
+ * hasn't wired into Unified Balance — see lib/circle/unifiedBalance.ts.
+ */
+export async function sendUnifiedBalancePayment(
+  fromAddress: string,
+  toAddress: string,
+  amount: bigint,
+  destinationChain: Chain
+): Promise<SendResult> {
+  if (amount <= 0n) {
+    throw new CircleApiError("sendUnifiedBalancePayment: amount must be positive");
+  }
+
+  try {
+    const result = await spendFromUnifiedBalance(fromAddress, toAddress, amount, destinationChain);
+    return {
+      circleTransactionId: result.txHash,
+      state: result.state,
+      explorerUrl: result.explorerUrl,
+    };
+  } catch (err) {
+    if (err instanceof UnifiedBalanceError) {
+      throw new CircleApiError(
+        `Failed to spend ${toDecimalString(amount)} USDC from Unified Balance (${fromAddress}) ` +
+          `to ${toAddress} on ${destinationChain}`,
+        err.cause ?? err
+      );
+    }
+    throw err;
+  }
 }
 
 export async function getTransactionStatus(

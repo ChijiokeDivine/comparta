@@ -47,6 +47,28 @@ enum Chain {
   BASE
   AVAX
   ARBITRUM
+
+  // ── Unified Balance sources (see lib/circle/unifiedBalance.ts) ─────
+  // Added for the Circle Gateway / App Kit Unified Balance rollout.
+  // Deliberately separate values from the untagged BASE/ARBITRUM above
+  // (those predate this phase and aren't wired to anything - left alone
+  // rather than repurposed, to avoid silently reinterpreting old rows).
+  //
+  // Confirmed live on Circle Gateway's Unified Balance testnet today
+  // (docs.arc.io/app-kit/references/supported-blockchains, checked
+  // 2026-09-18) — these are the only chains this app now accepts:
+  BASE_SEPOLIA
+  ARBITRUM_SEPOLIA
+  HYPEREVM_TESTNET
+
+  // Celo and Monad Testnet were requested but deliberately left OUT of
+  // this enum entirely (rather than kept-but-unused) — Celo doesn't
+  // appear in App Kit's/Gateway's supported-blockchains docs at all, and
+  // Monad Testnet has Send/Bridge/Swap on App Kit but Circle Gateway does
+  // not support Unified Balance there yet. Re-add only once Circle's docs
+  // confirm Unified Balance support, at which point also update
+  // lib/circle/unifiedBalance.ts's UNIFIED_BALANCE_SUPPORTED_CHAINS and
+  // toUnifiedBalanceChain().
 }
 
 enum LedgerAccountType {
