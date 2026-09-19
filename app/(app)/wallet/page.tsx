@@ -183,7 +183,7 @@ export default async function WalletPage() {
             </>
           ) : (
             <p className="text-sm text-[#7C8CA6] pt-4 border-t border-[#F2F4F8]">
-              Couldn't reach Circle Gateway just now - try refreshing.
+              Couldnt reach Circle Gateway just now - try refreshing.
             </p>
           )}
         </div>
