@@ -75,6 +75,7 @@ export const QUEUE_NAMES = {
   RECURRING_TRANSFER_SWEEP: "recurring-transfer-sweep",
   TRANSACTION_CATEGORIZATION_SWEEP: "transaction-categorization-sweep",
   ANOMALY_DETECTION_SWEEP: "anomaly-detection-sweep",
+  UNIFIED_BALANCE_DEPOSIT_SWEEP: "unified-balance-deposit-sweep",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

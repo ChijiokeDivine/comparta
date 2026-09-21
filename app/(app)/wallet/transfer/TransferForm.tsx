@@ -26,6 +26,21 @@ interface ResolveResult {
   username: string | null;
 }
 
+// Only ever shown when the recipient is a raw address (see resolved.type
+// below) — a Comparta @username always resolves to another org's own Arc
+// wallet, so there's no chain to pick for that case. Arc stays first/
+// default so picking a contact or pasting an Arc address behaves exactly
+// as before this existed. The other four route through Unified Balance
+// (see lib/circle/unifiedBalance.ts) instead of a plain Arc transfer —
+// invisible to the user beyond which endpoint gets called.
+const DESTINATION_CHAINS: { value: string; label: string }[] = [
+  { value: "ARC_TESTNET", label: "Arc" },
+  { value: "ETH_SEPOLIA", label: "Ethereum Sepolia" },
+  { value: "BASE_SEPOLIA", label: "Base Sepolia" },
+  { value: "ARBITRUM_SEPOLIA", label: "Arbitrum Sepolia" },
+  { value: "HYPEREVM_TESTNET", label: "HyperEVM Testnet" },
+];
+
 export default function TransferForm({
   buckets,
   disabled,
@@ -43,6 +58,7 @@ export default function TransferForm({
   const [resolving, setResolving] = useState(false);
   const [resolved, setResolved] = useState<ResolveResult | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
+  const [destinationChain, setDestinationChain] = useState("ARC_TESTNET");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -117,6 +133,11 @@ export default function TransferForm({
         return;
       }
       setResolved(data);
+      // A @username always resolves to another org's own Arc wallet -
+      // there's no chain to pick for that case, so reset to Arc rather
+      // than risk a leftover non-Arc selection from a previous address
+      // silently applying to a username send.
+      if (data.type === "USERNAME") setDestinationChain("ARC_TESTNET");
     } catch {
       setResolveError("Could not resolve this recipient");
     } finally {
@@ -167,16 +188,37 @@ export default function TransferForm({
   async function handleTransfer() {
     setSubmitting(true);
     try {
-      const res = await fetch("/api/transfers/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
-        body: JSON.stringify({
-          fromLedgerAccountId,
-          toIdentifier: toIdentifier.trim(),
-          amount: amount.trim(),
-          memo: memo.trim() || undefined,
-        }),
-      });
+      // Arc stays on the existing, already-in-production send path
+      // unchanged (whether the recipient is a @username or a raw Arc
+      // address) - only a deliberately-chosen non-Arc destination routes
+      // through Unified Balance. See lib/transfers/sendUnified.ts's
+      // module docstring for why these are kept as two functions even
+      // though this form presents them as one.
+      const useUnifiedBalance = destinationChain !== "ARC_TESTNET";
+
+      const res = await fetch(
+        useUnifiedBalance ? "/api/wallet/unified-balance/spend" : "/api/transfers/send",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+          body: JSON.stringify(
+            useUnifiedBalance
+              ? {
+                  fromLedgerAccountId,
+                  toAddress: (resolved?.address ?? toIdentifier).trim(),
+                  destinationChain,
+                  amount: amount.trim(),
+                  memo: memo.trim() || undefined,
+                }
+              : {
+                  fromLedgerAccountId,
+                  toIdentifier: toIdentifier.trim(),
+                  amount: amount.trim(),
+                  memo: memo.trim() || undefined,
+                }
+          ),
+        }
+      );
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Transfer failed");
@@ -326,6 +368,26 @@ export default function TransferForm({
           </p>
         )}
         {resolveError && <p className="mt-1.5 text-xs text-red-600">{resolveError}</p>}
+
+        {resolved?.type === "ADDRESS" && (
+          <div className="mt-3 flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
+            {DESTINATION_CHAINS.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setDestinationChain(c.value)}
+                disabled={disabled}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  destinationChain === c.value
+                    ? "bg-[#2A5CE6] text-white"
+                    : "text-[#3E4A6B] hover:bg-white"
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>
@@ -432,6 +494,11 @@ export default function TransferForm({
                       ? `@${resolved?.username ?? toIdentifier}`
                       : truncateAddress(resolved?.address ?? toIdentifier)}
                   </p>
+                  {destinationChain !== "ARC_TESTNET" && (
+                    <p className="text-xs text-[#2A5CE6] font-medium mt-0.5">
+                      on {DESTINATION_CHAINS.find((c) => c.value === destinationChain)?.label}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -534,6 +601,11 @@ export default function TransferForm({
                       ? `@${resolved?.username ?? toIdentifier}`
                       : truncateAddress(resolved?.address ?? toIdentifier)}
                   </p>
+                  {destinationChain !== "ARC_TESTNET" && (
+                    <p className="text-[10px] text-[#2A5CE6] font-medium mt-0.5">
+                      on {DESTINATION_CHAINS.find((c) => c.value === destinationChain)?.label}
+                    </p>
+                  )}
                 </div>
               </div>
 

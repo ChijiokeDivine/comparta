@@ -60,24 +60,26 @@
 // testnet chain. Flip that — and re-verify each chain's MAINNET Unified
 // Balance support the same way — before pointing this at production funds.
 //
-// ADDRESS ASSUMPTION THAT STILL NEEDS A LIVE CHECK: this module does not
-// provision any new per-chain wallet record (Wallet.arcAddress /
-// createWalletForOrg are untouched). It assumes the org's existing SCA
-// wallet address is a valid deposit-source address on every chain listed
-// above — standard for how Circle SCA wallets deploy across EVM chains,
-// but unconfirmed against a real deposit on any chain but Arc in this
-// repo. This is a SEPARATE concern from the deposit() requirement above:
-// even with the right address, funds still won't show until deposited.
+// ADDRESS SHARING vs. WALLET REGISTRATION — TWO SEPARATE THINGS (resolved
+// 2026-09-19): an SCA wallet's address is deterministically the same
+// across EVM chains, but Circle's Developer-Controlled Wallets are still
+// provisioned PER-BLOCKCHAIN — Circle won't sign a transaction for an
+// address on a chain it hasn't registered a wallet for, even though the
+// address is "the same" conceptually. This is why depositToUnifiedBalance()
+// used to fail for every chain except Arc: this repo's wallet was only
+// ever created on Arc. The fix is Circle's deriveWallet/deriveWalletByAddress
+// (see lib/circle/wallets.ts#deriveWalletOnChain), which registers the
+// SAME address as a signable wallet on another chain. DEPOSIT_SOURCE_
+// SUPPORTED_CHAINS below and WalletChainRegistration (prisma schema) are
+// the two pieces that track this. Not every Unified-Balance-supported
+// chain has a confirmed code in the Developer-Controlled Wallets SDK —
+// see DEPOSIT_SOURCE_SUPPORTED_CHAINS's own comment for which don't.
 //
-// WHAT THIS MODULE DOES NOT DO: it doesn't watch for incoming transfers
-// and auto-deposit them into Gateway (no webhook covers these chains —
-// see chainMapping.ts's module docstring), and it doesn't persist any
-// balance snapshot. Every call here hits Gateway live, same posture as
-// getUsdcBalance() in wallets.ts for the single-chain case. Turning
-// "USDC arrived at this address" into "credited to Unified Balance" is
-// currently a manual step via depositToUnifiedBalance() — automating that
-// (e.g. a poller that detects a plain balance and deposits it) is a
-// follow-up, not something this file does today.
+// WHAT THIS MODULE DOES NOT DO: watch for incoming transfers and decide
+// on its own when to deposit them — that orchestration (detect a plain
+// balance, deposit the delta, credit the ledger) lives in
+// lib/circle/autoDeposit.ts, which calls depositToUnifiedBalance() below
+// as one step. This file only wraps the three raw App Kit calls.
 
 import { getAppKit, getCircleWalletsAdapter } from "./appKit";
 import { toDecimalString, toSmallestUnit } from "./amount";
@@ -110,6 +112,58 @@ export const UNIFIED_BALANCE_SUPPORTED_CHAINS: readonly Chain[] = [
 
 export function isUnifiedBalanceSupported(chain: Chain): boolean {
   return (UNIFIED_BALANCE_SUPPORTED_CHAINS as Chain[]).includes(chain);
+}
+
+/**
+ * Subset of UNIFIED_BALANCE_SUPPORTED_CHAINS that Comparta will accept as
+ * a DEPOSIT source — i.e. chains where lib/circle/wallets.ts#deriveWalletOnChain
+ * can register the org's wallet with a confirmed, unambiguous blockchain
+ * code. Deliberately excludes HYPEREVM_TESTNET: the installed
+ * @circle-fin/developer-controlled-wallets SDK's EvmBlockchain enum has no
+ * dedicated HyperEVM entry (only a generic 'EVM-TESTNET' catch-all that
+ * couldn't be confirmed to map to HyperEVM specifically), and guessing
+ * wrong on a wallet-provisioning call is a worse failure mode than simply
+ * not offering it yet. HyperEVM Testnet remains fully usable as a SPEND
+ * DESTINATION (spendFromUnifiedBalance's Forwarder path needs no wallet
+ * registration on the destination chain at all), just not as a source.
+ */
+export const DEPOSIT_SOURCE_SUPPORTED_CHAINS: readonly Chain[] = [
+  "ARC_TESTNET",
+  "ETH_SEPOLIA",
+  "BASE_SEPOLIA",
+  "ARBITRUM_SEPOLIA",
+] as const;
+
+export function isDepositSourceSupported(chain: Chain): boolean {
+  return (DEPOSIT_SOURCE_SUPPORTED_CHAINS as Chain[]).includes(chain);
+}
+
+/**
+ * Maps a Comparta Chain to the blockchain code
+ * @circle-fin/developer-controlled-wallets' deriveWallet/deriveWalletByAddress
+ * expect (its EvmBlockchain enum — a DIFFERENT code-space from
+ * toUnifiedBalanceChain()'s App Kit literals above). Only defined for
+ * DEPOSIT_SOURCE_SUPPORTED_CHAINS; throws for anything else, same
+ * fail-loudly posture as toUnifiedBalanceChain().
+ */
+export function toCircleDeveloperWalletsBlockchain(
+  chain: Chain
+): "ARC-TESTNET" | "ETH-SEPOLIA" | "BASE-SEPOLIA" | "ARB-SEPOLIA" {
+  switch (chain) {
+    case "ARC_TESTNET":
+      return "ARC-TESTNET";
+    case "ETH_SEPOLIA":
+      return "ETH-SEPOLIA";
+    case "BASE_SEPOLIA":
+      return "BASE-SEPOLIA";
+    case "ARBITRUM_SEPOLIA":
+      return "ARB-SEPOLIA";
+    default:
+      throw new UnifiedBalanceUnsupportedChainError(
+        `"${chain}" has no confirmed Developer-Controlled-Wallets blockchain code — ` +
+          `not in DEPOSIT_SOURCE_SUPPORTED_CHAINS.`
+      );
+  }
 }
 
 /**
@@ -294,17 +348,25 @@ export interface UnifiedBalanceSpendResult {
 
 /**
  * Spends `amount` (bigint, smallest USDC unit) from the Unified Balance
- * at `fromAddress`, delivered to `toAddress` on `destinationChain`.
+ * at `fromAddress`, delivered to `toAddress` on `destinationChain`. Lets
+ * App Kit auto-select which confirmed source-chain balances to draw from
+ * (no explicit `allocations`) rather than Comparta trying to pre-compute
+ * a route itself.
  *
- * Uses the Forwarding Service (`useForwarder: true`) so the recipient can
- * be an arbitrary external address — Comparta does not need a custody
- * adapter on the destination chain.
+ * Destination uses App Kit's Forwarder shape (`{ chain, recipientAddress,
+ * useForwarder: true }`) rather than an adapter-backed destination —
+ * `toAddress` is an arbitrary external address Comparta doesn't custody
+ * or sign for, so there's no adapter to give it; Circle's Forwarding
+ * Service submits the destination-chain mint on Comparta's behalf
+ * instead. (An earlier version of this function passed `{ adapter,
+ * address: toAddress }`, which is wrong on two counts: `address` there is
+ * the destination ADAPTER's own account-context field, not the money
+ * recipient — that's `recipientAddress` — and passing our own adapter for
+ * an address we don't control doesn't make sense anyway.)
  *
- * Preflights with `estimateSpend()` so we surface fee shortfalls (especially
- * the Gateway forwarding fee) before signing burn intents. Gateway requires:
- *   maxFee ≥ gas fee + forwarding fee + (amount * 0.5bps)
- * Spending the full confirmed balance with no buffer is a common cause of:
- *   "Insufficient total maxFee across intents to cover forwarding fee"
+ * Like sendViaAppKit() in appKit.ts, this only submits the spend — it
+ * does not write any LedgerEntry/OnchainTransaction rows. See
+ * lib/transfers/sendUnified.ts for that bookkeeping.
  */
 export async function spendFromUnifiedBalance(
   fromAddress: string,
@@ -320,71 +382,15 @@ export async function spendFromUnifiedBalance(
   const adapter = getCircleWalletsAdapter();
   const chain = toUnifiedBalanceChain(destinationChain); // throws for unsupported chains
 
-  const spendParams = {
-    amount: toDecimalString(amount),
-    from: { adapter, address: fromAddress },
-    to: {
-      chain,
-      recipientAddress: toAddress,
-      useForwarder: true as const,
-    },
-  };
-
   try {
-    // ── Preflight: same route shape as spend, so fee estimate matches ──
-    type FeeEntry = { type?: string; amount?: string; token?: string };
-    type EstimateSpendResult = { fees?: FeeEntry[] };
-
-    let estimate: EstimateSpendResult;
-    try {
-      estimate = (await kit.unifiedBalance.estimateSpend(
-        spendParams
-      )) as EstimateSpendResult;
-    } catch (estimateErr) {
-      // If estimate itself fails (e.g. balance too low for amount+fees),
-      // surface that rather than a opaque spend failure later.
-      throw new UnifiedBalanceError(
-        `Unified Balance fee estimate failed for ${toDecimalString(amount)} USDC ` +
-          `→ ${destinationChain}. Confirmed balance may be too low to cover amount + ` +
-          `gas + forwarding fees. Try a smaller amount or leave ~0.05–0.10 USDC buffer.`,
-        estimateErr
-      );
-    }
-
-    const fees = estimate.fees ?? [];
-    const feeTotal = fees.reduce(
-      (sum, f) => sum + toSmallestUnit(f.amount ?? "0"),
-      0n
-    );
-
-    const forwarderFee = fees.find((f) => f.type === "forwarder");
-    const gasFee = fees.find((f) => f.type === "gasFee");
-    const providerFee = fees.find((f) => f.type === "provider");
-
-    console.info("[unifiedBalance.spend] fee estimate", {
+    const result = (await kit.unifiedBalance.spend({
       amount: toDecimalString(amount),
-      destinationChain,
-      feeTotal: toDecimalString(feeTotal),
-      forwarder: forwarderFee?.amount ?? "0",
-      gasFee: gasFee?.amount ?? "0",
-      provider: providerFee?.amount ?? "0",
-    });
-
-    // ── Execute spend with the same params ──
-    const result = (await kit.unifiedBalance.spend(spendParams)) as {
-      txHash?: string;
-      state?: string;
-      explorerUrl?: string;
-      fees?: FeeEntry[];
-      transferId?: string;
-    };
-
+      from: { adapter, address: fromAddress },
+      to: { chain, recipientAddress: toAddress, useForwarder: true },
+    })) as { txHash?: string; state?: string; explorerUrl?: string };
     if (!result?.txHash) {
-      throw new UnifiedBalanceError(
-        "App Kit unifiedBalance.spend() returned no txHash"
-      );
+      throw new UnifiedBalanceError("App Kit unifiedBalance.spend() returned no txHash");
     }
-
     return {
       txHash: result.txHash,
       state: result.state ?? "success",
@@ -392,33 +398,6 @@ export async function spendFromUnifiedBalance(
     };
   } catch (err) {
     if (err instanceof UnifiedBalanceError) throw err;
-
-    // Map the common Gateway maxFee / forwarder shortfall to a clear message.
-    const msg =
-      err && typeof err === "object" && "message" in err
-        ? String((err as { message?: unknown }).message)
-        : String(err);
-    const causeMsg =
-      err &&
-      typeof err === "object" &&
-      "cause" in err &&
-      (err as { cause?: unknown }).cause
-        ? String((err as { cause: unknown }).cause)
-        : "";
-
-    if (
-      /Insufficient total maxFee|forwarding fee|maxFee/i.test(msg) ||
-      /Insufficient total maxFee|forwarding fee|maxFee/i.test(causeMsg)
-    ) {
-      throw new UnifiedBalanceError(
-        `Unified Balance spend of ${toDecimalString(amount)} USDC to ${toAddress} on ` +
-          `${destinationChain} failed: Gateway forwarding/gas fees exceed the maxFee ` +
-          `reserved on the burn intents. Leave a buffer (try a slightly smaller amount; ` +
-          `~0.05–0.10 USDC is often enough on testnet) so amount + fees fit in confirmed balance.`,
-        err
-      );
-    }
-
     throw new UnifiedBalanceError(
       `Unified Balance spend of ${toDecimalString(amount)} USDC from ${fromAddress} to ` +
         `${toAddress} on ${destinationChain} failed`,

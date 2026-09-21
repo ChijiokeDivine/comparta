@@ -12,6 +12,19 @@ import {
 } from "lucide-react";
 import QRCodeStyling from "qr-code-styling";
 
+// The wallet's address is the same across every one of these chains (see
+// lib/circle/unifiedBalance.ts's module docstring) - only the label
+// changes. Arc stays first/default since it's the only chain that settles
+// instantly with no extra step; the other three are detected and folded
+// into the spendable balance automatically within a few minutes (see
+// lib/circle/autoDeposit.ts) rather than being instant like Arc.
+const DEPOSIT_CHAINS: { value: string; label: string }[] = [
+  { value: "ARC_TESTNET", label: "Arc" },
+  { value: "ETH_SEPOLIA", label: "Ethereum Sepolia" },
+  { value: "BASE_SEPOLIA", label: "Base Sepolia" },
+  { value: "ARBITRUM_SEPOLIA", label: "Arbitrum Sepolia" },
+];
+
 interface DepositModalProps {
   open: boolean;
   onClose: () => void;
@@ -23,11 +36,16 @@ export default function DepositModal({
   open,
   onClose,
   address,
-  chain = "ARC",
+  chain = "ARC_TESTNET",
 }: DepositModalProps) {
   const qrRef = useRef<HTMLDivElement | null>(null);
   const qrInstance = useRef<QRCodeStyling | null>(null);
   const [copied, setCopied] = useState(false);
+  const [selectedChain, setSelectedChain] = useState(chain);
+
+  useEffect(() => {
+    if (open) setSelectedChain(chain);
+  }, [open, chain]);
 
   useEffect(() => {
     if (!open) return;
@@ -101,17 +119,10 @@ export default function DepositModal({
     }
   }
 
- 
-
-  // function truncateMiddle(addr: string, start = 8, end = 6) {
-  //   if (addr.length <= start + end + 3) return addr;
-  //   return `${addr.slice(0, start)}…${addr.slice(-end)}`;
-  // }
-
   const displayChain =
-    chain && chain.includes("_")
-      ? chain.split("_").map((w) => w[0] + w.slice(1).toLowerCase()).join(" ")
-      : chain;
+    DEPOSIT_CHAINS.find((c) => c.value === selectedChain)?.label ??
+    selectedChain;
+  const isArc = selectedChain === "ARC_TESTNET";
 
   return (
     <div
@@ -120,17 +131,17 @@ export default function DepositModal({
       aria-modal="true"
       aria-labelledby="deposit-title"
     >
+      {/* Full-page overlay */}
       <button
         aria-label="Close deposit modal"
         onClick={onClose}
-        className="absolute inset-0 bg-[#0B1E3F]/50 backdrop-blur-[2px] animate-[fadeIn_.15s_ease]"
+        className="fixed inset-0 bg-[#0B1E3F]/50 backdrop-blur-[2px] animate-[fadeIn_.15s_ease]"
         tabIndex={-1}
       />
 
       <div className="relative w-full max-w-[720px] rounded-2xl bg-white shadow-[0_24px_80px_-20px_rgba(11,30,63,0.35)] animate-[popIn_.18s_ease] overflow-hidden">
         <div className="flex items-start justify-between px-6 pt-6 pb-2">
           <div>
-           
             <h2
               id="deposit-title"
               className="text-xl font-semibold text-[#0B1E3F]"
@@ -148,6 +159,23 @@ export default function DepositModal({
         </div>
 
         <div className="px-6 pb-6 space-y-5">
+          <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
+            {DEPOSIT_CHAINS.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setSelectedChain(c.value)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  selectedChain === c.value
+                    ? "bg-[#2A5CE6] text-white"
+                    : "text-[#3E4A6B] hover:bg-white"
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-2">
             <div className="flex justify-center shrink-0 mx-auto sm:mx-0">
               <div className="relative p-4 rounded-xl border border-[#E5E9F2]">
@@ -187,15 +215,13 @@ export default function DepositModal({
                     )}
                   </button>
                 </div>
-              
               </div>
 
-              <div className="md:grid grid-cols-3 gap-2.5   hidden">
+              <div className="md:grid grid-cols-3 gap-2.5 hidden">
                 <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
                   <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
                     <Network size={14} />
                   </div>
-                 
                   <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
                     {displayChain}
                   </p>
@@ -204,13 +230,12 @@ export default function DepositModal({
                   <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
                     <Clock3 size={14} />
                   </div>
-                
                   <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
-                    ~1 min
+                    {isArc ? "~1 min" : "~2 min"}
                   </p>
                 </div>
                 <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
-                  <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white  flex items-center justify-center">
+                  <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white flex items-center justify-center">
                     <Image
                       src="/usdc.png"
                       alt="USDC"
@@ -219,7 +244,6 @@ export default function DepositModal({
                       className="rounded-full"
                     />
                   </div>
-               
                   <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
                     USDC
                   </p>
@@ -228,15 +252,12 @@ export default function DepositModal({
             </div>
           </div>
 
-       
-
           <div className="mt-1 rounded-xl border border-[#E5EEFF] p-3.5 flex gap-3 md:block hidden">
-        
             <div className="space-y-1">
               <p className="text-xs font-semibold text-[#0B1E3F]">
                 Send only USDC on the {displayChain} network
               </p>
-              <p className="text-[11px] leading-relaxed text-[#3E4A6B] ">
+              <p className="text-[11px] leading-relaxed text-[#3E4A6B]">
                 Deposits of other assets or on unsupported chains will be
                 irretrievable. Confirm the network in your sending wallet before
                 confirming.

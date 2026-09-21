@@ -323,8 +323,12 @@ export async function handleInboundTransfer(notification: InboundNotification): 
  * otherwise falls back to the org's "Operating" bucket by name (the
  * convention established at KYB approval, see
  * app/api/org/kyb/approve/route.ts).
+ *
+ * Exported for lib/circle/autoDeposit.ts, which credits a Unified
+ * Balance auto-deposit into the same default bucket a stray Arc inbound
+ * transfer would land in - same fallback rule, same reasoning.
  */
-async function resolveDefaultLedgerAccountId(
+export async function resolveDefaultLedgerAccountId(
   tx: Prisma.TransactionClient,
   orgId: string,
   walletId: string

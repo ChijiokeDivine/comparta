@@ -517,10 +517,9 @@ model Wallet {
   arcAddress     String @unique // 0x... address on Arc
   chain          Chain  @default(ARC_TESTNET)
 
-  chainWallets   WalletChain[]
-
   ledgerAccounts   LedgerAccount[]
   onchainTxs       OnchainTransaction[]
+  chainRegistrations WalletChainRegistration[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -529,23 +528,51 @@ model Wallet {
   @@map("wallets")
 }
 
-// prisma/schema.prisma — add after model Wallet
+// One row per additional chain this wallet's address has been DERIVED
+// onto via Circle's deriveWallet/deriveWalletByAddress (see
+// lib/circle/wallets.ts#deriveWalletOnChain) — i.e. Circle recognizes
+// this SAME address as a signable wallet on that chain too, not just on
+// Arc. This is a prerequisite for depositIntoUnifiedBalance() to work on
+// a given chain (see lib/circle/unifiedBalance.ts's module docstring):
+// Circle's Developer-Controlled Wallets are provisioned per-blockchain,
+// so an address being deterministically identical across EVM chains does
+// NOT by itself mean Circle will sign a transaction for it there.
+//
+// Only created for DEPOSIT_SOURCE_SUPPORTED_CHAINS (see
+// lib/circle/unifiedBalance.ts) — chains with a confirmed, unambiguous
+// blockchain code in @circle-fin/developer-controlled-wallets. Does NOT
+// include HyperEVM Testnet: that SDK has no dedicated code for it (only
+// a generic EVM/EVM-TESTNET fallback that couldn't be confirmed to map
+// to HyperEVM specifically), so it stays spend-destination-only for now.
+//
+// cumulativeDepositedAmount is the running total (smallest USDC unit)
+// this wallet has deposited into Unified Balance FROM this chain,
+// maintained by lib/circle/autoDeposit.ts's sweep. It exists so the sweep
+// only deposits the DELTA between a chain's current plain balance and
+// what's already been deposited — never blindly re-depositing the whole
+// balance every run, which would double-count funds still settling from
+// a prior deposit.
+model WalletChainRegistration {
+  id       String @id @default(cuid())
+  walletId String
+  wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
-model WalletChain {
-  id             String   @id @default(cuid())
-  walletId       String
-  wallet         Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  chain Chain
 
-  chain          Chain
-  circleWalletId String   @unique
-  address        String   // should match Wallet.arcAddress for EVM under same set+refId
+  // The Circle wallet id returned by deriveWallet for THIS chain -
+  // distinct from Wallet.circleWalletId (that one is Arc's). Needed to
+  // query this chain's plain USDC balance via Circle's per-wallet
+  // balance endpoint (lib/circle/wallets.ts#getUsdcBalanceForCircleWallet).
+  derivedCircleWalletId String @unique
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  cumulativeDepositedAmount BigInt @default(0)
+  lastSweptAt               DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([walletId, chain])
-  @@index([walletId])
-  @@map("wallet_chains")
+  @@map("wallet_chain_registrations")
 }
 
 // Internal balance "buckets" (Operating / Tax / Payroll / Savings / custom).

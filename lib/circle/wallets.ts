@@ -10,20 +10,18 @@ import { getCircleClient, getArcBlockchain } from "./client";
 import { getEnv } from "@/lib/env";
 import { toDecimalString } from "./amount";
 import { randomUUID } from "node:crypto";
+import { prisma } from "@/lib/db/prisma";
 import { sendViaAppKit, AppKitSendError } from "./appKit";
 import {
   getUnifiedBalance,
   spendFromUnifiedBalance,
   depositToUnifiedBalance,
+  toCircleDeveloperWalletsBlockchain,
+  DEPOSIT_SOURCE_SUPPORTED_CHAINS,
   UnifiedBalanceError,
   type UnifiedBalanceSnapshot,
 } from "./unifiedBalance";
-import {
-  getUnifiedBalanceProvisionChains,
-  toCircleBlockchain,
-} from "./circleBlockchains";
 import type { Chain } from "@/app/generated/prisma/client";
-
 export class CircleApiError extends Error {
   constructor(message: string, public readonly cause?: unknown) {
     super(message);
@@ -64,143 +62,169 @@ export interface CreatedWallet {
   circleWalletId: string;
   arcAddress: string;
   chain: string;
-  /** Circle wallet set used for this create — persist on Wallet.circleWalletSetId */
-  walletSetId: string;
-  chainWallets: Array<{
-    chain: Chain;
-    circleWalletId: string;
-    address: string;
-    circleBlockchain: string;
-  }>;
 }
 
 /**
- * Provisions SCAs on every Unified Balance source chain for an org under
- * the same wallet set + refId so addresses stay consistent across EVM
- * chains. Primary Arc wallet is what Wallet.arcAddress / circleWalletId
- * point at; per-chain ids live in WalletChain rows.
+ * Provisions a new Circle Developer-Controlled Wallet on Arc for an org.
+ * Uses a Smart Contract Account (SCA) wallet, which is what Circle
+ * recommends for application-controlled custody.
  */
 export async function createWalletForOrg(orgId: string): Promise<CreatedWallet> {
   const client = getCircleClient();
   const walletSetId = await getOrCreateWalletSet();
-  const chains = getUnifiedBalanceProvisionChains();
-  // SDK types blockchains as Blockchain[]; our mapper returns string codes
-  // that are valid Circle chain codes at runtime.
-  const blockchains = chains.map(toCircleBlockchain) as Parameters<
-    typeof client.createWallets
-  >[0]["blockchains"];
+  const blockchain = getArcBlockchain();
 
   try {
     const res = await client.createWallets({
-      blockchains,
+      blockchains: [blockchain],
       accountType: "SCA",
       count: 1,
       walletSetId,
       metadata: [{ name: `org:${orgId}`, refId: orgId }],
     });
 
-    const wallets = res.data?.wallets ?? [];
-    if (wallets.length === 0) {
+    const wallet = res.data?.wallets?.[0];
+    if (!wallet?.id || !wallet?.address) {
       throw new CircleApiError(
-        `Circle createWallets returned no wallets for org ${orgId}`
+        `Circle createWallets returned no usable wallet for org ${orgId}`
       );
     }
 
-    const byCircleChain = new Map(
-      wallets.map((w) => [String(w.blockchain), w])
-    );
-
-    const chainWallets: CreatedWallet["chainWallets"] = [];
-    for (const chain of chains) {
-      const code = toCircleBlockchain(chain);
-      const w = byCircleChain.get(code);
-      if (!w?.id || !w?.address) {
-        throw new CircleApiError(
-          `Circle createWallets missing wallet for ${code} (org ${orgId})`
-        );
-      }
-      chainWallets.push({
-        chain,
-        circleWalletId: w.id,
-        address: w.address,
-        circleBlockchain: code,
-      });
-    }
-
-    const arc =
-      chainWallets.find(
-        (c) => c.chain === "ARC_TESTNET" || c.chain === "ARC_MAINNET"
-      ) ?? chainWallets[0];
-
     return {
-      circleWalletId: arc.circleWalletId,
-      arcAddress: arc.address,
-      chain: arc.circleBlockchain,
-      walletSetId,
-      chainWallets,
+      circleWalletId: wallet.id,
+      arcAddress: wallet.address,
+      chain: blockchain,
     };
   } catch (err) {
-    if (err instanceof CircleApiError) throw err;
-    throw new CircleApiError(`Failed to create wallets for org ${orgId}`, err);
+    throw new CircleApiError(`Failed to create Arc wallet for org ${orgId}`, err);
   }
 }
 
 /**
- * Ensures SCAs exist on every Unified Balance source chain for an existing
- * Arc-only wallet. Idempotent: skips chains already present in DB; creates
- * only the missing Circle blockchains under the same wallet set + refId.
+ * Registers an org's existing wallet as a signable wallet on ANOTHER
+ * chain too, via Circle's deriveWallet — same address, new blockchain.
+ * This is the fix for the "deposit works on Arc, fails everywhere else"
+ * problem (see lib/circle/unifiedBalance.ts's module docstring): Circle
+ * won't sign for an address on a chain it hasn't registered a wallet on,
+ * even though SCA addresses are deterministically identical across EVM
+ * chains.
+ *
+ * Idempotent by design — Circle's own docs say calling this again for a
+ * chain that's already derived just updates that wallet's metadata
+ * rather than erroring, so this is safe to re-run (e.g. from a startup
+ * check or a retried backfill).
+ *
+ * Verifies the derived address matches the wallet's existing arcAddress
+ * and throws rather than silently accepting a mismatch — an SCA address
+ * NOT matching across chains would mean something is wrong with the
+ * wallet set's deployment, and proceeding as if it were fine risks
+ * depositing funds under an address this codebase doesn't actually
+ * control.
  */
-export async function ensureUnifiedBalanceChainWallets(params: {
-  orgId: string;
-  walletId: string;
-  existingCircleWalletSetId: string | null | undefined;
-  existingChains: Chain[];
-}): Promise<Array<{ chain: Chain; circleWalletId: string; address: string }>> {
+export async function deriveWalletOnChain(
+  walletId: string,
+  circleWalletId: string,
+  expectedAddress: string,
+  chain: Chain
+): Promise<{ derivedCircleWalletId: string }> {
   const client = getCircleClient();
-  const walletSetId =
-    params.existingCircleWalletSetId || (await getOrCreateWalletSet());
+  const blockchain = toCircleDeveloperWalletsBlockchain(chain);
 
-  const needed = getUnifiedBalanceProvisionChains().filter(
-    (c) => !params.existingChains.includes(c)
-  );
-  if (needed.length === 0) return [];
-
-  const blockchains = needed.map(toCircleBlockchain) as Parameters<
-    typeof client.createWallets
-  >[0]["blockchains"];
-
-  const res = await client.createWallets({
-    blockchains,
-    accountType: "SCA",
-    count: 1,
-    walletSetId,
-    metadata: [{ name: `org:${params.orgId}`, refId: params.orgId }],
-  });
-
-  const wallets = res.data?.wallets ?? [];
-  const byCircleChain = new Map(
-    wallets.map((w) => [String(w.blockchain), w])
-  );
-
-  const created: Array<{ chain: Chain; circleWalletId: string; address: string }> =
-    [];
-
-  for (const chain of needed) {
-    const code = toCircleBlockchain(chain);
-    const w = byCircleChain.get(code);
-    if (!w?.id || !w?.address) {
+  let derived: { id?: string; address?: string };
+  try {
+    const res = await client.deriveWallet({ id: circleWalletId, blockchain });
+    const wallet = res.data?.wallet;
+    if (!wallet?.id || !wallet?.address) {
       throw new CircleApiError(
-        `ensureUnifiedBalanceChainWallets: missing ${code} for org ${params.orgId}`
+        `Circle deriveWallet returned no usable wallet for ${circleWalletId} on ${chain}`
       );
     }
-    created.push({
-      chain,
-      circleWalletId: w.id,
-      address: w.address,
-    });
+    derived = wallet;
+  } catch (err) {
+    if (err instanceof CircleApiError) throw err;
+    throw new CircleApiError(`Failed to derive wallet ${circleWalletId} onto ${chain}`, err);
   }
 
-  return created;
+  if (derived.address!.toLowerCase() !== expectedAddress.toLowerCase()) {
+    throw new CircleApiError(
+      `Derived wallet address on ${chain} (${derived.address}) does not match this wallet's ` +
+        `existing address (${expectedAddress}) — refusing to register a mismatched address. ` +
+        `This should never happen for an SCA wallet set; treat as a Circle-side or ` +
+        `configuration issue, not something to work around.`
+    );
+  }
+
+  await prisma.walletChainRegistration.upsert({
+    where: { walletId_chain: { walletId, chain } },
+    create: { walletId, chain, derivedCircleWalletId: derived.id! },
+    update: { derivedCircleWalletId: derived.id! },
+  });
+
+  return { derivedCircleWalletId: derived.id! };
+}
+
+/**
+ * Ensures a wallet is derived onto every DEPOSIT_SOURCE_SUPPORTED_CHAINS
+ * chain it isn't already registered for. Called once for new orgs right
+ * after createWalletForOrg (see app/api/org/... wherever that's invoked),
+ * and exposed as a one-time backfill for existing orgs via POST
+ * /api/wallet/unified-balance/provision.
+ *
+ * Chains already in WalletChainRegistration are skipped without calling
+ * Circle again — deriveWalletOnChain() is safe to re-run, but there's no
+ * reason to pay the API round-trip for a chain we already know is done.
+ * A failure on one chain does not stop the others — each chain's result
+ * is collected independently so one bad chain (e.g. a transient Circle
+ * error) never blocks provisioning the rest.
+ */
+export async function ensureWalletDerivedOnDepositChains(
+  walletId: string
+): Promise<{ chain: Chain; status: "already-registered" | "derived" | "failed"; error?: string }[]> {
+  const wallet = await prisma.wallet.findUniqueOrThrow({
+    where: { id: walletId },
+    include: { chainRegistrations: true },
+  });
+
+  const alreadyRegistered = new Set(wallet.chainRegistrations.map((r) => r.chain));
+
+  const results: { chain: Chain; status: "already-registered" | "derived" | "failed"; error?: string }[] = [];
+
+  for (const chain of DEPOSIT_SOURCE_SUPPORTED_CHAINS) {
+    if (chain === wallet.chain) {
+      // The wallet's home chain (Arc) is already a Circle-registered
+      // wallet by construction (createWalletForOrg) - record it as a
+      // registration too so autoDeposit.ts can treat every deposit
+      // source uniformly, without special-casing "unless it's Arc"
+      // everywhere it reads WalletChainRegistration.
+      if (!alreadyRegistered.has(chain)) {
+        await prisma.walletChainRegistration.upsert({
+          where: { walletId_chain: { walletId, chain } },
+          create: { walletId, chain, derivedCircleWalletId: wallet.circleWalletId },
+          update: { derivedCircleWalletId: wallet.circleWalletId },
+        });
+      }
+      results.push({ chain, status: "already-registered" });
+      continue;
+    }
+
+    if (alreadyRegistered.has(chain)) {
+      results.push({ chain, status: "already-registered" });
+      continue;
+    }
+
+    try {
+      await deriveWalletOnChain(wallet.id, wallet.circleWalletId, wallet.arcAddress, chain);
+      results.push({ chain, status: "derived" });
+    } catch (err) {
+      results.push({
+        chain,
+        status: "failed",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  return results;
 }
 
 /**
@@ -217,9 +241,7 @@ export async function ensureUnifiedBalanceChainWallets(params: {
  * same body, kept separate so a change to one provisioning path can't
  * silently affect the other.
  */
-export async function createWalletForPaymentLinkPayment(
-  paymentLinkPaymentId: string
-): Promise<CreatedWallet> {
+export async function createWalletForPaymentLinkPayment(paymentLinkPaymentId: string): Promise<CreatedWallet> {
   const client = getCircleClient();
   const walletSetId = await getOrCreateWalletSet();
   const blockchain = getArcBlockchain();
@@ -230,12 +252,7 @@ export async function createWalletForPaymentLinkPayment(
       accountType: "SCA",
       count: 1,
       walletSetId,
-      metadata: [
-        {
-          name: `payment-link-payment:${paymentLinkPaymentId}`,
-          refId: paymentLinkPaymentId,
-        },
-      ],
+      metadata: [{ name: `payment-link-payment:${paymentLinkPaymentId}`, refId: paymentLinkPaymentId }],
     });
 
     const wallet = res.data?.wallets?.[0];
@@ -245,22 +262,10 @@ export async function createWalletForPaymentLinkPayment(
       );
     }
 
-    const compartaChain: Chain =
-      blockchain === "ARC" ? "ARC_MAINNET" : "ARC_TESTNET";
-
     return {
       circleWalletId: wallet.id,
       arcAddress: wallet.address,
       chain: blockchain,
-      walletSetId,
-      chainWallets: [
-        {
-          chain: compartaChain,
-          circleWalletId: wallet.id,
-          address: wallet.address,
-          circleBlockchain: blockchain,
-        },
-      ],
     };
   } catch (err) {
     throw new CircleApiError(
@@ -277,9 +282,7 @@ export interface WalletBalance {
 }
 
 /** Reads all token balances for a wallet directly from Circle (source of truth on-chain). */
-export async function getWalletBalance(
-  circleWalletId: string
-): Promise<WalletBalance[]> {
+export async function getWalletBalance(circleWalletId: string): Promise<WalletBalance[]> {
   const client = getCircleClient();
   try {
     const res = await client.getWalletTokenBalance({ id: circleWalletId });
@@ -403,16 +406,11 @@ export interface TransactionStatus {
  * `arcAddress` (same address on every EVM chain — see that module's
  * docstring for the assumption this rests on).
  */
-export async function getUnifiedUsdcBalance(
-  walletAddress: string
-): Promise<UnifiedBalanceSnapshot> {
+export async function getUnifiedUsdcBalance(walletAddress: string): Promise<UnifiedBalanceSnapshot> {
   try {
     return await getUnifiedBalance(walletAddress);
   } catch (err) {
-    throw new CircleApiError(
-      `Failed to fetch Unified Balance for ${walletAddress}`,
-      err
-    );
+    throw new CircleApiError(`Failed to fetch Unified Balance for ${walletAddress}`, err);
   }
 }
 
@@ -429,21 +427,11 @@ export async function depositIntoUnifiedBalance(
   sourceChain: Chain
 ): Promise<{ depositedTo: string; txHash: string; explorerUrl?: string }> {
   if (amount <= 0n) {
-    throw new CircleApiError(
-      "depositIntoUnifiedBalance: amount must be positive"
-    );
+    throw new CircleApiError("depositIntoUnifiedBalance: amount must be positive");
   }
   try {
-    const result = await depositToUnifiedBalance(
-      walletAddress,
-      amount,
-      sourceChain
-    );
-    return {
-      depositedTo: result.depositedTo,
-      txHash: result.txHash,
-      explorerUrl: result.explorerUrl,
-    };
+    const result = await depositToUnifiedBalance(walletAddress, amount, sourceChain);
+    return { depositedTo: result.depositedTo, txHash: result.txHash, explorerUrl: result.explorerUrl };
   } catch (err) {
     if (err instanceof UnifiedBalanceError) {
       throw new CircleApiError(
@@ -471,18 +459,11 @@ export async function sendUnifiedBalancePayment(
   destinationChain: Chain
 ): Promise<SendResult> {
   if (amount <= 0n) {
-    throw new CircleApiError(
-      "sendUnifiedBalancePayment: amount must be positive"
-    );
+    throw new CircleApiError("sendUnifiedBalancePayment: amount must be positive");
   }
 
   try {
-    const result = await spendFromUnifiedBalance(
-      fromAddress,
-      toAddress,
-      amount,
-      destinationChain
-    );
+    const result = await spendFromUnifiedBalance(fromAddress, toAddress, amount, destinationChain);
     return {
       circleTransactionId: result.txHash,
       state: result.state,
@@ -508,9 +489,7 @@ export async function getTransactionStatus(
     const res = await client.getTransaction({ id: circleTransactionId });
     const tx = res.data?.transaction;
     if (!tx) {
-      throw new CircleApiError(
-        `Circle getTransaction returned no data for ${circleTransactionId}`
-      );
+      throw new CircleApiError(`Circle getTransaction returned no data for ${circleTransactionId}`);
     }
     return {
       id: tx.id ?? circleTransactionId,
