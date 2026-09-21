@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search as SearchIcon, X, ArrowRight, FileText } from "lucide-react";
+import { Search as SearchIcon, X, ArrowRight, FileText, Check } from "lucide-react";
 import Image from "next/image";
 interface Bucket {
   id: string;
@@ -348,25 +348,29 @@ export default function TransferForm({
         <label className="block text-xs font-medium text-[#7C8CA6] mb-2">
           @username or 0x address
         </label>
-        <input
-          id="to"
-          type="text"
-          value={toIdentifier}
-          onChange={(e) => {
-            const val = e.target.value;
-            setToIdentifier(val.startsWith("@") ? val.slice(1) : val);
-          }}
-          onBlur={handleIdentifierBlur}
-          disabled={disabled}
-          placeholder="@acme or 0x1234…"
-          className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm md:text-base disabled:opacity-50"
-        />
+        <div className="relative">
+          <input
+            id="to"
+            type="text"
+            value={toIdentifier}
+            onChange={(e) => {
+              const val = e.target.value;
+              setToIdentifier(val.startsWith("@") ? val.slice(1) : val);
+            }}
+            onBlur={handleIdentifierBlur}
+            disabled={disabled}
+            placeholder="@acme or 0x1234…"
+            className="w-full px-4 py-3 pr-10 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm md:text-base disabled:opacity-50"
+          />
+          {resolved && (
+            <Check
+              size={16}
+              strokeWidth={3}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-600"
+            />
+          )}
+        </div>
         {resolving && <p className="mt-1.5 text-xs text-[#7C8CA6]">Resolving…</p>}
-        {resolved && (
-          <p className="mt-1.5 text-xs text-emerald-700">
-            ✓ {resolved.displayName ?? resolved.username ?? resolved.address}
-          </p>
-        )}
         {resolveError && <p className="mt-1.5 text-xs text-red-600">{resolveError}</p>}
 
         {resolved?.type === "ADDRESS" && (

@@ -27,12 +27,26 @@
 // function does the ledger debit and nothing else post-commit. Add these
 // back in per your own product decision if outgoing Unified Balance
 // spends should also trigger them.
+//
+// JUST-IN-TIME TOP-UP (step 5.5 below): a cross-chain spend draws ONLY
+// from Circle Gateway's confirmed Unified Balance, which is a DIFFERENT
+// number from this org's ledger balance checked in step 3 — the ledger
+// includes Arc-native funds that were never deposited into Gateway (see
+// lib/circle/autoDeposit.ts's module docstring for why that's
+// deliberate). So passing the step-3 ledger check does NOT guarantee
+// Gateway has enough confirmed to actually execute the spend. Before
+// step 6 submits, ensureUnifiedBalanceCovers() closes that gap by
+// depositing just enough — this is what actually makes "the user doesn't
+// have to think about depositing first" true; without it, the ledger
+// check alone would let a spend reach Circle only to fail there with a
+// confusing provider-side "insufficient balance" error.
 
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import { recordEntry, getBalance, InsufficientBalanceError as LedgerInsufficientBalanceError } from "@/lib/ledger/engine";
 import { sendUnifiedBalancePayment as circleSendUnified, CircleApiError } from "@/lib/circle/wallets";
 import { UnifiedBalanceUnsupportedChainError } from "@/lib/circle/unifiedBalance";
+import { ensureUnifiedBalanceCovers } from "@/lib/circle/autoDeposit";
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
 import type { Chain, LedgerReferenceType, OnchainTransaction } from "@/app/generated/prisma/client";
 
@@ -196,6 +210,24 @@ export async function sendUnifiedBalancePayment(
     throw new SendUnifiedPaymentError(
       "This payment is still being confirmed. Please don't retry - check back shortly.",
       "ALREADY_IN_FLIGHT"
+    );
+  }
+
+  // 5.5. Just-in-time top-up — see module docstring. Runs AFTER claiming
+  // the row (so a crash here still leaves a traceable PENDING tx) but
+  // BEFORE submitting to Circle. Only ever deposits what's needed for
+  // THIS send; never touches more than the shortfall.
+  const coverage = await ensureUnifiedBalanceCovers(ledgerAccount.wallet, amountSmallestUnit);
+  if (!coverage.covered) {
+    await prisma.onchainTransaction.update({
+      where: { id: onchainTx.id },
+      data: { status: "FAILED", submittedAt: null },
+    });
+    throw new SendUnifiedPaymentError(
+      `Not enough USDC available across your funding chains to cover this send — short by ` +
+        `${coverage.shortfall} USDC. Fund your wallet on Arc or one of the other supported chains ` +
+        `and try again.`,
+      "INSUFFICIENT_BALANCE"
     );
   }
 
