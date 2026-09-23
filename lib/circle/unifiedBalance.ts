@@ -347,6 +347,92 @@ export interface UnifiedBalanceSpendResult {
 }
 
 /**
+ * Builds the exact params object both spend() and estimateSpend() need —
+ * factored out so the fee estimate is always computed against the
+ * IDENTICAL shape that will actually be submitted, never a hand-approximated
+ * copy that could silently drift from the real call.
+ */
+function buildSpendParams(fromAddress: string, toAddress: string, amount: bigint, destinationChain: Chain) {
+  const adapter = getCircleWalletsAdapter();
+  const chain = toUnifiedBalanceChain(destinationChain); // throws for unsupported chains
+  return {
+    amount: toDecimalString(amount),
+    from: { adapter, address: fromAddress },
+    to: { chain, recipientAddress: toAddress, useForwarder: true as const },
+  };
+}
+
+/**
+ * Returns the total fee (smallest USDC unit) Gateway will charge for this
+ * exact spend — the flat Forwarder service fee plus destination-chain gas,
+ * per Circle's real fee schedule (confirmed against the installed SDK's
+ * compiled source, not just its docs — see GAS_FEE_BY_CHAIN/
+ * FORWARDER_SERVICE_FEE in node_modules/@circle-fin/app-kit/unifiedBalance.mjs
+ * if this needs re-checking after an SDK upgrade). Used by
+ * lib/circle/autoDeposit.ts#ensureUnifiedBalanceCovers so a just-in-time
+ * top-up deposits enough to cover BOTH the transfer amount and its fee,
+ * not just the bare amount — a shortfall here is exactly what produced a
+ * confusing "insufficient for $5" error when the real shortfall was a
+ * $0.21 fee on top of an amount that WAS actually covered.
+ */
+export async function estimateUnifiedBalanceSpendFee(
+  fromAddress: string,
+  toAddress: string,
+  amount: bigint,
+  destinationChain: Chain
+): Promise<bigint> {
+  const kit = getAppKit();
+  try {
+    const params = buildSpendParams(fromAddress, toAddress, amount, destinationChain);
+    const result = await kit.unifiedBalance.estimateSpend(params);
+    return (result.fees ?? []).reduce((sum, fee) => {
+      // Every fee in Gateway v1 (forwarder service fee, per-chain gas) is
+      // USDC-denominated per the real fee table - skip anything that
+      // somehow isn't, rather than mis-summing a non-USDC amount as if
+      // it were USDC.
+      if (fee.token.toUpperCase() !== "USDC") return sum;
+      return sum + toSmallestUnit(fee.amount);
+    }, 0n);
+  } catch (err) {
+    // Fee estimation failing shouldn't block the send outright - fall
+    // back to a conservative flat buffer (covers the real $0.20 forwarder
+    // fee plus the highest per-chain gas fee seen in the SDK's table with
+    // room to spare) and let the actual spend() call be the final word.
+    console.error(
+      `[unifiedBalance] estimateSpend failed for ${fromAddress} -> ${toAddress} on ` +
+        `${destinationChain}; falling back to a flat fee buffer.`,
+      err
+    );
+    return toSmallestUnit("0.50");
+  }
+}
+
+/**
+ * Polls getUnifiedBalance() until totalConfirmed reaches `target` or
+ * `timeoutMs` elapses. Necessary because depositToUnifiedBalance()
+ * resolving does NOT mean the deposit is immediately confirmed and
+ * spendable — Gateway's confirmed balance lags the deposit by however
+ * long the source chain's finality + Circle's attestation takes, even
+ * for a fast-finality chain like Arc. Calling spend() immediately after
+ * a deposit without waiting for this is exactly what produced a
+ * "BALANCE_INSUFFICIENT_TOKEN" error even though the deposit had just
+ * "succeeded."
+ */
+export async function waitForConfirmedBalance(
+  address: string,
+  target: bigint,
+  { timeoutMs = 30_000, intervalMs = 2_000 }: { timeoutMs?: number; intervalMs?: number } = {}
+): Promise<UnifiedBalanceSnapshot> {
+  const deadline = Date.now() + timeoutMs;
+  let snapshot = await getUnifiedBalance(address);
+  while (snapshot.totalConfirmed < target && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    snapshot = await getUnifiedBalance(address);
+  }
+  return snapshot;
+}
+
+/**
  * Spends `amount` (bigint, smallest USDC unit) from the Unified Balance
  * at `fromAddress`, delivered to `toAddress` on `destinationChain`. Lets
  * App Kit auto-select which confirmed source-chain balances to draw from
@@ -379,15 +465,14 @@ export async function spendFromUnifiedBalance(
   }
 
   const kit = getAppKit();
-  const adapter = getCircleWalletsAdapter();
-  const chain = toUnifiedBalanceChain(destinationChain); // throws for unsupported chains
 
   try {
-    const result = (await kit.unifiedBalance.spend({
-      amount: toDecimalString(amount),
-      from: { adapter, address: fromAddress },
-      to: { chain, recipientAddress: toAddress, useForwarder: true },
-    })) as { txHash?: string; state?: string; explorerUrl?: string };
+    const params = buildSpendParams(fromAddress, toAddress, amount, destinationChain);
+    const result = (await kit.unifiedBalance.spend(params)) as {
+      txHash?: string;
+      state?: string;
+      explorerUrl?: string;
+    };
     if (!result?.txHash) {
       throw new UnifiedBalanceError("App Kit unifiedBalance.spend() returned no txHash");
     }

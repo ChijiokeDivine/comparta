@@ -65,6 +65,7 @@ import { prisma } from "@/lib/db/prisma";
 import { recordEntry } from "@/lib/ledger/engine";
 import { resolveDefaultLedgerAccountId } from "@/lib/transfers/receive";
 import { getUsdcBalance, depositIntoUnifiedBalance, getUnifiedUsdcBalance, CircleApiError } from "./wallets";
+import { waitForConfirmedBalance } from "./unifiedBalance";
 import { toSmallestUnit, toDecimalString } from "./amount";
 import type { Chain, Prisma, Wallet } from "@/app/generated/prisma/client";
 
@@ -125,9 +126,20 @@ export interface EnsureCoverageResult {
  * separately "deposit into Unified Balance" first. See module docstring
  * for why Arc is fair game here but not for the periodic sweep.
  *
+ * After depositing, this WAITS (via waitForConfirmedBalance) until
+ * Gateway actually reports the target as confirmed before returning -
+ * a deposit call resolving does not mean it's immediately spendable
+ * (Circle's own confirmed-vs-pending distinction applies even to Arc's
+ * fast finality; there is still a real, if usually short, attestation
+ * delay). Skipping this wait is exactly what caused an "insufficient
+ * balance" error from Circle immediately after a top-up that had, from
+ * this codebase's point of view, already "succeeded."
+ *
  * Returns `covered: false` (never throws) if even every available source
- * combined isn't enough - the caller decides how to surface that. This
- * function only ever tops up; it never partially executes the send.
+ * combined isn't enough, OR if funds were deposited but didn't confirm
+ * within the wait window - the caller decides how to surface either
+ * case. This function only ever tops up; it never partially executes
+ * the send.
  */
 export async function ensureUnifiedBalanceCovers(
   wallet: Wallet,
@@ -180,9 +192,38 @@ export async function ensureUnifiedBalanceCovers(
     }
   }
 
-  return shortfall <= 0n
-    ? { covered: true, totalDeposited: toDecimalString(totalDeposited) }
-    : { covered: false, totalDeposited: toDecimalString(totalDeposited), shortfall: toDecimalString(shortfall) };
+  if (shortfall > 0n) {
+    // Nothing available anywhere covers the rest - no point waiting for
+    // a confirmation that isn't coming.
+    return { covered: false, totalDeposited: toDecimalString(totalDeposited), shortfall: toDecimalString(shortfall) };
+  }
+
+  if (totalDeposited === 0n) {
+    // Coverage already existed before this call did anything - no new
+    // deposit to wait on.
+    return { covered: true, totalDeposited: "0" };
+  }
+
+  // A deposit was just submitted above - Gateway needs a moment to
+  // confirm it before spend() will see it as spendable. See this
+  // function's docstring for why this wait isn't optional.
+  const finalSnapshot = await waitForConfirmedBalance(wallet.arcAddress, amountNeeded);
+  if (finalSnapshot.totalConfirmed < amountNeeded) {
+    const stillShort = amountNeeded - finalSnapshot.totalConfirmed;
+    console.error(
+      `[autoDeposit] Deposited ${toDecimalString(totalDeposited)} USDC for wallet ${wallet.id} but ` +
+        `Gateway still hadn't confirmed enough after the wait window - short by ` +
+        `${toDecimalString(stillShort)} USDC. The deposit(s) are real and should confirm soon; this ` +
+        `send just couldn't wait for it.`
+    );
+    return {
+      covered: false,
+      totalDeposited: toDecimalString(totalDeposited),
+      shortfall: toDecimalString(stillShort),
+    };
+  }
+
+  return { covered: true, totalDeposited: toDecimalString(totalDeposited) };
 }
 
 /**

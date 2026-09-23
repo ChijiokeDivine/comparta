@@ -37,15 +37,34 @@
 // Gateway has enough confirmed to actually execute the spend. Before
 // step 6 submits, ensureUnifiedBalanceCovers() closes that gap by
 // depositing just enough — this is what actually makes "the user doesn't
-// have to think about depositing first" true; without it, the ledger
-// check alone would let a spend reach Circle only to fail there with a
-// confusing provider-side "insufficient balance" error.
+// have to think about depositing first" true.
+//
+// Two things that were WRONG in an earlier version of this flow, now
+// fixed, worth remembering if this ever regresses:
+//   1. The top-up and the step-3 balance check were both targeting the
+//      bare transfer amount, not amount + Gateway's fee for this spend
+//      (estimateUnifiedBalanceSpendFee, computed once against the exact
+//      params spend() will use). A send could pass every check and still
+//      fail at Circle for lacking the ~$0.20-0.30 fee on top. Both checks
+//      now target `totalCost = amount + feeEstimate`, and step 7's ledger
+//      debit charges totalCost too — this is what "fees come out of the
+//      user's own balance" means concretely: the fee is folded into what
+//      the org's bucket is debited, not an untracked drain on Gateway.
+//   2. ensureUnifiedBalanceCovers() used to assume a deposit was
+//      immediately spendable once the deposit call resolved. It isn't —
+//      Gateway confirms a deposit on its own attestation timeline, even
+//      for Arc's fast finality — so it now actively waits
+//      (waitForConfirmedBalance) until the target is actually confirmed
+//      before this function returns, rather than racing straight into
+//      spend() and hitting a confusing BALANCE_INSUFFICIENT_TOKEN error
+//      for money that had, from this codebase's point of view, already
+//      "arrived."
 
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import { recordEntry, getBalance, InsufficientBalanceError as LedgerInsufficientBalanceError } from "@/lib/ledger/engine";
 import { sendUnifiedBalancePayment as circleSendUnified, CircleApiError } from "@/lib/circle/wallets";
-import { UnifiedBalanceUnsupportedChainError } from "@/lib/circle/unifiedBalance";
+import { UnifiedBalanceUnsupportedChainError, estimateUnifiedBalanceSpendFee } from "@/lib/circle/unifiedBalance";
 import { ensureUnifiedBalanceCovers } from "@/lib/circle/autoDeposit";
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
 import type { Chain, LedgerReferenceType, OnchainTransaction } from "@/app/generated/prisma/client";
@@ -128,9 +147,13 @@ export async function sendUnifiedBalancePayment(
     throw new SendUnifiedPaymentError("Amount must be greater than zero.", "INVALID_AMOUNT");
   }
 
-  // 3. Fast-fail balance check (ledger, not live Unified Balance — same
-  // posture as sendPayment()'s step 4). The atomic guard is recordEntry's
-  // row lock in step 9 below.
+  // 3. Fast-fail balance check — against the TRUE total cost (transfer
+  // amount + Gateway's fee for this exact spend), not just the bare
+  // amount. Checking only the bare amount here previously let a send
+  // pass this gate while still being short by the ~$0.20-0.30 fee,
+  // surfacing as a confusing failure much later. Ledger, not live
+  // Unified Balance — same posture as sendPayment()'s step 4. The
+  // atomic guard is recordEntry's row lock in step 9 below.
   const ledgerAccount = await prisma.ledgerAccount.findFirst({
     where: { id: input.fromLedgerAccountId, orgId: input.orgId },
     include: { wallet: true },
@@ -139,10 +162,26 @@ export async function sendUnifiedBalancePayment(
     throw new SendUnifiedPaymentError("Source ledger account not found.", "ACCOUNT_NOT_FOUND");
   }
 
+  // Estimated once, against the exact same params spend() will use (see
+  // buildSpendParams in lib/circle/unifiedBalance.ts) — this number is
+  // what "your balance, not Unified Balance, pays the fee" actually
+  // means in practice: the fee is folded into what gets debited from
+  // the org's own bucket (step 7), not left as an untracked drain on
+  // whatever happens to be sitting in Gateway.
+  const feeEstimate = await estimateUnifiedBalanceSpendFee(
+    ledgerAccount.wallet.arcAddress,
+    toAddress,
+    amountSmallestUnit,
+    input.destinationChain
+  );
+  const totalCost = amountSmallestUnit + feeEstimate;
+
   const currentBalance = await getBalance(ledgerAccount.id);
-  if (currentBalance < amountSmallestUnit) {
+  if (currentBalance < totalCost) {
     throw new SendUnifiedPaymentError(
-      `Insufficient balance: this account has ${toDecimalString(currentBalance)} USDC available.`,
+      `Insufficient balance: sending ${toDecimalString(amountSmallestUnit)} USDC costs ` +
+        `${toDecimalString(totalCost)} USDC including network fees, but this account only has ` +
+        `${toDecimalString(currentBalance)} USDC available.`,
       "INSUFFICIENT_BALANCE"
     );
   }
@@ -215,9 +254,10 @@ export async function sendUnifiedBalancePayment(
 
   // 5.5. Just-in-time top-up — see module docstring. Runs AFTER claiming
   // the row (so a crash here still leaves a traceable PENDING tx) but
-  // BEFORE submitting to Circle. Only ever deposits what's needed for
-  // THIS send; never touches more than the shortfall.
-  const coverage = await ensureUnifiedBalanceCovers(ledgerAccount.wallet, amountSmallestUnit);
+  // BEFORE submitting to Circle. Targets totalCost (amount + fee), not
+  // just amount — topping up only the bare amount was exactly what left
+  // Gateway short by the fee even when the deposit itself "succeeded."
+  const coverage = await ensureUnifiedBalanceCovers(ledgerAccount.wallet, totalCost);
   if (!coverage.covered) {
     await prisma.onchainTransaction.update({
       where: { id: onchainTx.id },
@@ -294,7 +334,7 @@ export async function sendUnifiedBalancePayment(
 
     await recordEntry({
       ledgerAccountId: ledgerAccount.id,
-      amount: amountSmallestUnit,
+      amount: totalCost,
       direction: "DEBIT",
       referenceType: "ONCHAIN_TX",
       referenceId: confirmedTx.id,
