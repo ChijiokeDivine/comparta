@@ -119,9 +119,7 @@ export default function DepositModal({
     }
   }
 
-  const displayChain =
-    DEPOSIT_CHAINS.find((c) => c.value === selectedChain)?.label ??
-    selectedChain;
+  const displayChain = DEPOSIT_CHAINS.find((c) => c.value === selectedChain)?.label ?? selectedChain;
   const isArc = selectedChain === "ARC_TESTNET";
 
   return (
@@ -131,17 +129,17 @@ export default function DepositModal({
       aria-modal="true"
       aria-labelledby="deposit-title"
     >
-      {/* Full-page overlay */}
       <button
         aria-label="Close deposit modal"
         onClick={onClose}
-        className="fixed inset-0 bg-[#0B1E3F]/50 backdrop-blur-[2px] animate-[fadeIn_.15s_ease]"
+        className="absolute inset-0 bg-[#0B1E3F]/50 backdrop-blur-[2px] animate-[fadeIn_.15s_ease]"
         tabIndex={-1}
       />
 
       <div className="relative w-full max-w-[720px] rounded-2xl bg-white shadow-[0_24px_80px_-20px_rgba(11,30,63,0.35)] animate-[popIn_.18s_ease] overflow-hidden">
         <div className="flex items-start justify-between px-6 pt-6 pb-2">
           <div>
+           
             <h2
               id="deposit-title"
               className="text-xl font-semibold text-[#0B1E3F]"
@@ -215,13 +213,15 @@ export default function DepositModal({
                     )}
                   </button>
                 </div>
+              
               </div>
 
-              <div className="md:grid grid-cols-3 gap-2.5 hidden">
+              <div className="md:grid grid-cols-3 gap-2.5   hidden">
                 <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
                   <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
                     <Network size={14} />
                   </div>
+                 
                   <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
                     {displayChain}
                   </p>
@@ -230,12 +230,13 @@ export default function DepositModal({
                   <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
                     <Clock3 size={14} />
                   </div>
+                
                   <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
-                    {isArc ? "~1 min" : "~2 min"}
+                    ~1 min
                   </p>
                 </div>
                 <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
-                  <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white flex items-center justify-center">
+                  <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white  flex items-center justify-center">
                     <Image
                       src="/usdc.png"
                       alt="USDC"
@@ -244,6 +245,7 @@ export default function DepositModal({
                       className="rounded-full"
                     />
                   </div>
+               
                   <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
                     USDC
                   </p>
@@ -252,15 +254,20 @@ export default function DepositModal({
             </div>
           </div>
 
+       
+
           <div className="mt-1 rounded-xl border border-[#E5EEFF] p-3.5 flex gap-3 md:block hidden">
+        
             <div className="space-y-1">
               <p className="text-xs font-semibold text-[#0B1E3F]">
                 Send only USDC on the {displayChain} network
               </p>
-              <p className="text-[11px] leading-relaxed text-[#3E4A6B]">
+              <p className="text-[11px] leading-relaxed text-[#3E4A6B] ">
                 Deposits of other assets or on unsupported chains will be
                 irretrievable. Confirm the network in your sending wallet before
                 confirming.
+                {!isArc &&
+                  " Balances on this network are picked up and added automatically, usually within a few minutes."}
               </p>
             </div>
           </div>
