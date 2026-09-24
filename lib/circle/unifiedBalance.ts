@@ -107,7 +107,6 @@ export const UNIFIED_BALANCE_SUPPORTED_CHAINS: readonly Chain[] = [
   "ETH_SEPOLIA",
   "BASE_SEPOLIA",
   "ARBITRUM_SEPOLIA",
-  "HYPEREVM_TESTNET",
 ] as const;
 
 export function isUnifiedBalanceSupported(chain: Chain): boolean {
@@ -257,7 +256,7 @@ export async function getUnifiedBalance(address: string): Promise<UnifiedBalance
     Ethereum_Sepolia: "ETH_SEPOLIA",
     Base_Sepolia: "BASE_SEPOLIA",
     Arbitrum_Sepolia: "ARBITRUM_SEPOLIA",
-    HyperEVM_Testnet: "HYPEREVM_TESTNET",
+
   };
 
   const breakdown = result.breakdown ?? [];

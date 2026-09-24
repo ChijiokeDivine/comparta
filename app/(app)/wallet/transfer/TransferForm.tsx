@@ -38,7 +38,7 @@ const DESTINATION_CHAINS: { value: string; label: string }[] = [
   { value: "ETH_SEPOLIA", label: "Ethereum Sepolia" },
   { value: "BASE_SEPOLIA", label: "Base Sepolia" },
   { value: "ARBITRUM_SEPOLIA", label: "Arbitrum Sepolia" },
-  { value: "HYPEREVM_TESTNET", label: "HyperEVM Testnet" },
+
 ];
 
 export default function TransferForm({

@@ -59,7 +59,6 @@ enum Chain {
   // 2026-09-18) — these are the only chains this app now accepts:
   BASE_SEPOLIA
   ARBITRUM_SEPOLIA
-  HYPEREVM_TESTNET
 
   // Celo and Monad Testnet were requested but deliberately left OUT of
   // this enum entirely (rather than kept-but-unused) — Celo doesn't

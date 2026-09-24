@@ -52,7 +52,7 @@ const CIRCLE_TO_INTERNAL: Record<string, Chain> = {
   // own convention (see the old "MATIC-AMOY" comment), an inferred string
   // gets called out rather than treated as trustworthy. Confirm against a
   // real webhook payload (or the Circle console) before relying on it.
-  "HYPEREVM-TESTNET": "HYPEREVM_TESTNET",
+  // "HYPEREVM-TESTNET": "HYPEREVM_TESTNET",
 
   // Deliberately NOT mapped: Celo and Monad testnet. Neither has a Chain
   // enum value at all (see prisma/schema.prisma) - Unified Balance
