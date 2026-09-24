@@ -162,9 +162,7 @@ export default function UnifiedDepositForm({
           <p className="font-semibold">Waiting for confirmation…</p>
           <p className="text-xs text-blue-800/80">
             Gateway is confirming your deposit. This can take up to a minute.
-            {confirmedAfter != null && (
-              <> Current confirmed: <span className="font-mono">{confirmedAfter}</span> USDC.</>
-            )}
+            
           </p>
         </div>
       )}
