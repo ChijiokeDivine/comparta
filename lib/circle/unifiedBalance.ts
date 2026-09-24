@@ -184,8 +184,7 @@ export function toUnifiedBalanceChain(
       return "Base_Sepolia";
     case "ARBITRUM_SEPOLIA":
       return "Arbitrum_Sepolia";
-    case "HYPEREVM_TESTNET":
-      return "HyperEVM_Testnet";
+
     default:
       throw new UnifiedBalanceUnsupportedChainError(
         `No Unified Balance chain literal mapped for Comparta chain "${chain}". Check the ` +
@@ -256,7 +255,6 @@ export async function getUnifiedBalance(address: string): Promise<UnifiedBalance
     Ethereum_Sepolia: "ETH_SEPOLIA",
     Base_Sepolia: "BASE_SEPOLIA",
     Arbitrum_Sepolia: "ARBITRUM_SEPOLIA",
-
   };
 
   const breakdown = result.breakdown ?? [];
@@ -298,11 +296,11 @@ export interface UnifiedBalanceDepositResult {
  * will never appear in getUnifiedBalance()'s output, no matter how long
  * you wait.
  *
- * Uses `allowanceStrategy: 'authorize'` (EIP-3009 transferWithAuthorization)
- * rather than a separate approve() transaction first — USDC supports this,
- * and it's App Kit's own default. Requires the source chain to have
- * enough native gas token for this on-chain call to actually submit;
- * Comparta doesn't currently check that before calling this.
+ * Uses `allowanceStrategy: 'approve'` (on-chain ERC-20 approve + deposit).
+ * Required for Circle SCA wallets: EIP-3009/permit use ecrecover and reject
+ * the SCA's ERC-1271 signature. Approve also lazy-deploys the SCA on first
+ * use. Requires the source chain to have enough native gas for the approve
+ * + deposit txs; Comparta doesn't currently check that before calling this.
  */
 export async function depositToUnifiedBalance(
   address: string,
@@ -318,10 +316,17 @@ export async function depositToUnifiedBalance(
   const chain = toUnifiedBalanceChain(sourceChain); // throws for unsupported chains
 
   try {
+    // Circle SCA wallets MUST use "approve", not "authorize"/"permit".
+    // USDC permit/EIP-3009 signatures use ecrecover, which does not accept
+    // the SCA's ERC-1271 signature (Arc App Kit docs: "Circle Wallets SCA
+    // deposits require allowanceStrategy: approve"). "authorize" is what
+    // produced "Cannot generate a signature from an undeployed wallet" /
+    // typedData failures on first deposit. On-chain approve also lazy-
+    // deploys the SCA if this is the wallet's first outbound tx.
     const result = await kit.unifiedBalance.deposit({
       from: { adapter, chain, address },
       amount: toDecimalString(amount),
-      allowanceStrategy: "authorize",
+      allowanceStrategy: "approve",
     });
     return {
       depositedTo: result.depositedTo,
