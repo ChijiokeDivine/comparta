@@ -207,14 +207,19 @@ export async function ensureUnifiedBalanceCovers(
   // A deposit was just submitted above - Gateway needs a moment to
   // confirm it before spend() will see it as spendable. See this
   // function's docstring for why this wait isn't optional.
+  // 90s default (see DEFAULT_CONFIRM_TIMEOUT_MS) — Sepolia attestation
+  // routinely exceeded the previous 30s window, which is what made spend(5)
+  // fail after a top-up that later funded a successful spend(3).
   const finalSnapshot = await waitForConfirmedBalance(wallet.arcAddress, amountNeeded);
   if (finalSnapshot.totalConfirmed < amountNeeded) {
     const stillShort = amountNeeded - finalSnapshot.totalConfirmed;
     console.error(
       `[autoDeposit] Deposited ${toDecimalString(totalDeposited)} USDC for wallet ${wallet.id} but ` +
-        `Gateway still hadn't confirmed enough after the wait window - short by ` +
-        `${toDecimalString(stillShort)} USDC. The deposit(s) are real and should confirm soon; this ` +
-        `send just couldn't wait for it.`
+        `Gateway still hadn't confirmed enough after the wait window - have ` +
+        `${toDecimalString(finalSnapshot.totalConfirmed)} confirmed / need ` +
+        `${toDecimalString(amountNeeded)} (short by ${toDecimalString(stillShort)}). ` +
+        `The deposit(s) are real and should confirm soon; this send just couldn't wait for it. ` +
+        `Retry in a minute rather than lowering the amount.`
     );
     return {
       covered: false,

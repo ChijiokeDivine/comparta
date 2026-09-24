@@ -363,17 +363,21 @@ function buildSpendParams(fromAddress: string, toAddress: string, amount: bigint
 }
 
 /**
+ * Conservative flat fee buffer used when estimateSpend cannot be called
+ * (empty Unified Balance) or when it throws. Sized for Forwarder service
+ * fee (~$0.20) + Sepolia/Base/Arb gas headroom. Under-estimating here is
+ * exactly what let spend(5) fail after a top-up that only covered 5.50
+ * while the real fee needed more — prefer over-estimating slightly.
+ */
+export const UNIFIED_BALANCE_FEE_BUFFER = toSmallestUnit("1.00");
+
+/**
  * Returns the total fee (smallest USDC unit) Gateway will charge for this
- * exact spend — the flat Forwarder service fee plus destination-chain gas,
- * per Circle's real fee schedule (confirmed against the installed SDK's
- * compiled source, not just its docs — see GAS_FEE_BY_CHAIN/
- * FORWARDER_SERVICE_FEE in node_modules/@circle-fin/app-kit/unifiedBalance.mjs
- * if this needs re-checking after an SDK upgrade). Used by
- * lib/circle/autoDeposit.ts#ensureUnifiedBalanceCovers so a just-in-time
- * top-up deposits enough to cover BOTH the transfer amount and its fee,
- * not just the bare amount — a shortfall here is exactly what produced a
- * confusing "insufficient for $5" error when the real shortfall was a
- * $0.21 fee on top of an amount that WAS actually covered.
+ * exact spend. App Kit's estimateSpend itself validates that the depositor
+ * already has enough confirmed Unified Balance for the full amount — when
+ * the balance is empty (the common case right before a just-in-time top-up)
+ * it throws BALANCE_INSUFFICIENT_TOKEN. In that case we skip the SDK call
+ * and return UNIFIED_BALANCE_FEE_BUFFER so the top-up path can still run.
  */
 export async function estimateUnifiedBalanceSpendFee(
   fromAddress: string,
@@ -381,6 +385,28 @@ export async function estimateUnifiedBalanceSpendFee(
   amount: bigint,
   destinationChain: Chain
 ): Promise<bigint> {
+  // Skip estimateSpend when Unified Balance can't cover `amount` — the SDK
+  // treats that as a hard error rather than a pure fee quote, which is what
+  // produced the noisy BALANCE_INSUFFICIENT_TOKEN log on every cold send.
+  try {
+    const snapshot = await getUnifiedBalance(fromAddress);
+    if (snapshot.totalConfirmed < amount) {
+      console.info(
+        `[unifiedBalance] Skipping estimateSpend for ${fromAddress} -> ${toAddress} on ` +
+          `${destinationChain}: confirmed Unified Balance ` +
+          `${toDecimalString(snapshot.totalConfirmed)} < amount ${toDecimalString(amount)}; ` +
+          `using flat fee buffer ${toDecimalString(UNIFIED_BALANCE_FEE_BUFFER)}.`
+      );
+      return UNIFIED_BALANCE_FEE_BUFFER;
+    }
+  } catch (err) {
+    console.error(
+      `[unifiedBalance] getUnifiedBalance failed before estimateSpend; using flat fee buffer.`,
+      err
+    );
+    return UNIFIED_BALANCE_FEE_BUFFER;
+  }
+
   const kit = getAppKit();
   try {
     const params = buildSpendParams(fromAddress, toAddress, amount, destinationChain);
@@ -395,15 +421,14 @@ export async function estimateUnifiedBalanceSpendFee(
     }, 0n);
   } catch (err) {
     // Fee estimation failing shouldn't block the send outright - fall
-    // back to a conservative flat buffer (covers the real $0.20 forwarder
-    // fee plus the highest per-chain gas fee seen in the SDK's table with
-    // room to spare) and let the actual spend() call be the final word.
+    // back to the conservative flat buffer and let the actual spend()
+    // call be the final word.
     console.error(
       `[unifiedBalance] estimateSpend failed for ${fromAddress} -> ${toAddress} on ` +
         `${destinationChain}; falling back to a flat fee buffer.`,
       err
     );
-    return toSmallestUnit("0.50");
+    return UNIFIED_BALANCE_FEE_BUFFER;
   }
 }
 
@@ -417,11 +442,21 @@ export async function estimateUnifiedBalanceSpendFee(
  * a deposit without waiting for this is exactly what produced a
  * "BALANCE_INSUFFICIENT_TOKEN" error even though the deposit had just
  * "succeeded."
+ *
+ * Default timeout is 90s (was 30s): Sepolia attestation routinely exceeded
+ * the shorter window, so spend(5) failed after a top-up that later funded
+ * a successful spend(3) against the leftover confirmed balance.
  */
+export const DEFAULT_CONFIRM_TIMEOUT_MS = 90_000;
+export const DEFAULT_CONFIRM_INTERVAL_MS = 2_000;
+
 export async function waitForConfirmedBalance(
   address: string,
   target: bigint,
-  { timeoutMs = 30_000, intervalMs = 2_000 }: { timeoutMs?: number; intervalMs?: number } = {}
+  {
+    timeoutMs = DEFAULT_CONFIRM_TIMEOUT_MS,
+    intervalMs = DEFAULT_CONFIRM_INTERVAL_MS,
+  }: { timeoutMs?: number; intervalMs?: number } = {}
 ): Promise<UnifiedBalanceSnapshot> {
   const deadline = Date.now() + timeoutMs;
   let snapshot = await getUnifiedBalance(address);

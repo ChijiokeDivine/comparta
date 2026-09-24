@@ -64,7 +64,11 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import { recordEntry, getBalance, InsufficientBalanceError as LedgerInsufficientBalanceError } from "@/lib/ledger/engine";
 import { sendUnifiedBalancePayment as circleSendUnified, CircleApiError } from "@/lib/circle/wallets";
-import { UnifiedBalanceUnsupportedChainError, estimateUnifiedBalanceSpendFee } from "@/lib/circle/unifiedBalance";
+import {
+  UnifiedBalanceUnsupportedChainError,
+  estimateUnifiedBalanceSpendFee,
+  getUnifiedBalance,
+} from "@/lib/circle/unifiedBalance";
 import { ensureUnifiedBalanceCovers } from "@/lib/circle/autoDeposit";
 import { toSmallestUnit, toDecimalString } from "@/lib/circle/amount";
 import type { Chain, LedgerReferenceType, OnchainTransaction } from "@/app/generated/prisma/client";
@@ -267,6 +271,29 @@ export async function sendUnifiedBalancePayment(
       `Not enough USDC available across your funding chains to cover this send — short by ` +
         `${coverage.shortfall} USDC. Fund your wallet on Arc or one of the other supported chains ` +
         `and try again.`,
+      "INSUFFICIENT_BALANCE"
+    );
+  }
+
+  // 5.75. Final pre-spend balance assertion. ensureUnifiedBalanceCovers
+  // already waited for confirmation, but Gateway can still lag or a concurrent
+  // spend can drain the just-deposited amount. Re-read right before spend so
+  // we never hand Circle a request we already know will throw
+  // BALANCE_INSUFFICIENT_TOKEN — that path previously left FAILED rows while
+  // the deposit itself was real, which is what made a later smaller send
+  // succeed against leftover Unified Balance.
+  const preSpend = await getUnifiedBalance(ledgerAccount.wallet.arcAddress);
+  if (preSpend.totalConfirmed < amountSmallestUnit) {
+    await prisma.onchainTransaction.update({
+      where: { id: onchainTx.id },
+      data: { status: "FAILED", submittedAt: null },
+    });
+    const short = amountSmallestUnit - preSpend.totalConfirmed;
+    throw new SendUnifiedPaymentError(
+      `Unified Balance still short by ${toDecimalString(short)} USDC after top-up ` +
+        `(have ${toDecimalString(preSpend.totalConfirmed)} confirmed, need ` +
+        `${toDecimalString(amountSmallestUnit)}). Funds may still be confirming — ` +
+        `wait a minute and retry the same amount rather than reducing it.`,
       "INSUFFICIENT_BALANCE"
     );
   }
