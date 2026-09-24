@@ -63,6 +63,15 @@ export default function TransferForm({
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Cross-chain spends draw from Circle Gateway Unified Balance, not a
+  // bucket's ledger figure. Fetch + show that when a non-Arc chain is
+  // selected; still debit a ledger account under the hood for bookkeeping.
+  const isCrossChain = destinationChain !== "ARC_TESTNET";
+  const [ubConfirmed, setUbConfirmed] = useState<string | null>(null);
+  const [ubPending, setUbPending] = useState<string | null>(null);
+  const [ubLoading, setUbLoading] = useState(false);
+  const [ubError, setUbError] = useState<string | null>(null);
+
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -166,13 +175,56 @@ export default function TransferForm({
     return `${addr.slice(0, start)}..${addr.slice(-end)}`;
   }
 
+  // Load Unified Balance whenever the user picks a non-Arc destination.
+  useEffect(() => {
+    if (!isCrossChain) {
+      setUbConfirmed(null);
+      setUbPending(null);
+      setUbError(null);
+      return;
+    }
+    let cancelled = false;
+    setUbLoading(true);
+    setUbError(null);
+    fetch("/api/wallet/unified-balance")
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to load Unified Balance");
+        if (cancelled) return;
+        setUbConfirmed(data.totalConfirmed ?? "0");
+        setUbPending(data.totalPending ?? "0");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setUbError(err instanceof Error ? err.message : "Failed to load Unified Balance");
+        setUbConfirmed(null);
+        setUbPending(null);
+      })
+      .finally(() => {
+        if (!cancelled) setUbLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isCrossChain, destinationChain]);
+
   function handleConfirmClick(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!fromLedgerAccountId) {
-      setError("Choose a bucket to send from.");
+    // Cross-chain: ledger account is still required for bookkeeping, but
+    // the user-facing "from" is Unified Balance — fall back to the first bucket.
+    const effectiveFromId = fromLedgerAccountId || buckets[0]?.id || "";
+    if (!effectiveFromId) {
+      setError(
+        isCrossChain
+          ? "No ledger account available to record this transfer."
+          : "Choose a bucket to send from."
+      );
       return;
+    }
+    if (!fromLedgerAccountId && buckets[0]?.id) {
+      setFromLedgerAccountId(buckets[0].id);
     }
     if (!resolved) {
       setError("Resolve a valid recipient before sending.");
@@ -181,6 +233,29 @@ export default function TransferForm({
     if (!amount || parseFloat(amount) <= 0) {
       setError("Enter a valid amount.");
       return;
+    }
+    // Cross-chain: require confirmed Unified Balance before opening confirm.
+    // Explicit funding is the happy path — don't let the user into a flow
+    // that will only fail at Circle after a long wait.
+    if (isCrossChain) {
+      if (ubLoading) {
+        setError("Still loading Unified Balance — wait a second and try again.");
+        return;
+      }
+      if (ubError) {
+        setError(`Could not read Unified Balance: ${ubError}`);
+        return;
+      }
+      const need = parseFloat(amount);
+      const have = parseFloat(ubConfirmed ?? "0");
+      if (!Number.isFinite(need) || !Number.isFinite(have) || have < need) {
+        setError(
+          `Fund Unified Balance first. You have ${ubConfirmed ?? "0"} USDC confirmed, ` +
+            `but this send needs ${amount.trim()} USDC. Deposit from Arc, wait until ` +
+            `confirmed, then retry.`
+        );
+        return;
+      }
     }
     setConfirmOpen(true);
   }
@@ -204,14 +279,14 @@ export default function TransferForm({
           body: JSON.stringify(
             useUnifiedBalance
               ? {
-                  fromLedgerAccountId,
+                  fromLedgerAccountId: fromLedgerAccountId || buckets[0]?.id,
                   toAddress: (resolved?.address ?? toIdentifier).trim(),
                   destinationChain,
                   amount: amount.trim(),
                   memo: memo.trim() || undefined,
                 }
               : {
-                  fromLedgerAccountId,
+                  fromLedgerAccountId: fromLedgerAccountId || buckets[0]?.id,
                   toIdentifier: toIdentifier.trim(),
                   amount: amount.trim(),
                   memo: memo.trim() || undefined,
@@ -257,24 +332,73 @@ export default function TransferForm({
         </div>
       )}
 
-      <div>
-        <label htmlFor="from" className="block text-sm font-semibold text-[#0B1E3F] mb-2">
-          From
-        </label>
-        <select
-          id="from"
-          value={fromLedgerAccountId}
-          onChange={(e) => setFromLedgerAccountId(e.target.value)}
-          disabled={disabled}
-          className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm md:text-base disabled:opacity-50"
-        >
-          {buckets.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name} - {b.balance} USDC
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Arc sends debit a bucket. Cross-chain sends draw from Unified
+          Balance (Gateway) — show that figure instead of the bucket list. */}
+      {isCrossChain ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-semibold text-[#0B1E3F]">
+              From · Unified Balance
+            </label>
+            <Link
+              href="/wallet/unified-balance/deposit"
+              className="text-xs font-semibold text-[#2A5CE6] hover:underline"
+            >
+              Fund Unified Balance
+            </Link>
+          </div>
+          <div className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] bg-[#FBFBFD] text-sm md:text-base">
+            {ubLoading ? (
+              <span className="text-[#7C8CA6]">Loading…</span>
+            ) : ubError ? (
+              <span className="text-red-600">{ubError}</span>
+            ) : (
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="font-semibold text-[#0B1E3F]">
+                  {ubConfirmed ?? "0"} USDC
+                  <span className="ml-1 font-normal text-[#7C8CA6]">confirmed</span>
+                </span>
+                {ubPending && ubPending !== "0" && (
+                  <span className="text-xs text-[#7C8CA6]">
+                    + {ubPending} pending
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-[#7C8CA6]">
+            Cross-chain sends use your Unified Balance, not a bucket.{" "}
+            <Link href="/wallet/unified-balance/deposit" className="text-[#2A5CE6] hover:underline">
+              Deposit from Arc first
+            </Link>
+            {" "}if this is low — deposits can take up to a minute to confirm.
+          </p>
+          {amount && ubConfirmed != null && !ubLoading && parseFloat(amount) > parseFloat(ubConfirmed || "0") && (
+            <p className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              Fund Unified Balance first — confirmed balance ({ubConfirmed} USDC) is below this amount.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div>
+          <label htmlFor="from" className="block text-sm font-semibold text-[#0B1E3F] mb-2">
+            From
+          </label>
+          <select
+            id="from"
+            value={fromLedgerAccountId}
+            onChange={(e) => setFromLedgerAccountId(e.target.value)}
+            disabled={disabled}
+            className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm md:text-base disabled:opacity-50"
+          >
+            {buckets.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name} - {b.balance} USDC
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">

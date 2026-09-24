@@ -63,6 +63,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: WalletIcon,
     children: [
       { href: "/wallet/transfer", label: "New transfer", icon: SendIcon },
+      { href: "/wallet/unified-balance/deposit", label: "Fund Unified Balance", icon: PlusIcon },
       { href: "/wallet/move", label: "Move between buckets", icon: MoveIcon, managerOnly: true },
       { href: "/recurring", label: "Recurring transfers", icon: RecurringIcon },
       { href: "/wallet/transfers", label: "Transfer history", icon: HistoryIcon },

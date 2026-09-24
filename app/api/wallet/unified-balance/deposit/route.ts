@@ -8,23 +8,26 @@
 // /api/wallet/unified-balance, no matter how long you wait — see
 // lib/circle/unifiedBalance.ts's module docstring for why.
 //
-// Kept as its own route (mirroring spend/route.ts's shape: auth, KYB
-// gate, Idempotency-Key header, zod validation) rather than folded into
-// GET unified-balance/route.ts, since this one moves funds on-chain and
-// the other is a pure read.
-//
-// NOT YET WIRED: nothing calls this automatically when USDC lands at the
-// wallet's address on a new chain — there's no webhook or poller for that
-// (see chainMapping.ts). This route exists so the deposit step CAN be
-// triggered (manually, or by a future poller); it doesn't detect deposits
-// itself.
+// IMPORTANT: Circle will not sign a deposit on a chain where this address
+// is not registered as a Developer-Controlled Wallet. Before depositing we
+// always ensureWalletDerivedOnDepositChains / deriveWalletOnChain for the
+// source chain — otherwise you get a opaque 404
+// "Cannot find target wallet in the system" from sign/typedData.
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { requireApprovedOrg, UnauthenticatedError, KybNotApprovedError } from "@/lib/auth/kyb-gate";
-import { depositIntoUnifiedBalance, CircleApiError } from "@/lib/circle/wallets";
-import { UNIFIED_BALANCE_SUPPORTED_CHAINS } from "@/lib/circle/unifiedBalance";
+import {
+  depositIntoUnifiedBalance,
+  deriveWalletOnChain,
+  ensureWalletDerivedOnDepositChains,
+  CircleApiError,
+} from "@/lib/circle/wallets";
+import {
+  DEPOSIT_SOURCE_SUPPORTED_CHAINS,
+  isDepositSourceSupported,
+} from "@/lib/circle/unifiedBalance";
 import { toSmallestUnit } from "@/lib/circle/amount";
 import type { Chain } from "@/app/generated/prisma/client";
 import {
@@ -37,10 +40,24 @@ import {
 
 const ENDPOINT = "POST /api/wallet/unified-balance/deposit";
 
+// Only chains we can actually sign deposits from (requires a confirmed
+// Developer-Controlled Wallets blockchain code). HyperEVM is a spend
+// destination only — see DEPOSIT_SOURCE_SUPPORTED_CHAINS.
 const depositSchema = z.object({
-  sourceChain: z.enum(UNIFIED_BALANCE_SUPPORTED_CHAINS as [string, ...string[]]),
+  sourceChain: z.enum(DEPOSIT_SOURCE_SUPPORTED_CHAINS as unknown as [string, ...string[]]),
   amount: z.string().min(1),
 });
+
+function isWalletNotFoundError(err: unknown): boolean {
+  const msg = err instanceof Error ? `${err.message} ${String((err as { cause?: unknown }).cause ?? "")}` : String(err);
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes("cannot find target wallet") ||
+    lower.includes("requested resource not found") ||
+    lower.includes("wallet doesn't exist") ||
+    lower.includes("not accessible to the caller")
+  );
+}
 
 export async function POST(req: Request) {
   let ctx: { orgId: string } | undefined;
@@ -61,9 +78,21 @@ export async function POST(req: Request) {
     const parsed = depositSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid request", issues: parsed.error.flatten() },
+        {
+          error:
+            "Invalid request. sourceChain must be one of ARC_TESTNET, ETH_SEPOLIA, BASE_SEPOLIA, ARBITRUM_SEPOLIA.",
+          issues: parsed.error.flatten(),
+        },
         { status: 400 }
       );
+    }
+
+    const sourceChain = parsed.data.sourceChain as Chain;
+    if (!isDepositSourceSupported(sourceChain)) {
+      const errBody = {
+        error: `"${sourceChain}" is not supported as a deposit source. Use Arc, Ethereum Sepolia, Base Sepolia, or Arbitrum Sepolia.`,
+      };
+      return NextResponse.json(errBody, { status: 400 });
     }
 
     const requestHash = hashRequestBody(parsed.data);
@@ -74,24 +103,71 @@ export async function POST(req: Request) {
 
     const wallet = await prisma.wallet.findFirst({ where: { orgId: ctx.orgId } });
     if (!wallet) {
-      const body = { error: "No wallet provisioned for this organization" };
-      await completeIdempotencyKey(ctx.orgId, ENDPOINT, idempotencyKey, body, 404);
-      return NextResponse.json(body, { status: 404 });
+      const errBody = { error: "No wallet provisioned for this organization" };
+      await completeIdempotencyKey(ctx.orgId, ENDPOINT, idempotencyKey, errBody, 404);
+      return NextResponse.json(errBody, { status: 404 });
     }
 
     let amountSmallestUnit: bigint;
     try {
       amountSmallestUnit = toSmallestUnit(parsed.data.amount);
     } catch {
-      const body = { error: `"${parsed.data.amount}" isn't a valid USDC amount.` };
-      await completeIdempotencyKey(ctx.orgId, ENDPOINT, idempotencyKey, body, 422);
-      return NextResponse.json(body, { status: 422 });
+      const errBody = { error: `"${parsed.data.amount}" isn't a valid USDC amount.` };
+      await completeIdempotencyKey(ctx.orgId, ENDPOINT, idempotencyKey, errBody, 422);
+      return NextResponse.json(errBody, { status: 422 });
+    }
+
+    // Circle will not sign on a chain where this address isn't registered.
+    // Derive (idempotent) before deposit so we don't surface a raw 404 from
+    // sign/typedData. Also backfill any other deposit-source chains so the
+    // next deposit is ready without another round-trip.
+    try {
+      const existing = await prisma.walletChainRegistration.findUnique({
+        where: { walletId_chain: { walletId: wallet.id, chain: sourceChain } },
+      });
+      if (!existing) {
+        if (sourceChain === wallet.chain || sourceChain === "ARC_TESTNET") {
+          // Home chain: register the existing circleWalletId without a
+          // derive call (createWalletForOrg already provisioned it).
+          await prisma.walletChainRegistration.upsert({
+            where: { walletId_chain: { walletId: wallet.id, chain: sourceChain } },
+            create: {
+              walletId: wallet.id,
+              chain: sourceChain,
+              derivedCircleWalletId: wallet.circleWalletId,
+            },
+            update: { derivedCircleWalletId: wallet.circleWalletId },
+          });
+        } else {
+          await deriveWalletOnChain(
+            wallet.id,
+            wallet.circleWalletId,
+            wallet.arcAddress,
+            sourceChain
+          );
+        }
+      }
+      // Best-effort: register other deposit chains in the background of this
+      // request so future deposits don't need a separate provision call.
+      void ensureWalletDerivedOnDepositChains(wallet.id).catch((err) =>
+        console.warn("[wallet/unified-balance/deposit] background provision failed", err)
+      );
+    } catch (err) {
+      console.error("[wallet/unified-balance/deposit] failed to ensure wallet on", sourceChain, err);
+      const errBody = {
+        error:
+          `Could not register this wallet on ${sourceChain} with Circle. ` +
+          `Try POST /api/wallet/unified-balance/provision, then deposit again. ` +
+          `(${err instanceof Error ? err.message : "unknown error"})`,
+      };
+      await completeIdempotencyKey(ctx.orgId, ENDPOINT, idempotencyKey, errBody, 502);
+      return NextResponse.json(errBody, { status: 502 });
     }
 
     const result = await depositIntoUnifiedBalance(
       wallet.arcAddress,
       amountSmallestUnit,
-      parsed.data.sourceChain as Chain
+      sourceChain
     );
 
     const responseBody = { deposit: result };
@@ -113,6 +189,19 @@ export async function POST(req: Request) {
     }
     if (err instanceof CircleApiError) {
       console.error("[wallet/unified-balance/deposit] Circle/Gateway error", err.cause ?? err);
+      if (isWalletNotFoundError(err) || isWalletNotFoundError(err.cause)) {
+        return NextResponse.json(
+          {
+            error:
+              "Circle could not find a signable wallet for this address on the selected chain. " +
+              "Open Wallet → Fund Unified Balance after running provision " +
+              "(POST /api/wallet/unified-balance/provision), or confirm CIRCLE_API_KEY / " +
+              "CIRCLE_ENTITY_SECRET match the environment that created this wallet. " +
+              "Also ensure the source chain has plain USDC and the wallet was created under this API key.",
+          },
+          { status: 502 }
+        );
+      }
       return NextResponse.json({ error: err.message }, { status: 502 });
     }
     console.error("[wallet/unified-balance/deposit] failed", err);

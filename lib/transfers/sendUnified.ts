@@ -28,16 +28,15 @@
 // back in per your own product decision if outgoing Unified Balance
 // spends should also trigger them.
 //
-// JUST-IN-TIME TOP-UP (step 5.5 below): a cross-chain spend draws ONLY
+// UNIFIED BALANCE COVERAGE (step 5.5 below): a cross-chain spend draws ONLY
 // from Circle Gateway's confirmed Unified Balance, which is a DIFFERENT
 // number from this org's ledger balance checked in step 3 — the ledger
 // includes Arc-native funds that were never deposited into Gateway (see
 // lib/circle/autoDeposit.ts's module docstring for why that's
-// deliberate). So passing the step-3 ledger check does NOT guarantee
-// Gateway has enough confirmed to actually execute the spend. Before
-// step 6 submits, ensureUnifiedBalanceCovers() closes that gap by
-// depositing just enough — this is what actually makes "the user doesn't
-// have to think about depositing first" true.
+// deliberate). Explicit funding via /wallet/unified-balance/deposit is the
+// normal path. Step 5.5 verifies confirmed balance and only attempts a
+// soft just-in-time top-up for small fee-sized gaps or when a deposit is
+// already pending — it no longer tries to fully fund a cold send in one shot.
 //
 // Two things that were WRONG in an earlier version of this flow, now
 // fixed, worth remembering if this ever regresses:
@@ -256,46 +255,44 @@ export async function sendUnifiedBalancePayment(
     );
   }
 
-  // 5.5. Just-in-time top-up — see module docstring. Runs AFTER claiming
-  // the row (so a crash here still leaves a traceable PENDING tx) but
-  // BEFORE submitting to Circle. Targets totalCost (amount + fee), not
-  // just amount — topping up only the bare amount was exactly what left
-  // Gateway short by the fee even when the deposit itself "succeeded."
-  const coverage = await ensureUnifiedBalanceCovers(ledgerAccount.wallet, totalCost);
-  if (!coverage.covered) {
-    await prisma.onchainTransaction.update({
-      where: { id: onchainTx.id },
-      data: { status: "FAILED", submittedAt: null },
-    });
-    throw new SendUnifiedPaymentError(
-      `Not enough USDC available across your funding chains to cover this send — short by ` +
-        `${coverage.shortfall} USDC. Fund your wallet on Arc or one of the other supported chains ` +
-        `and try again.`,
-      "INSUFFICIENT_BALANCE"
-    );
-  }
-
-  // 5.75. Final pre-spend balance assertion. ensureUnifiedBalanceCovers
-  // already waited for confirmation, but Gateway can still lag or a concurrent
-  // spend can drain the just-deposited amount. Re-read right before spend so
-  // we never hand Circle a request we already know will throw
-  // BALANCE_INSUFFICIENT_TOKEN — that path previously left FAILED rows while
-  // the deposit itself was real, which is what made a later smaller send
-  // succeed against leftover Unified Balance.
-  const preSpend = await getUnifiedBalance(ledgerAccount.wallet.arcAddress);
+  // 5.5. Unified Balance coverage check (explicit funding is the normal path).
+  // Just-in-time top-up was removed as the primary path: depositing + waiting
+  // inside a single send raced Gateway confirmation on Sepolia and produced
+  // confusing BALANCE_INSUFFICIENT_TOKEN failures while leaving leftover UB
+  // that later smaller sends could spend. Users fund via
+  // /wallet/unified-balance/deposit first; we only verify confirmed balance
+  // here. A soft, optional top-up still runs if already almost covered
+  // (short by less than the fee buffer) so tiny fee gaps don't block a send
+  // that was intentionally funded for the transfer amount.
+  let preSpend = await getUnifiedBalance(ledgerAccount.wallet.arcAddress);
   if (preSpend.totalConfirmed < amountSmallestUnit) {
-    await prisma.onchainTransaction.update({
-      where: { id: onchainTx.id },
-      data: { status: "FAILED", submittedAt: null },
-    });
-    const short = amountSmallestUnit - preSpend.totalConfirmed;
-    throw new SendUnifiedPaymentError(
-      `Unified Balance still short by ${toDecimalString(short)} USDC after top-up ` +
-        `(have ${toDecimalString(preSpend.totalConfirmed)} confirmed, need ` +
-        `${toDecimalString(amountSmallestUnit)}). Funds may still be confirming — ` +
-        `wait a minute and retry the same amount rather than reducing it.`,
-      "INSUFFICIENT_BALANCE"
-    );
+    // Soft top-up: only attempt when the gap is small (likely fee-related)
+    // or when something is already pending confirmation from a recent deposit.
+    const shortfall = amountSmallestUnit - preSpend.totalConfirmed;
+    const softTopUpWorthTrying =
+      shortfall <= feeEstimate + toSmallestUnit("0.25") || preSpend.totalPending > 0n;
+
+    if (softTopUpWorthTrying) {
+      const coverage = await ensureUnifiedBalanceCovers(ledgerAccount.wallet, totalCost);
+      if (coverage.covered) {
+        preSpend = await getUnifiedBalance(ledgerAccount.wallet.arcAddress);
+      }
+    }
+
+    if (preSpend.totalConfirmed < amountSmallestUnit) {
+      await prisma.onchainTransaction.update({
+        where: { id: onchainTx.id },
+        data: { status: "FAILED", submittedAt: null },
+      });
+      const short = amountSmallestUnit - preSpend.totalConfirmed;
+      throw new SendUnifiedPaymentError(
+        `Unified Balance is short by ${toDecimalString(short)} USDC ` +
+          `(have ${toDecimalString(preSpend.totalConfirmed)} confirmed, need ` +
+          `${toDecimalString(amountSmallestUnit)}). Fund Unified Balance from Arc first ` +
+          `(Wallet → Fund Unified Balance), wait until the deposit is confirmed, then retry.`,
+        "INSUFFICIENT_BALANCE"
+      );
+    }
   }
 
   // 6. Submit the Unified Balance spend.
