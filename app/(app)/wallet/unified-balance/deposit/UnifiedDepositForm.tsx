@@ -5,10 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-// Kept as a plain client-side list, same tradeoff as ../spend/UnifiedSpendForm.tsx
-// — display-only; the API route independently validates against
-// UNIFIED_BALANCE_SUPPORTED_CHAINS server-side.
-// Deposit sources only — HyperEVM is spend-destination-only (no DCW code).
 const SOURCE_CHAINS: { value: string; label: string }[] = [
   { value: "ARC_TESTNET", label: "Arc Testnet" },
   { value: "ETH_SEPOLIA", label: "Ethereum Sepolia" },
@@ -19,22 +15,30 @@ const SOURCE_CHAINS: { value: string; label: string }[] = [
 const POLL_INTERVAL_MS = 2_500;
 const POLL_TIMEOUT_MS = 90_000;
 
+interface Bucket {
+  id: string;
+  name: string;
+  balance: string;
+}
+
 export default function UnifiedDepositForm({
   walletAddress,
+  buckets,
   disabled,
 }: {
   walletAddress: string;
+  buckets: Bucket[];
   disabled: boolean;
 }) {
   const router = useRouter();
   const [sourceChain, setSourceChain] = useState(SOURCE_CHAINS[0].value);
   const [amount, setAmount] = useState("");
+  // allocation amounts keyed by bucket id
+  const [alloc, setAlloc] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ txHash: string; explorerUrl?: string } | null>(null);
 
-  // Soft post-deposit confirmation: poll Unified Balance until confirmed
-  // has grown (or timeout). Not a hard gate — just a clearer "ready" signal.
   const [confirming, setConfirming] = useState(false);
   const [ready, setReady] = useState(false);
   const [confirmedAfter, setConfirmedAfter] = useState<string | null>(null);
@@ -43,9 +47,12 @@ export default function UnifiedDepositForm({
 
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
 
+  const allocSum = useMemo(() => {
+    return Object.values(alloc).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  }, [alloc]);
+
   useEffect(() => {
     if (!confirming || ready) return;
-
     const started = Date.now();
     let cancelled = false;
 
@@ -57,8 +64,6 @@ export default function UnifiedDepositForm({
           if (res.ok && !cancelled) {
             const confirmed = parseFloat(data.totalConfirmed ?? "0");
             const baseline = baselineConfirmedRef.current ?? 0;
-            // Ready once confirmed has moved up by most of the deposit
-            // (allow a small fee-sized lag) or simply exceeds baseline.
             const target = baseline + Math.max(0, depositedAmountRef.current * 0.9);
             if (Number.isFinite(confirmed) && confirmed >= target && confirmed > baseline) {
               setConfirmedAfter(data.totalConfirmed ?? "0");
@@ -70,22 +75,28 @@ export default function UnifiedDepositForm({
             setConfirmedAfter(data.totalConfirmed ?? "0");
           }
         } catch {
-          // ignore transient poll errors
+          /* ignore */
         }
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
       }
       if (!cancelled) {
-        // Timed out — deposit may still confirm; don't alarm, just stop spinner.
         setConfirming(false);
         router.refresh();
       }
     }
-
     void poll();
     return () => {
       cancelled = true;
     };
   }, [confirming, ready, router]);
+
+  function setBucketAmount(id: string, value: string) {
+    setAlloc((prev) => ({ ...prev, [id]: value }));
+  }
+
+  function fillFromBucket(id: string, balance: string) {
+    setAlloc((prev) => ({ ...prev, [id]: balance }));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -95,15 +106,34 @@ export default function UnifiedDepositForm({
     setConfirming(false);
     setConfirmedAfter(null);
 
-    if (!amount || parseFloat(amount) <= 0) {
-      setError("Enter a valid amount.");
+    const total = parseFloat(amount);
+    if (!amount || !Number.isFinite(total) || total <= 0) {
+      setError("Enter a valid deposit amount.");
+      return;
+    }
+
+    const allocations = Object.entries(alloc)
+      .filter(([, v]) => parseFloat(v) > 0)
+      .map(([ledgerAccountId, amt]) => ({
+        ledgerAccountId,
+        amount: amt.trim(),
+      }));
+
+    if (!allocations.length) {
+      setError("Allocate the deposit across one or more buckets.");
+      return;
+    }
+
+    const sum = allocations.reduce((s, a) => s + parseFloat(a.amount), 0);
+    if (Math.abs(sum - total) > 0.000001) {
+      setError(
+        `Bucket allocations (${sum.toFixed(6)}) must equal the deposit amount (${total}).`
+      );
       return;
     }
 
     setSubmitting(true);
     try {
-      // Snapshot current confirmed balance before deposit so we can detect
-      // when Gateway has absorbed this deposit.
       try {
         const balRes = await fetch("/api/wallet/unified-balance");
         const bal = await balRes.json();
@@ -115,12 +145,19 @@ export default function UnifiedDepositForm({
       } catch {
         baselineConfirmedRef.current = 0;
       }
-      depositedAmountRef.current = parseFloat(amount) || 0;
+      depositedAmountRef.current = total;
 
       const res = await fetch("/api/wallet/unified-balance/deposit", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
-        body: JSON.stringify({ sourceChain, amount: amount.trim() }),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify({
+          sourceChain,
+          amount: amount.trim(),
+          allocations,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -147,7 +184,7 @@ export default function UnifiedDepositForm({
 
       {result && (
         <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-800 space-y-1">
-          <p className="font-semibold">Deposit submitted.</p>
+          <p className="font-semibold">Deposit submitted — buckets debited.</p>
           <p className="font-mono text-xs break-all">{result.txHash}</p>
           {result.explorerUrl && (
             <a href={result.explorerUrl} target="_blank" rel="noreferrer" className="underline">
@@ -158,11 +195,13 @@ export default function UnifiedDepositForm({
       )}
 
       {confirming && !ready && (
-        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900 space-y-1">
+        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
           <p className="font-semibold">Waiting for confirmation…</p>
-          <p className="text-xs text-blue-800/80">
-            Gateway is confirming your deposit. This can take up to a minute.
-            
+          <p className="text-xs text-blue-800/80 mt-1">
+            Gateway is confirming your deposit.
+            {confirmedAfter != null && (
+              <> Current confirmed: <span className="font-mono">{confirmedAfter}</span> USDC.</>
+            )}
           </p>
         </div>
       )}
@@ -171,28 +210,15 @@ export default function UnifiedDepositForm({
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 space-y-2">
           <p className="font-semibold">Ready to send</p>
           <p>
-            Unified Balance is confirmed
+            Unified Balance confirmed
             {confirmedAfter != null && (
               <> at <span className="font-semibold">{confirmedAfter} USDC</span></>
             )}
-            . You can send cross-chain from New transfer.
+            .
           </p>
-          <Link
-            href="/wallet/transfer"
-            className="inline-flex text-xs font-semibold text-[#2A5CE6] hover:underline"
-          >
+          <Link href="/wallet/transfer" className="inline-flex text-xs font-semibold text-[#2A5CE6] hover:underline">
             Go to New transfer →
           </Link>
-        </div>
-      )}
-
-      {!ready && result && !confirming && (
-        <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-semibold">Still confirming</p>
-          <p className="text-xs mt-1">
-            The deposit was submitted but confirmation is taking longer than usual.
-            Check Unified Balance on the send page in a minute, or refresh this page.
-          </p>
         </div>
       )}
 
@@ -209,9 +235,7 @@ export default function UnifiedDepositForm({
               onClick={() => setSourceChain(c.value)}
               disabled={disabled || submitting || confirming}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
-                sourceChain === c.value
-                  ? "bg-[#2A5CE6] text-white"
-                  : "text-[#3E4A6B] hover:bg-white"
+                sourceChain === c.value ? "bg-[#2A5CE6] text-white" : "text-[#3E4A6B] hover:bg-white"
               }`}
             >
               {c.label}
@@ -222,7 +246,7 @@ export default function UnifiedDepositForm({
 
       <div>
         <label htmlFor="amount" className="block text-sm font-semibold text-[#0B1E3F] mb-2">
-          Amount (USDC)
+          Total amount (USDC)
         </label>
         <input
           id="amount"
@@ -232,10 +256,51 @@ export default function UnifiedDepositForm({
           onChange={(e) => setAmount(e.target.value)}
           disabled={disabled || submitting || confirming}
           placeholder="0.00"
-          className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm md:text-base disabled:opacity-50"
+          className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm disabled:opacity-50"
         />
-        <p className="mt-1.5 text-xs text-[#7C8CA6]">
-          Deposit a bit more than you plan to send (network fees come from Unified Balance too).
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="block text-sm font-semibold text-[#0B1E3F]">Debit from buckets</label>
+          <span className="text-xs text-[#7C8CA6]">
+            Allocated {allocSum.toFixed(2)} / {amount || "0"}
+          </span>
+        </div>
+        <div className="rounded-xl border border-[#E5E9F2] bg-white divide-y divide-[#F2F4F8]">
+          {buckets.length === 0 ? (
+            <p className="px-4 py-3 text-sm text-[#7C8CA6]">No buckets available.</p>
+          ) : (
+            buckets.map((b) => (
+              <div key={b.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[#0B1E3F] truncate">{b.name}</p>
+                  <p className="text-xs text-[#7C8CA6]">{b.balance} USDC</p>
+                </div>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-[#2A5CE6] hover:underline shrink-0"
+                  disabled={disabled || submitting}
+                  onClick={() => fillFromBucket(b.id, b.balance)}
+                >
+                  Max
+                </button>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={alloc[b.id] ?? ""}
+                  onChange={(e) => setBucketAmount(b.id, e.target.value)}
+                  disabled={disabled || submitting || confirming}
+                  className="w-24 px-2 py-1.5 rounded-lg border border-[#E5E9F2] text-sm text-right tabular-nums disabled:opacity-50"
+                />
+              </div>
+            ))
+          )}
+        </div>
+        <p className="text-xs text-[#7C8CA6]">
+          Allocations must add up to the total. Those buckets are reduced when the deposit
+          succeeds so ledger matches onchain.
         </p>
       </div>
 
@@ -251,7 +316,7 @@ export default function UnifiedDepositForm({
           color: "#ffffff",
         } as React.CSSProperties}
       >
-        {submitting ? "Depositing…" : confirming ? "Confirming…" : "Deposit"}
+        {submitting ? "Depositing…" : confirming ? "Confirming…" : "Fund Unified Balance"}
       </button>
     </form>
   );

@@ -145,14 +145,14 @@ export default async function WalletPage() {
               )}
             </div>
             <div className="col-span-2 md:col-span-1">
-              <p className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-2 inline-flex items-center gap-1.5">
+              <div className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-2 inline-flex items-center gap-1.5">
                 Unified Balance
                 <InfoTooltip>
                   USDC deposited into Circle Gateway. This is what funds cross-chain sends
                   (Ethereum Sepolia, Base, Arbitrum, HyperEVM). Plain onchain USDC is not
                   spendable cross-chain until you fund Unified Balance.
                 </InfoTooltip>
-              </p>
+              </div>
               <p className="md:text-lg text-sm font-semibold text-[#0B1E3F] tabular-nums flex items-center gap-1.5">
                 <Image
                   src="/usdc.png"

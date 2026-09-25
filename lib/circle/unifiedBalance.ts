@@ -107,6 +107,7 @@ export const UNIFIED_BALANCE_SUPPORTED_CHAINS: readonly Chain[] = [
   "ETH_SEPOLIA",
   "BASE_SEPOLIA",
   "ARBITRUM_SEPOLIA",
+
 ] as const;
 
 export function isUnifiedBalanceSupported(chain: Chain): boolean {

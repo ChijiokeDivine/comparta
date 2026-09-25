@@ -179,15 +179,10 @@ export async function sendUnifiedBalancePayment(
   );
   const totalCost = amountSmallestUnit + feeEstimate;
 
+  // Hybrid model C: ledger is Arc-plain only. UB spend does not require
+  // full totalCost on the bucket unless we must top up from Arc.
+  // ledgerDebitNeeded is computed after we know UB coverage (step 5.5).
   const currentBalance = await getBalance(ledgerAccount.id);
-  if (currentBalance < totalCost) {
-    throw new SendUnifiedPaymentError(
-      `Insufficient balance: sending ${toDecimalString(amountSmallestUnit)} USDC costs ` +
-        `${toDecimalString(totalCost)} USDC including network fees, but this account only has ` +
-        `${toDecimalString(currentBalance)} USDC available.`,
-      "INSUFFICIENT_BALANCE"
-    );
-  }
 
   const idempotencyKey = input.idempotencyKey ?? randomUUID();
 
@@ -255,29 +250,18 @@ export async function sendUnifiedBalancePayment(
     );
   }
 
-  // 5.5. Unified Balance coverage check (explicit funding is the normal path).
-  // Just-in-time top-up was removed as the primary path: depositing + waiting
-  // inside a single send raced Gateway confirmation on Sepolia and produced
-  // confusing BALANCE_INSUFFICIENT_TOKEN failures while leaving leftover UB
-  // that later smaller sends could spend. Users fund via
-  // /wallet/unified-balance/deposit first; we only verify confirmed balance
-  // here. A soft, optional top-up still runs if already almost covered
-  // (short by less than the fee buffer) so tiny fee gaps don't block a send
-  // that was intentionally funded for the transfer amount.
+  // 5.5. Hybrid model C — Unified Balance coverage + optional Arc top-up.
+  // Ledger debit (step 7) only equals the Arc top-up shortfall, not the full
+  // transfer: money already in UB left the ledger at Fund Unified Balance.
   let preSpend = await getUnifiedBalance(ledgerAccount.wallet.arcAddress);
-  if (preSpend.totalConfirmed < amountSmallestUnit) {
-    // Soft top-up: only attempt when the gap is small (likely fee-related)
-    // or when something is already pending confirmation from a recent deposit.
-    const shortfall = amountSmallestUnit - preSpend.totalConfirmed;
-    const softTopUpWorthTrying =
-      shortfall <= feeEstimate + toSmallestUnit("0.25") || preSpend.totalPending > 0n;
+  let ledgerDebitNeeded = 0n;
 
-    if (softTopUpWorthTrying) {
-      const coverage = await ensureUnifiedBalanceCovers(ledgerAccount.wallet, totalCost);
-      if (coverage.covered) {
-        preSpend = await getUnifiedBalance(ledgerAccount.wallet.arcAddress);
-      }
-    }
+  if (preSpend.totalConfirmed < totalCost) {
+    const shortfall = totalCost - preSpend.totalConfirmed;
+    // Top up from Arc only the shortfall (user already picked a bucket;
+    // that bucket pays the top-up, not the whole send).
+    const coverage = await ensureUnifiedBalanceCovers(ledgerAccount.wallet, totalCost);
+    preSpend = await getUnifiedBalance(ledgerAccount.wallet.arcAddress);
 
     if (preSpend.totalConfirmed < amountSmallestUnit) {
       await prisma.onchainTransaction.update({
@@ -288,12 +272,36 @@ export async function sendUnifiedBalancePayment(
       throw new SendUnifiedPaymentError(
         `Unified Balance is short by ${toDecimalString(short)} USDC ` +
           `(have ${toDecimalString(preSpend.totalConfirmed)} confirmed, need ` +
-          `${toDecimalString(amountSmallestUnit)}). Fund Unified Balance from Arc first ` +
-          `(Wallet → Fund Unified Balance), wait until the deposit is confirmed, then retry.`,
+          `${toDecimalString(amountSmallestUnit)}). Fund Unified Balance first ` +
+          `(Wallet → Fund Unified Balance), wait until confirmed, then retry.`,
+        "INSUFFICIENT_BALANCE"
+      );
+    }
+
+    // Top-up pulled funds from Arc plain — debit only what was newly deposited.
+    try {
+      const deposited = coverage.totalDeposited
+        ? toSmallestUnit(coverage.totalDeposited)
+        : 0n;
+      ledgerDebitNeeded = deposited > 0n ? deposited : shortfall;
+    } catch {
+      ledgerDebitNeeded = shortfall;
+    }
+
+    if (ledgerDebitNeeded > 0n && currentBalance < ledgerDebitNeeded) {
+      await prisma.onchainTransaction.update({
+        where: { id: onchainTx.id },
+        data: { status: "FAILED", submittedAt: null },
+      });
+      throw new SendUnifiedPaymentError(
+        `This send needs a ${toDecimalString(ledgerDebitNeeded)} USDC top-up from Arc, ` +
+          `but the selected bucket only has ${toDecimalString(currentBalance)} USDC.`,
         "INSUFFICIENT_BALANCE"
       );
     }
   }
+  // else: fully covered by existing UB → ledgerDebitNeeded stays 0
+
 
   // 6. Submit the Unified Balance spend.
   let circleResult: Awaited<ReturnType<typeof circleSendUnified>>;
@@ -356,13 +364,16 @@ export async function sendUnifiedBalancePayment(
       },
     });
 
-    await recordEntry({
-      ledgerAccountId: ledgerAccount.id,
-      amount: totalCost,
-      direction: "DEBIT",
-      referenceType: "ONCHAIN_TX",
-      referenceId: confirmedTx.id,
-    });
+    // Hybrid C: only debit the Arc top-up portion (0 if fully funded from UB).
+    if (ledgerDebitNeeded > 0n) {
+      await recordEntry({
+        ledgerAccountId: ledgerAccount.id,
+        amount: ledgerDebitNeeded,
+        direction: "DEBIT",
+        referenceType: "ONCHAIN_TX",
+        referenceId: confirmedTx.id,
+      });
+    }
 
     return buildResult(confirmedTx);
   } catch (lateErr) {
