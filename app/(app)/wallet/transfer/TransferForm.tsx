@@ -371,7 +371,7 @@ export default function TransferForm({
             <Link href="/wallet/unified-balance/deposit" className="text-[#2A5CE6] hover:underline">
               Deposit from Arc first
             </Link>
-            {" "}if this is low — deposits can take up to a minute to confirm.
+            {" "}if this is low — deposits can take up to 20s to confirm.
           </p>
           {amount && ubConfirmed != null && !ubLoading && parseFloat(amount) > parseFloat(ubConfirmed || "0") && (
             <p className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
