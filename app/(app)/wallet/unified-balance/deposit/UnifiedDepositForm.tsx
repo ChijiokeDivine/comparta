@@ -223,9 +223,7 @@ export default function UnifiedDepositForm({
       )}
 
       <div>
-        <p className="text-xs text-[#7C8CA6] mb-2">
-          Wallet <span className="font-mono text-[#3E4A6B]">{walletAddress}</span>
-        </p>
+      
         <label className="block text-sm font-semibold text-[#0B1E3F] mb-2">Source chain</label>
         <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
           {SOURCE_CHAINS.map((c) => (

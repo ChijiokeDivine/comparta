@@ -41,9 +41,7 @@ export default async function UnifiedBalanceDepositPage() {
       <div>
         <h1 className="text-xl font-semibold text-[#0B1E3F]">Fund Unified Balance</h1>
         <p className="mt-1.5 text-sm text-[#7C8CA6]">
-          Move USDC from Arc into Circle Gateway for cross-chain sends. Chosen buckets are
-          debited so ledger stays aligned with onchain Arc balance. Unified Balance is tracked
-          separately.
+          Move USDC from Arc into Circle Gateway for cross-chain sends.
         </p>
       </div>
       {wallet ? (
