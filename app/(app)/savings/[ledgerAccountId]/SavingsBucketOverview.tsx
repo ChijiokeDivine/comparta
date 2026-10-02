@@ -172,11 +172,7 @@ export default function SavingsBucketOverview({
               {formatMoney(data.liquidBalance)} liquid · {formatMoney(data.deployedBalance)} deployed
             </p>
           </div>
-          {data.isYieldEnabled ? (
-            <StatusPill value="ACTIVE" label={`Yield on · ${data.yieldAllocationPct}%`} />
-          ) : (
-            <span className="text-xs text-[#7C8CA6]">Yield off</span>
-          )}
+         
         </div>
 
         <div className="grid grid-cols-3 gap-4 text-sm">

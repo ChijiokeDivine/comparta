@@ -135,7 +135,7 @@ export default function AppShell({
         <div className="px-3 py-4 border-t border-[#E5E9F2]">
           <Link
             href="/settings"
-            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-medium transition-colors ${
               isActive(pathname, "/settings")
                 ? "bg-[#EEF2FF] text-[#2A5CE6]"
                 : "text-[#3E4A6B] hover:bg-[#F2F4F8]"
@@ -179,7 +179,7 @@ export default function AppShell({
               <Link
                 href="/settings"
                 onClick={() => setMobileNavOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-medium transition-colors ${
                   isActive(pathname, "/settings")
                     ? "bg-[#EEF2FF] text-[#2A5CE6]"
                     : "text-[#3E4A6B] hover:bg-[#F2F4F8]"
@@ -249,7 +249,7 @@ export default function AppShell({
               onClick={toggleHideBalances}
               aria-label={hideBalances ? "Show balances" : "Hide balances"}
               title={hideBalances ? "Show balances" : "Hide balances"}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-[#F7F8FB] hover:bg-[#F2F4F8] transition-colors text-[#3E4A6B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] p-1 cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F7F8FB] hover:bg-[#F2F4F8] transition-colors text-[#3E4A6B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] p-1 cursor-pointer"
             >
               {hideBalances ? (
                 <EyeOffIcon className="w-5 h-5" />
@@ -354,7 +354,7 @@ function NavSection({
       ? "bg-[#EEF2FF] text-[#2A5CE6]"
       : "text-[#3E4A6B] hover:bg-[#F2F4F8]";
 
-  const parentClasses = `group w-full flex items-center gap-3 rounded-xl px-3 py-3 my-1 text-sm font-medium transition-colors ${groupAccent}`;
+  const parentClasses = `group w-full flex items-center gap-3 rounded-xl px-3 py-3 my-1 text-[12px] font-medium transition-colors ${groupAccent}`;
 
   const chevronButton = (
     <button
@@ -427,7 +427,7 @@ function SidebarLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-xl px-3 py-3 my-1 text-sm font-medium transition-colors ${
+      className={`flex items-center gap-3 rounded-xl px-3 py-3 my-1 text-[12px] font-medium transition-colors ${
         active ? "bg-[#EEF2FF] text-[#2A5CE6]" : "text-[#3E4A6B] hover:bg-[#F2F4F8]"
       }`}
     >
@@ -498,7 +498,7 @@ function UserMenu({
         aria-haspopup="true"
         aria-expanded={isOpen}
       >
-        <span className="w-8 h-8 rounded-full bg-[#0B1E3F] text-white text-xs font-semibold flex items-center justify-center">
+        <span className="w-7 h-7 rounded-full bg-[#0B1E3F] text-white text-xs font-semibold flex items-center justify-center">
           {initials}
         </span>
         <ChevronDownIcon className={`w-4 h-4 text-[#7C8CA6] transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -522,7 +522,7 @@ function UserMenu({
           </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+            className="w-full text-left px-4 py-2.5 text-[12px] text-red-600 hover:bg-red-50"
           >
             Sign out
           </button>
