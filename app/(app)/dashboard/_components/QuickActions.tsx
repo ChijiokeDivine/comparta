@@ -54,7 +54,7 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
             <>
               <span className="w-9 h-9 rounded-full flex items-center justify-center">
                 <Icon
-                  className={`w-3 h-3 ${isHighlighted ? "text-white" : "text-[#2A5CE6]"}`}
+                  className={`w-3 h-3 ${isHighlighted ? "text-white" : "text-[#333333]"}`}
                 />
               </span>
               <span
@@ -65,7 +65,7 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
             </>
           );
 
-          const baseClass = `flex flex-row items-center justify-center rounded-3xl border pl-1 pr-5 py-0 md:py-1 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] w-fit shrink-0 snap-start ${
+          const baseClass = `flex flex-row items-center justify-center rounded-3xl border pl-1 pr-5 py-0 md:py-0 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2A5CE6] w-fit shrink-0 snap-start ${
             action.hideOnMobile ? "hidden md:flex" : ""
           } ${
             isHighlighted

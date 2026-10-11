@@ -219,7 +219,7 @@ export default function DashboardRealtimeClient({
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-[#0B1E3F]">Recent activity</h2>
-          <Link href="/wallet/transfers" className="text-sm font-medium text-[#2A5CE6] hover:underline">
+          <Link href="/wallet/transfers" className="text-sm font-medium text-[#333333] hover:underline">
             See all
           </Link>
         </div>

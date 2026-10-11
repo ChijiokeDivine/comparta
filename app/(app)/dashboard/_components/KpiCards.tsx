@@ -26,13 +26,13 @@ export default function KpiCards({
   const netCashflow = inflow - outflow;
 
   return (
-    <div className="rounded-3xl border border-[#E5E9F2] bg-white p-6 h-full flex flex-col">
+    <div className="rounded-2xl border border-[#E5E9F2] bg-white p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-8">
         <div className="flex flex-row justify-between items-baseline w-full">
-          <h3 className="md:text-lg text-md font-medium text-[#0B1E3F]">
+          <h3 className="md:text-md text-md font-medium text-[#0B1E3F]">
             Financial Summary
           </h3>
-          <p className="md:text-sm text-xs text-[#7C8CA6] mt-1">
+          <p className="md:text-xs text-xs text-[#7C8CA6] mt-1">
             Last 30 days
           </p>
 
@@ -48,7 +48,7 @@ export default function KpiCards({
           </p>
 
           <h2
-            className={`mt-1 md:text-2xl text-xl font-semibold tabular-nums inline-flex items-center gap-1.5 ${
+            className={`mt-1 md:text-xl text-lg font-semibold tabular-nums inline-flex items-center gap-1.5 ${
               netCashflow > 0
                 ? "text-emerald-600"
                 : netCashflow === 0
@@ -68,7 +68,7 @@ export default function KpiCards({
           </h2>
           
 
-          <div className="mt-4 flex gap-6 text-sm">
+          <div className="mt-4 flex gap-6 text-xs">
             <div className="flex items-center gap-2 text-emerald-600">
               <ArrowUpRight size={18} />
               <span>{maskBalance(formatMoney(kpis.inflow30d), hideBalances)}</span>
@@ -93,7 +93,7 @@ export default function KpiCards({
               Yield Earned
             </p>
 
-            <p className="mt-1 md:text-2xl text-xl font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
+            <p className="mt-1 md:text-xl text-lg font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
               <Image
                 src="/usdc.png"
                 alt="USDC"

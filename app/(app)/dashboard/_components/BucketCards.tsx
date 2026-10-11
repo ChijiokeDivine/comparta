@@ -33,16 +33,18 @@ export default function BucketCards({
   buckets: BucketSummary[];
 }) {
   const { hideBalances } = useHideBalances();
+  const sortedBuckets = [...buckets].sort((a, b) => Number(b.balance) - Number(a.balance));
+  const visibleBuckets = sortedBuckets.slice(0, 3);
 
   return (
-    <div className="rounded-3xl border border-[#E5E9F2] bg-white p-6">
+    <div className="rounded-2xl border border-[#E5E9F2] bg-white p-6">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="md:text-xl text-lg font-medium text-[#0B1E3F]">Buckets</h3>
+        <h3 className="md:text-lg text-lg font-medium text-[#0B1E3F]">Buckets</h3>
 
         {buckets.length > 0 && (
           <Link
             href="/buckets"
-            className="md:text-sm text-xs font-medium text-[#2A5CE6] hover:underline"
+            className="md:text-xs text-xs font-medium text-[#333333] hover:underline"
           >
             View all
           </Link>
@@ -58,57 +60,56 @@ export default function BucketCards({
         </Link>
       ) : (
         <div className="space-y-4">
-          {buckets.slice(0, 5).map((bucket) => {
+          {visibleBuckets.map((bucket) => {
             const Icon = TYPE_ICON[bucket.type] ?? DefaultBucketIcon;
             const isDefault = !TYPE_ICON[bucket.type];
-          return (
-          <Link
-            key={bucket.id}
-            href={`/buckets/${bucket.id}`}
-            className="flex items-center justify-between rounded-xl p-2 -mx-2 hover:bg-[#F7F9FC] transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              {/* Icon */}
-              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5E9F2] bg-[#FAFBFD]">
-                {isDefault ? (
-                  <span className="text-lg">🪣</span>
-                ) : (
-                  <Icon className="w-5 h-5 text-[#2A5CE6]" />
-                )}
-              </div>
+            return (
+              <Link
+                key={bucket.id}
+                href={`/buckets/${bucket.id}`}
+                className="flex items-center justify-between rounded-xl p-2 -mx-2 hover:bg-[#F7F9FC] transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5E9F2] bg-[#FAFBFD]">
+                    {isDefault ? (
+                      <span className="text-lg">🪣</span>
+                    ) : (
+                      <Icon className="w-4 h-4 text-[#535353]" />
+                    )}
+                  </div>
 
-              <div>
-                <p className="md:text-md text-sm font-medium text-[#0B1E3F]">
-                  {bucket.name}
+                  <div>
+                    <p className="md:text-sm text-sm font-medium text-[#0B1E3F]">
+                      {bucket.name}
+                    </p>
+
+                    <p className="md:text-xs text-xs text-[#7C8CA6]">
+                      {TYPE_LABEL[bucket.type] ?? bucket.type}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="md:text-md text-sm font-medium text-[#0B1E3F] tabular-nums">
+                  {maskBalance(formatMoney(bucket.balance), hideBalances)}
                 </p>
+              </Link>
+            );
+          })}
 
-                <p className="md:text-sm text-xs text-[#7C8CA6]">
-                  {TYPE_LABEL[bucket.type] ?? bucket.type}
-                </p>
-              </div>
-            </div>
-
-            <p className="md:text-md text-sm font-medium text-[#0B1E3F] tabular-nums">
-              {maskBalance(formatMoney(bucket.balance), hideBalances)}
-            </p>
-          </Link>
-        );
-        })}
-
-          {buckets.length > 5 && (
+          {/* {buckets.length > 3 && (
             <Link
               href="/buckets"
               className="flex items-center gap-3 rounded-xl p-2 -mx-2 hover:bg-[#F7F9FC] transition-colors"
             >
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F2F5FA] md:text-sm text-xs font-medium text-[#5F6B7A]">
-                +{buckets.length - 5}
+                +{buckets.length - 3}
               </div>
 
               <span className="font-medium text-[#0B1E3F]">
                 View all buckets
               </span>
             </Link>
-          )}
+          )} */}
         </div>
       )}
     </div>

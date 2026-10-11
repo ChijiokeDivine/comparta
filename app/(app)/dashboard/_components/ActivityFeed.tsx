@@ -3,18 +3,33 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ActivityItem } from "@/lib/insights/dashboard/getDashboardSummary";
 import { formatMoney, formatRelativeTime } from "@/app/invoices/_components/format";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ArrowLeftRight,
+  Receipt,
+  Users,
+  Link2,
+  Sprout,
+  type LucideIcon,
+} from "lucide-react";
 
-const KIND_STYLES: Record<ActivityItem["kind"], { bg: string; fg: string; glyph: string }> = {
-  onchain_in: { bg: "bg-emerald-50", fg: "text-emerald-600", glyph: "↓" },
-  onchain_out: { bg: "bg-[#F2F4F8]", fg: "text-[#3E4A6B]", glyph: "↑" },
-  invoice_event: { bg: "bg-[#EEF2FF]", fg: "text-[#2A5CE6]", glyph: "🧾" },
-  payroll_run: { bg: "bg-violet-50", fg: "text-violet-600", glyph: "👥" },
-  payment_link_payment: { bg: "bg-amber-50", fg: "text-amber-600", glyph: "🔗" },
-  savings_execution: { bg: "bg-emerald-50", fg: "text-emerald-600", glyph: "🌱" },
-  allocation_execution: { bg: "bg-[#F2F4F8]", fg: "text-[#3E4A6B]", glyph: "⇄" },
+
+const KIND_STYLES: Record<
+  ActivityItem["kind"],
+  { bg: string; fg: string; icon: LucideIcon }
+> = {
+  onchain_in: { bg: "bg-[#F5F7FA]", fg: "text-[#3E4A6B]", icon: ArrowDownLeft },
+  onchain_out: { bg: "bg-[#F5F7FA]", fg: "text-[#3E4A6B]", icon: ArrowUpRight },
+  invoice_event: { bg: "bg-[#EEF2FF]", fg: "text-[#2A5CE6]", icon: Receipt },
+  payroll_run: { bg: "bg-violet-50", fg: "text-violet-600", icon: Users },
+  payment_link_payment: { bg: "bg-amber-50", fg: "text-amber-600", icon: Link2 },
+  savings_execution: { bg: "bg-emerald-50", fg: "text-emerald-600", icon: Sprout },
+  allocation_execution: { bg: "bg-[#F5F7FA]", fg: "text-[#3E4A6B]", icon: ArrowLeftRight },
 };
 
 const MAX_VISIBLE = 7;
+
 
 export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
   if (items.length === 0) {
@@ -42,13 +57,14 @@ export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
       <div className="divide-y divide-[#F2F4F8]">
         {visible.map((item) => {
           const style = KIND_STYLES[item.kind];
+          const Icon = style.icon;
           return (
             <div key={item.id} className="flex items-center gap-3 px-5 py-3.5 ">
               <span
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm shrink-0 ${style.bg} ${style.fg}`}
+                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${style.bg} ${style.fg}`}
                 aria-hidden="true"
-              >
-                {style.glyph}
+                >
+                <Icon className="w-4 h-4" strokeWidth={2} />
               </span>
               <div className="min-w-0 flex-1 pt-3">
                 <p className="text-sm font-medium text-[#0B1E3F] truncate">{item.title}</p>
@@ -70,7 +86,7 @@ export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
         <div className="px-5 py-3 border-t border-[#F2F4F8]">
           <Link
             href="/wallet/transfers"
-            className="text-sm font-medium text-[#2A5CE6] hover:underline inline-flex items-center gap-1"
+            className="text-sm font-medium text-[#333333] hover:underline inline-flex items-center gap-1"
           >
             View all {items.length} items
           </Link>

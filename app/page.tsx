@@ -88,6 +88,10 @@ export default function Home() {
     let lenis: Lenis | undefined;
 
     const init = async () => {
+      if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+        return;
+      }
+
       const { default: gsap } = await import("gsap");
       const { ScrollTrigger } = await import("gsap/ScrollTrigger");
       gsap.registerPlugin(ScrollTrigger);
@@ -121,6 +125,10 @@ export default function Home() {
       let ctx: { revert: () => void } | undefined;
 
       const init = async () => {
+        if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+          return;
+        }
+
         const { default: gsap } = await import("gsap");
         const { ScrollTrigger } = await import("gsap/ScrollTrigger");
         gsap.registerPlugin(ScrollTrigger);
@@ -161,6 +169,10 @@ export default function Home() {
       let ctx: { revert: () => void } | undefined;
 
       const init = async () => {
+        if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+          return;
+        }
+
         const { default: gsap } = await import("gsap");
         const { ScrollTrigger } = await import("gsap/ScrollTrigger");
         gsap.registerPlugin(ScrollTrigger);
@@ -795,10 +807,10 @@ export default function Home() {
 
         <div
           ref={stackRef}
-          className="relative h-[280vh] md:h-[320vh]"
-        >
-          <div className="sticky top-0 h-screen flex items-center justify-center px-4 sm:px-6 md:px-10">
-            <div className="relative w-full max-w-3xl lg:max-w-3xl 2xl:max-w-[900px] h-[30vh] md:h-[72vh]">
+          className="relative h-[280svh] md:h-[320vh] hidden md:block"
+          >
+          <div className="sticky top-0 h-[80svh] flex items-center justify-center px-4 sm:px-6 md:px-10">
+            <div className="relative w-full max-w-3xl lg:max-w-3xl 2xl:max-w-[900px] h-[30vh] md:h-[72vh] ">
               {[
                 { src: "/dashboard.webp", label: "Move money", alt: "Comparta move money" },
                 { src: "/VcnS1TWU8Hk2UfNqEK734kaF9VU.webp", label: "Get paid", alt: "Comparta get paid" },
@@ -828,6 +840,15 @@ export default function Home() {
               ))}
             </div>
           </div>
+        </div>
+        <div className="relative md:hidden block h-64 w-[90%] mx-auto rounded-xl md:rounded-2xl overflow-hidden ">
+              <Image
+                    src="/dashboard.webp"
+                    alt="Comparta dashboard"
+                    fill
+                    className="object-cover"
+                    
+              />
         </div>
       </section>
       <section className="relative w-full bg-[#FBFBFD] py-16 sm:py-20 md:py-28 overflow-hidden">

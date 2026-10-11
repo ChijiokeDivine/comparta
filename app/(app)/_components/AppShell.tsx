@@ -226,12 +226,8 @@ export default function AppShell({
               Search pages, actions, payments…
             </span>
             <kbd className="hidden lg:inline-flex items-center gap-1 text-[10px] text-[#7C8CA6] font-medium">
-              <span className="rounded border border-[#E5E9F2] bg-[#F7F8FB] px-1.5 py-0.5">
-                ⌘
-              </span>
-              <span className="rounded border border-[#E5E9F2] bg-[#F7F8FB] px-1.5 py-0.5">
-                K
-              </span>
+            
+             
             </kbd>
           </button>
 
@@ -354,7 +350,7 @@ function NavSection({
       ? "bg-[#EEF2FF] text-[#2A5CE6]"
       : "text-[#3E4A6B] hover:bg-[#F2F4F8]";
 
-  const parentClasses = `group w-full flex items-center gap-3 rounded-xl px-3 py-3 my-1 text-[12px] font-medium transition-colors ${groupAccent}`;
+  const parentClasses = `group w-full flex items-center gap-3 rounded-lg px-3 py-3 my-1 text-[12px] font-medium transition-colors ${groupAccent}`;
 
   const chevronButton = (
     <button
@@ -427,8 +423,8 @@ function SidebarLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-xl px-3 py-3 my-1 text-[12px] font-medium transition-colors ${
-        active ? "bg-[#EEF2FF] text-[#2A5CE6]" : "text-[#3E4A6B] hover:bg-[#F2F4F8]"
+      className={`flex items-center gap-3 rounded-lg px-3 py-3 my-1 text-[12px] font-medium transition-colors ${
+        active ? "bg-[#F5F7FA] text-[#333333]" : "text-[#333333] hover:bg-[#F2F4F8]"
       }`}
     >
       <Icon className="w-5 h-5 shrink-0" />
@@ -451,7 +447,7 @@ function SidebarChildLink({
     <Link
       href={child.href}
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${
+      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors ${
         active
           ? "bg-[#EEF2FF] text-[#2A5CE6]"
           : "text-[#5A6886] hover:bg-[#F2F4F8] hover:text-[#0B1E3F]"

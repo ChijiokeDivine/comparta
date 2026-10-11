@@ -105,18 +105,18 @@ export const NAV_ITEMS: NavItem[] = [
 
   },
 
-  {
-    href: "/payroll",
-    label: "Payroll",
-    icon: PayrollIcon,
-    managerOnly: true,
-    children: [
+  // {
+  //   href: "/payroll",
+  //   label: "Payroll",
+  //   icon: PayrollIcon,
+  //   managerOnly: true,
+  //   children: [
 
-      { href: "/payroll/payees", label: "Payees", icon: UsersIcon, managerOnly: true },
-      { href: "/payroll/payees/new", label: "New payee", icon: UserPlusIcon, managerOnly: true },
-      { href: "/payroll/runs/new", label: "Run payroll", icon: PlayIcon, managerOnly: true },
-    ],
-  },
+  //     { href: "/payroll/payees", label: "Payees", icon: UsersIcon, managerOnly: true },
+  //     { href: "/payroll/payees/new", label: "New payee", icon: UserPlusIcon, managerOnly: true },
+  //     { href: "/payroll/runs/new", label: "Run payroll", icon: PlayIcon, managerOnly: true },
+  //   ],
+  // },
 
   {
     href: "/savings",

@@ -17,6 +17,61 @@ interface OrgProfile {
   createdAt: string;
 }
 
+function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`animate-pulse rounded-lg bg-[#E5E9F2] ${className}`}
+    />
+  );
+}
+
+function OrganizationSettingsSkeleton({ showWebhooksLink }: { showWebhooksLink: boolean }) {
+  return (
+    <div
+      className="max-w-lg space-y-6"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading organization settings"
+    >
+      <h1 className="text-xl font-semibold text-[#0B1E3F]">Settings</h1>
+      <SettingsSubNav active="organization" />
+
+      {showWebhooksLink && <Skeleton className="h-4 w-40" />}
+
+      {/* KYB status card */}
+      <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+        </div>
+      </div>
+
+      {/* Legal name card */}
+      <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
+        <div>
+          <Skeleton className="h-4 w-36 mb-2" />
+          <Skeleton className="h-[42px] w-full rounded-xl" />
+        </div>
+        <Skeleton className="h-9 w-16 rounded-xl" />
+      </div>
+
+      {/* Username card */}
+      <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-3">
+        <Skeleton className="h-4 w-20" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-[42px] flex-1 rounded-xl" />
+          <Skeleton className="h-9 w-16 rounded-xl shrink-0" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OrganizationSettingsPage() {
   const { data: session } = useSession();
   const canEdit = session?.user?.role === "OWNER" || session?.user?.role === "ADMIN";
@@ -36,7 +91,6 @@ export default function OrganizationSettingsPage() {
   }, []);
 
   function load() {
-    setLoading(true);
     fetch("/api/org")
       .then((res) => res.json())
       .then((data) => {
@@ -95,7 +149,9 @@ export default function OrganizationSettingsPage() {
     }
   }
 
-  if (loading) return <div className="text-sm text-[#7C8CA6]">Loading…</div>;
+  if (loading) {
+    return <OrganizationSettingsSkeleton showWebhooksLink={session?.user?.role === "OWNER"} />;
+  }
   if (!org) return <div className="text-sm text-[#7C8CA6]">Failed to load organization.</div>;
 
   return (

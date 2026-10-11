@@ -14,6 +14,68 @@ interface CountryOption {
   supported: boolean;
 }
 
+function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`animate-pulse rounded-lg bg-[#E5E9F2] ${className}`}
+    />
+  );
+}
+
+function AccountSettingsSkeleton() {
+  return (
+    <div
+      className="max-w-lg space-y-6"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading account settings"
+    >
+      <h1 className="text-xl font-semibold text-[#0B1E3F]">Settings</h1>
+      <SettingsSubNav active="account" />
+
+      {/* Email + Name card */}
+      <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
+        <div>
+          <Skeleton className="h-4 w-12 mb-2" />
+          <Skeleton className="h-[42px] w-full rounded-xl" />
+        </div>
+        <div>
+          <Skeleton className="h-4 w-12 mb-2" />
+          <Skeleton className="h-[42px] w-full rounded-xl" />
+        </div>
+        <Skeleton className="h-9 w-16 rounded-xl" />
+      </div>
+
+      {/* Display currency card */}
+      <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+        <div>
+          <Skeleton className="h-3 w-14 mb-1.5" />
+          <Skeleton className="h-[42px] w-full rounded-xl" />
+        </div>
+        <Skeleton className="h-9 w-32 rounded-xl" />
+      </div>
+
+      {/* Change password card */}
+      <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
+        <Skeleton className="h-4 w-32" />
+        {[0, 1, 2].map((i) => (
+          <div key={i}>
+            <Skeleton className="h-3 w-28 mb-1.5" />
+            <Skeleton className="h-[42px] w-full rounded-xl" />
+          </div>
+        ))}
+        <Skeleton className="h-9 w-36 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
 export default function AccountSettingsPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -167,7 +229,7 @@ export default function AccountSettingsPage() {
   const selectedCountry = countries.find((c) => c.code === countryCode);
   const sortedCountries = [...countries].sort((a, b) => a.name.localeCompare(b.name));
 
-  if (loading) return <div className="max-w-lg text-sm text-[#7C8CA6]">Loading…</div>;
+  if (loading) return <AccountSettingsSkeleton />;
 
   return (
     <div className="max-w-lg space-y-6">
@@ -290,7 +352,6 @@ export default function AccountSettingsPage() {
               {selectedCountry.currencyName}
               <span className="ml-2 text-[#7C8CA6] font-normal">({selectedCountry.currencyCode})</span>
             </p>
-           
           </div>
         )}
 

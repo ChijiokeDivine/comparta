@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import {
   X,
@@ -20,9 +21,9 @@ import QRCodeStyling from "qr-code-styling";
 // lib/circle/autoDeposit.ts) rather than being instant like Arc.
 const DEPOSIT_CHAINS: { value: string; label: string }[] = [
   { value: "ARC_TESTNET", label: "Arc" },
-  { value: "ETH_SEPOLIA", label: "Ethereum Sepolia" },
+  { value: "ETH_SEPOLIA", label: "ETH Sepolia" },
   { value: "BASE_SEPOLIA", label: "Base Sepolia" },
-  { value: "ARBITRUM_SEPOLIA", label: "Arbitrum Sepolia" },
+  { value: "ARBITRUM_SEPOLIA", label: "ARB Sepolia" },
 ];
 
 interface DepositModalProps {
@@ -42,6 +43,11 @@ export default function DepositModal({
   const qrInstance = useRef<QRCodeStyling | null>(null);
   const [copied, setCopied] = useState(false);
   const [selectedChain, setSelectedChain] = useState(chain);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open) setSelectedChain(chain);
@@ -63,7 +69,7 @@ export default function DepositModal({
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!open || !qrRef.current || !address) return;
+    if (!open || !mounted || !qrRef.current || !address) return;
 
     if (!qrInstance.current) {
       qrInstance.current = new QRCodeStyling({
@@ -105,9 +111,9 @@ export default function DepositModal({
 
     qrRef.current.innerHTML = "";
     qrInstance.current.append(qrRef.current);
-  }, [open, address]);
+  }, [open, mounted, address]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   async function handleCopy() {
     try {
@@ -119,12 +125,14 @@ export default function DepositModal({
     }
   }
 
-  const displayChain = DEPOSIT_CHAINS.find((c) => c.value === selectedChain)?.label ?? selectedChain;
+  const displayChain =
+    DEPOSIT_CHAINS.find((c) => c.value === selectedChain)?.label ??
+    selectedChain;
   const isArc = selectedChain === "ARC_TESTNET";
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="deposit-title"
@@ -139,7 +147,6 @@ export default function DepositModal({
       <div className="relative w-full max-w-[720px] rounded-2xl bg-white shadow-[0_24px_80px_-20px_rgba(11,30,63,0.35)] animate-[popIn_.18s_ease] overflow-hidden">
         <div className="flex items-start justify-between px-6 pt-6 pb-2">
           <div>
-           
             <h2
               id="deposit-title"
               className="text-xl font-semibold text-[#0B1E3F]"
@@ -213,15 +220,13 @@ export default function DepositModal({
                     )}
                   </button>
                 </div>
-              
               </div>
 
-              <div className="md:grid grid-cols-3 gap-2.5   hidden">
+              <div className="md:grid grid-cols-3 gap-2.5 hidden">
                 <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
                   <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
                     <Network size={14} />
                   </div>
-                 
                   <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
                     {displayChain}
                   </p>
@@ -230,13 +235,12 @@ export default function DepositModal({
                   <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
                     <Clock3 size={14} />
                   </div>
-                
                   <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
                     ~1 min
                   </p>
                 </div>
                 <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
-                  <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white  flex items-center justify-center">
+                  <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white flex items-center justify-center">
                     <Image
                       src="/usdc.png"
                       alt="USDC"
@@ -245,7 +249,6 @@ export default function DepositModal({
                       className="rounded-full"
                     />
                   </div>
-               
                   <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
                     USDC
                   </p>
@@ -254,15 +257,12 @@ export default function DepositModal({
             </div>
           </div>
 
-       
-
           <div className="mt-1 rounded-xl border border-[#E5EEFF] p-3.5 flex gap-3 md:block hidden">
-        
             <div className="space-y-1">
               <p className="text-xs font-semibold text-[#0B1E3F]">
                 Send only USDC on the {displayChain} network
               </p>
-              <p className="text-[11px] leading-relaxed text-[#3E4A6B] ">
+              <p className="text-[11px] leading-relaxed text-[#3E4A6B]">
                 Deposits of other assets or on unsupported chains will be
                 irretrievable. Confirm the network in your sending wallet before
                 confirming.
@@ -281,6 +281,7 @@ export default function DepositModal({
           to   { opacity: 1; transform: translateY(0)   scale(1) }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -354,7 +354,7 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-xl rounded-2xl border border-[#E5E9F2] bg-white shadow-2xl overflow-hidden"
+        className="relative w-full max-w-xl rounded-xl border border-[#E5E9F2] bg-white shadow-2xl overflow-hidden"
       >
         <div className="flex items-center gap-3 px-4 border-b border-[#F2F4F8]">
           <SearchIcon className="w-5 h-5 text-[#7C8CA6] shrink-0" />
@@ -364,16 +364,14 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search pages, actions, payments…"
-            className="flex-1 h-14 bg-transparent text-[#0B1E3F] placeholder:text-[#7C8CA6] text-sm focus:outline-none"
+            className="flex-1 h-14 bg-transparent text-[#0D0D0D] placeholder:text-[#686868] text-sm focus:outline-none"
           />
           <div className="hidden sm:flex items-center gap-1 text-[11px] text-[#7C8CA6]">
-            <kbd className="rounded border border-[#E5E9F2] bg-[#F7F8FB] px-1.5 py-0.5 font-medium">
-              ESC
-            </kbd>
+            
           </div>
         </div>
 
-        <div className="max-h-[50vh] overflow-y-auto p-2">
+        <div className="max-h-[50vh] overflow-y-auto scrollbar-hide p-2">
           {results.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-[#7C8CA6]">
               {query.trim()
@@ -386,7 +384,7 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
                 <p className="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-wide uppercase text-[#7C8CA6]">
                   {group}
                 </p>
-                <ul className="space-y-0.5">
+                <ul className="space-y-0.5 ">
                   {items.map((it, i) => {
                     const flatIndex = results.indexOf(it);
                     const isActive = flatIndex === active;
@@ -398,27 +396,27 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
                             onClose();
                             router.push(it.href);
                           }}
-                          className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                            isActive ? "bg-[#EEF2FF]" : "hover:bg-[#F7F8FB]"
+                          className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
+                            isActive ? "bg-[#f7f8f9]" : "hover:bg-[#F7F8FB]"
                           } ${pathname === it.href ? "ring-1 ring-inset ring-[#E5E9F2]" : ""}`}
                         >
                           <span
                             className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center ${
-                              isActive ? "bg-white text-[#2A5CE6]" : "bg-[#F7F8FB] text-[#3E4A6B]"
+                              isActive ? "bg-white text-[#333333]" : "bg-[#F7F8FB] text-[#3E4A6B]"
                             }`}
                           >
                             <it.Icon className="w-4.5 h-4.5" />
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-[#0B1E3F] truncate">
+                            <p className="text-xs font-medium text-[#0B1E3F] truncate">
                               {it.title}
                               {pathname === it.href && (
-                                <span className="ml-2 text-[10px] font-medium text-[#7C8CA6] uppercase tracking-wide">
-                                  Current
+                                <span className="ml-2 text-[9px] font-medium text-[#7C8CA6] uppercase tracking-wide">
+                                 
                                 </span>
                               )}
                             </p>
-                            <p className="text-xs text-[#7C8CA6] truncate">
+                            <p className="text-[10px] text-[#7C8CA6] truncate">
                               {it.subtitle}
                             </p>
                           </div>
@@ -433,25 +431,7 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
           )}
         </div>
 
-        <div className="flex items-center justify-between px-4 py-2 border-t border-[#F2F4F8] text-[11px] text-[#7C8CA6]">
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:flex items-center gap-1">
-              <kbd className="rounded border border-[#E5E9F2] bg-[#F7F8FB] px-1.5 py-0.5 font-medium">
-                ↑↓
-              </kbd>
-              navigate
-            </span>
-            <span className="hidden sm:flex items-center gap-1">
-              <kbd className="rounded border border-[#E5E9F2] bg-[#F7F8FB] px-1.5 py-0.5 font-medium">
-                ↵
-              </kbd>
-              open
-            </span>
-          </div>
-          <span className="hidden md:flex">
-           
-          </span>
-        </div>
+        
       </div>
     </div>
   );
