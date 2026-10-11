@@ -356,7 +356,7 @@ export default function TransferForm({
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <span className="font-semibold text-[#0B1E3F]">
                   {ubConfirmed ?? "0"} USDC
-                  <span className="ml-1 font-normal text-[#7C8CA6]">confirmed</span>
+                  
                 </span>
                 {ubPending && ubPending !== "0" && (
                   <span className="text-xs text-[#7C8CA6]">
@@ -366,16 +366,10 @@ export default function TransferForm({
               </div>
             )}
           </div>
-          <p className="text-xs text-[#7C8CA6]">
-            Cross-chain sends use your Unified Balance, not a bucket.{" "}
-            <Link href="/wallet/unified-balance/deposit" className="text-[#2A5CE6] hover:underline">
-              Deposit from Arc first
-            </Link>
-            {" "}if this is low — deposits can take up to 20s to confirm.
-          </p>
+          
           {amount && ubConfirmed != null && !ubLoading && parseFloat(amount) > parseFloat(ubConfirmed || "0") && (
             <p className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-              Fund Unified Balance first — confirmed balance ({ubConfirmed} USDC) is below this amount.
+              Fund Unified Balance first - confirmed balance ({ubConfirmed} USDC) is below this amount.
             </p>
           )}
         </div>
@@ -469,9 +463,7 @@ export default function TransferForm({
           </div>
         )}
 
-        <label className="block text-xs font-medium text-[#7C8CA6] mb-2">
-          @username or 0x address
-        </label>
+       
         <div className="relative">
           <input
             id="to"
@@ -483,7 +475,7 @@ export default function TransferForm({
             }}
             onBlur={handleIdentifierBlur}
             disabled={disabled}
-            placeholder="@acme or 0x1234…"
+            placeholder="@username or 0x1234…"
             className="w-full px-4 py-3 pr-10 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm md:text-base disabled:opacity-50"
           />
           {resolved && (

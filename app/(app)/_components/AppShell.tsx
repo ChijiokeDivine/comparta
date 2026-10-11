@@ -347,7 +347,7 @@ function NavSection({
 
   const groupAccent =
     parentActive || anyChildActive
-      ? "bg-[#EEF2FF] text-[#2A5CE6]"
+      ? "bg-[#EEF2FF] text-[#333333]"
       : "text-[#3E4A6B] hover:bg-[#F2F4F8]";
 
   const parentClasses = `group w-full flex items-center gap-3 rounded-lg px-3 py-3 my-1 text-[12px] font-medium transition-colors ${groupAccent}`;
@@ -449,7 +449,7 @@ function SidebarChildLink({
       onClick={onClick}
       className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors ${
         active
-          ? "bg-[#EEF2FF] text-[#2A5CE6]"
+          ? "bg-[#EEF2FF] text-[#333333]"
           : "text-[#5A6886] hover:bg-[#F2F4F8] hover:text-[#0B1E3F]"
       }`}
     >

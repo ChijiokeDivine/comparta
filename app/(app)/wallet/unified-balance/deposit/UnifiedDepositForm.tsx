@@ -90,12 +90,41 @@ export default function UnifiedDepositForm({
     };
   }, [confirming, ready, router]);
 
+  function getAvailableAllocation(id: string, currentAlloc: Record<string, string>) {
+    const total = Number.parseFloat(amount) || 0;
+    if (!Number.isFinite(total) || total <= 0) return 0;
+
+    const otherTotal = Object.entries(currentAlloc).reduce((sum, [bucketId, bucketValue]) => {
+      if (bucketId === id) return sum;
+      return sum + (Number.parseFloat(bucketValue) || 0);
+    }, 0);
+
+    return Math.max(0, total - otherTotal);
+  }
+
   function setBucketAmount(id: string, value: string) {
-    setAlloc((prev) => ({ ...prev, [id]: value }));
+    const nextValue = value.trim();
+    const parsed = Number.parseFloat(nextValue);
+    const available = getAvailableAllocation(id, alloc);
+
+    if (!nextValue || !Number.isFinite(parsed) || parsed <= 0) {
+      setAlloc((prev) => ({ ...prev, [id]: "" }));
+      return;
+    }
+
+    const capped = available > 0 ? Math.min(parsed, available) : 0;
+    setAlloc((prev) => ({ ...prev, [id]: capped > 0 ? String(capped) : "" }));
   }
 
   function fillFromBucket(id: string, balance: string) {
-    setAlloc((prev) => ({ ...prev, [id]: balance }));
+    const available = getAvailableAllocation(id, alloc);
+    const balanceValue = Number.parseFloat(balance) || 0;
+    const maxAllowed = Math.min(balanceValue, available);
+
+    setAlloc((prev) => ({
+      ...prev,
+      [id]: maxAllowed > 0 ? String(maxAllowed) : "",
+    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -251,7 +280,34 @@ export default function UnifiedDepositForm({
           type="text"
           inputMode="decimal"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => {
+            const nextAmount = e.target.value;
+            setAmount(nextAmount);
+
+            const total = Number.parseFloat(nextAmount) || 0;
+            if (!Number.isFinite(total) || total <= 0) {
+              setAlloc({});
+              return;
+            }
+
+            setAlloc((prev) => {
+              const nextAlloc: Record<string, string> = {};
+              let remaining = total;
+
+              Object.entries(prev).forEach(([bucketId, bucketValue]) => {
+                const parsedValue = Number.parseFloat(bucketValue) || 0;
+                if (parsedValue <= 0) return;
+
+                const allowed = Math.min(parsedValue, remaining);
+                if (allowed > 0) {
+                  nextAlloc[bucketId] = String(allowed);
+                  remaining -= allowed;
+                }
+              });
+
+              return nextAlloc;
+            });
+          }}
           disabled={disabled || submitting || confirming}
           placeholder="0.00"
           className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm disabled:opacity-50"
@@ -277,7 +333,7 @@ export default function UnifiedDepositForm({
                 </div>
                 <button
                   type="button"
-                  className="text-xs font-semibold text-[#2A5CE6] hover:underline shrink-0"
+                  className="text-xs font-semibold text-[#333333] cursor-pointer shrink-0"
                   disabled={disabled || submitting}
                   onClick={() => fillFromBucket(b.id, b.balance)}
                 >
@@ -296,10 +352,7 @@ export default function UnifiedDepositForm({
             ))
           )}
         </div>
-        <p className="text-xs text-[#7C8CA6]">
-          Allocations must add up to the total. Those buckets are reduced when the deposit
-          succeeds so ledger matches onchain.
-        </p>
+      
       </div>
 
       <button
