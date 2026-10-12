@@ -16,6 +16,9 @@ import {
   Search as SearchIcon,
   Eye as EyeIcon,
   EyeOff as EyeOffIcon,
+  LogOut,
+  Astroid,
+  Settings
 } from "lucide-react";
 import { useHideBalances } from "./HideBalancesProvider";
 
@@ -222,7 +225,7 @@ export default function AppShell({
             className="hidden md:flex items-center gap-3 w-full max-w-md mx-auto h-10 px-3.5 rounded-lg border border-[#E5E9F2] bg-white transition-colors group focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#E5E9F2]"
           >
             <SearchIcon className="w-4 h-4 text-[#7C8CA6] shrink-0" />
-            <span className="flex-1 text-left text-sm text-[#7C8CA6] truncate">
+            <span className="flex-1 text-left text-xs text-[#7C8CA6] truncate">
               Search pages, actions, payments…
             </span>
             <kbd className="hidden lg:inline-flex items-center gap-1 text-[10px] text-[#7C8CA6] font-medium">
@@ -505,22 +508,34 @@ function UserMenu({
           <div className="px-4 py-2.5 border-b border-[#F2F4F8]">
             <p className="text-sm font-semibold text-[#0B1E3F] truncate">{userName}</p>
             {userEmail && <p className="text-xs text-[#7C8CA6] truncate">{userEmail}</p>}
-            <span className="mt-2 inline-block rounded-full bg-[#F2F4F8] text-[#3E4A6B] text-[11px] font-semibold px-2 py-0.5">
+            {/* <span className="mt-2 inline-block rounded-full bg-[#F2F4F8] text-[#3E4A6B] text-[11px] font-semibold px-2 py-0.5">
               {ROLE_LABEL[role]}
-            </span>
+            </span> */}
           </div>
           <Link
             href="/settings"
-            className="block px-4 py-2.5 text-sm text-[#3E4A6B] hover:bg-[#F2F4F8]"
+            className="flex items-center mt-2 gap-2 px-4 py-2.5 text-xs text-[#3E4A6B] hover:bg-[#F2F4F8]"
             onClick={onClose}
           >
+            <Settings className="w-3 h-3 text-[#3E4A6B]" />
             Account settings
           </Link>
+
+          <Link
+            href="/insights"
+            className="flex items-center mb-2 gap-2 px-4 py-2.5 text-xs text-[#3E4A6B] hover:bg-[#F2F4F8]"
+            onClick={onClose}
+          >
+            <Astroid className="w-3 h-3 text-[#3E4A6B]" />
+            Insights
+          </Link>
+          <hr className="my-0 border-t border-slate-100" />
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="w-full text-left px-4 py-2.5 text-[12px] text-red-600 hover:bg-red-50"
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-red-600 hover:bg-red-50"
           >
-            Sign out
+            <LogOut className="w-3 h-3" />
+            <span>Log out</span>
           </button>
         </div>
       )}

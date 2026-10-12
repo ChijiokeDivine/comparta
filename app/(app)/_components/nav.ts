@@ -139,10 +139,10 @@ export const NAV_ITEMS: NavItem[] = [
 
   // { href: "/recurring", label: "Recurring Transfers", icon: RecurringIcon },
 
-  {
-    href: "/insights",
-    label: "Insights",
-    icon: InsightsIcon,
+  // {
+  //   href: "/insights",
+  //   label: "Insights",
+  //   icon: InsightsIcon,
 
-  },
+  // },
 ];

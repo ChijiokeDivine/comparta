@@ -215,15 +215,17 @@ export default function DashboardRealtimeClient({
         <KpiCards kpis={summary.kpis} />
         <BucketCards buckets={summary.buckets} />
       </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-[#0B1E3F]">Recent activity</h2>
-          <Link href="/wallet/transfers" className="text-sm font-medium text-[#333333] hover:underline">
-            See all
-          </Link>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-[#0B1E3F]">Recent activity</h2>
+            <Link href="/wallet/transfers" className="text-sm font-medium text-[#333333] hover:underline">
+              See all
+            </Link>
+          </div>
+          <ActivityFeed items={summary.activity} />
         </div>
-        <ActivityFeed items={summary.activity} />
       </div>
     </div>
   );

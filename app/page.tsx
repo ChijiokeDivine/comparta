@@ -607,11 +607,11 @@ export default function Home() {
           <div className="flex flex-col justify-between md:w-1/2">
             {/* Heading */}
             <div>
-              <h1 className="text-white pt-12 sm:pt-16 md:pt-20 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
+              <h1 className="text-white pt-12 sm:pt-16 md:pt-20 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-6xl tracking-tight leading-tight">
                 Banks make you wait.
               </h1>
               <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
-                <h1 className="text-emerald-300 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-tight">
+                <h1 className="text-emerald-300 font-normal text-3xl sm:text-5xl md:text-6xl lg:text-6xl tracking-tight leading-tight">
                   We don&apos;t.
                 </h1>
               

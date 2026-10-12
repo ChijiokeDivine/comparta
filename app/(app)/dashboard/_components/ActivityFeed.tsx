@@ -28,7 +28,7 @@ const KIND_STYLES: Record<
   allocation_execution: { bg: "bg-[#F5F7FA]", fg: "text-[#3E4A6B]", icon: ArrowLeftRight },
 };
 
-const MAX_VISIBLE = 7;
+const MAX_VISIBLE = 5;
 
 
 export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
@@ -61,37 +61,37 @@ export default function ActivityFeed({ items }: { items: ActivityItem[] }) {
           return (
             <div key={item.id} className="flex items-center gap-3 px-5 py-3.5 ">
               <span
-                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${style.bg} ${style.fg}`}
+                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${style.bg} ${style.fg}`}
                 aria-hidden="true"
                 >
-                <Icon className="w-4 h-4" strokeWidth={2} />
+                <Icon className="w-3 h-3" strokeWidth={2} />
               </span>
               <div className="min-w-0 flex-1 pt-3">
-                <p className="text-sm font-medium text-[#0B1E3F] truncate">{item.title}</p>
-                <p className="text-xs text-[#7C8CA6] truncate">{item.subtitle}</p>
+                <p className="text-xs font-medium text-[#0B1E3F] truncate">{item.title}</p>
+                <p className="text-[10px] text-[#7C8CA6] truncate">{item.subtitle}</p>
               </div>
               <div className="text-right shrink-0">
                 {item.amount && (
-                  <p className="text-sm font-semibold text-[#0B1E3F] tabular-nums">
-                    {formatMoney(item.amount)}
+                  <p className="text-xs font-semibold text-[#0B1E3F] tabular-nums">
+                    ${formatMoney(item.amount)}
                   </p>
                 )}
-                <p className="text-xs text-[#7C8CA6]">{formatRelativeTime(item.createdAt)}</p>
+                <p className="text-[10px] text-[#7C8CA6]">{formatRelativeTime(item.createdAt)}</p>
               </div>
             </div>
           );
         })}
       </div>
-      {hasMore && (
+      {/* {hasMore && (
         <div className="px-5 py-3 border-t border-[#F2F4F8]">
           <Link
             href="/wallet/transfers"
-            className="text-sm font-medium text-[#333333] hover:underline inline-flex items-center gap-1"
+            className="text-xs font-medium text-[#333333] hover:underline inline-flex items-center gap-1"
           >
             View all {items.length} items
           </Link>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

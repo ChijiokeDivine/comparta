@@ -70,11 +70,11 @@ export default function BucketCards({
                 className="flex items-center justify-between rounded-xl p-2 -mx-2 hover:bg-[#F7F9FC] transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E5E9F2] bg-[#FAFBFD]">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#E5E9F2] bg-[#FAFBFD]">
                     {isDefault ? (
                       <span className="text-lg">🪣</span>
                     ) : (
-                      <Icon className="w-4 h-4 text-[#535353]" />
+                      <Icon className="w-3 h-3 text-[#535353]" />
                     )}
                   </div>
 
