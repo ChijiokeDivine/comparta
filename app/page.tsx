@@ -125,9 +125,7 @@ export default function Home() {
       let ctx: { revert: () => void } | undefined;
 
       const init = async () => {
-        if (typeof window !== "undefined") {
-          return;
-        }
+        
 
         const { default: gsap } = await import("gsap");
         const { ScrollTrigger } = await import("gsap/ScrollTrigger");
