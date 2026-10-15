@@ -125,7 +125,7 @@ export default function Home() {
       let ctx: { revert: () => void } | undefined;
 
       const init = async () => {
-        if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+        if (typeof window !== "undefined") {
           return;
         }
 
