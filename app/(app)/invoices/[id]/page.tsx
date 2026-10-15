@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { isValidAddress } from "@/lib/identity/address";
 import {
   STATUS_LABEL,
   STATUS_CLASSES,
@@ -117,6 +118,9 @@ export default function InvoiceDetailPage() {
 
   const canSend = invoice.status === "DRAFT" && kybApproved;
   const canVoid = invoice.status !== "PAID" && invoice.status !== "VOID";
+  const recipientIdentifier = isValidAddress(invoice.recipientIdentifier)
+    ? `${invoice.recipientIdentifier.slice(0, 5)}...${invoice.recipientIdentifier.slice(-4)}`
+    : invoice.recipientIdentifier;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -134,7 +138,7 @@ export default function InvoiceDetailPage() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <p className="text-xs font-medium text-[#7C8CA6] mb-1">Billed to</p>
-            <p className="text-lg font-semibold text-[#0B1E3F]">{invoice.recipientIdentifier}</p>
+            <p className="text-lg font-semibold text-[#0B1E3F]">{recipientIdentifier}</p>
             {invoice.recipientEmail && <p className="text-sm text-[#7C8CA6]">{invoice.recipientEmail}</p>}
           </div>
           <span
