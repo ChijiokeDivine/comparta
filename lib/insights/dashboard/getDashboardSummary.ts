@@ -70,10 +70,30 @@ export interface DashboardFiat {
   currencyName: string | null;
 }
 
+export interface UpcomingItem {
+  id: string;
+  kind: "payroll_schedule" | "recurring_transfer";
+  title: string;
+  subtitle: string;
+  amount: string | null; // decimal string
+  nextAt: string; // ISO
+  href: string;
+}
+
+function freqLabel(f: string): string {
+  switch (f) {
+    case "DAILY": return "Daily";
+    case "WEEKLY": return "Weekly";
+    case "BIWEEKLY": return "Biweekly";
+    case "MONTHLY": return "Monthly";
+    default: return f;
+  }
+}
 export interface DashboardSummary {
   kpis: DashboardKpis;
   buckets: BucketSummary[];
   activity: ActivityItem[];
+  upcoming: UpcomingItem[];  // ← add
   fiat: DashboardFiat;
 }
 
@@ -92,6 +112,8 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
     recentInvoiceEvents,
     recentPayrollRuns,
     recentPaymentLinkPayments,
+    activePayrollSchedules,
+    activeRecurringTransfers,
   ] = await Promise.all([
     listBucketsWithBalances(orgId, { includeSparkline: false }),
     prisma.yieldPosition.findMany({
@@ -151,6 +173,33 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
         createdAt: true,
         paymentLink: { select: { description: true, slug: true } },
       },
+    }),
+    prisma.payrollSchedule.findMany({
+      where: { orgId, active: true },
+      select: {
+        id: true,
+        name: true,
+        frequency: true,
+        nextRunDate: true,
+        sourceLedgerAccount: { select: { name: true } },
+      },
+      orderBy: { nextRunDate: "asc" },
+      take: 10,
+    }),
+    prisma.recurringTransfer.findMany({
+      where: { orgId, status: "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        amount: true,
+        frequency: true,
+        nextExecutionDate: true,
+        destinationIdentifier: true,
+        destinationLedgerAccount: { select: { name: true } },
+        sourceLedgerAccount: { select: { name: true } },
+      },
+      orderBy: { nextExecutionDate: "asc" },
+      take: 10,
     }),
   ]);
 
@@ -242,6 +291,33 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
   ]
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     .slice(0, 20);
+  
+  const upcoming: UpcomingItem[] = [
+    ...activePayrollSchedules.map((s): UpcomingItem => ({
+      id: `payroll_schedule:${s.id}`,
+      kind: "payroll_schedule",
+      title: s.name?.trim() || "Payroll",
+      subtitle: `${freqLabel(s.frequency)} · from ${s.sourceLedgerAccount.name}`,
+      amount: null, // run amount is only known after generation
+      nextAt: s.nextRunDate.toISOString(),
+      href: "/payroll",
+    })),
+    ...activeRecurringTransfers.map((t): UpcomingItem => ({
+      id: `recurring_transfer:${t.id}`,
+      kind: "recurring_transfer",
+      title: t.name?.trim() || "Recurring transfer",
+      subtitle: t.destinationLedgerAccount?.name
+        ? `→ ${t.destinationLedgerAccount.name}`
+        : t.destinationIdentifier
+          ? `→ ${t.destinationIdentifier}`
+          : `${freqLabel(t.frequency)}`,
+      amount: toDecimalString(t.amount),
+      nextAt: t.nextExecutionDate.toISOString(),
+      href: `/recurring/${t.id}`,
+    })),
+  ]
+    .sort((a, b) => (a.nextAt < b.nextAt ? -1 : 1))
+    .slice(0, 8);
 
   const totalMicroUsdc = liquidBalance + deployedBalance;
   const fiatVal = await valueUsdcInPreferredCurrency({
@@ -260,7 +336,7 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
     currencyName: fiatVal.currencyName,
   };
 
-  return { kpis, buckets, activity, fiat };
+  return { kpis, buckets, upcoming, activity, fiat};
 }
 
 function shortenAddress(address: string): string {

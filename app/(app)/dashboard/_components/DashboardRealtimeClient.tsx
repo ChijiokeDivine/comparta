@@ -25,6 +25,7 @@ import { KybBanner } from "../../_components/Kyb";
 import Link from "next/link";
 import type { KybStatus } from "@/app/generated/prisma/client";
 import { useHideBalances, maskBalance } from "../../_components/HideBalancesProvider";
+import UpcomingCard from "./UpcomingCard";
 
 
 type Wallet = { arcAddress: string; chain: string | null } | null;
@@ -225,6 +226,16 @@ export default function DashboardRealtimeClient({
             </Link>
           </div>
           <ActivityFeed items={summary.activity} />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-[#0B1E3F]">Upcoming</h2>
+            <Link href="/recurring" className="text-sm font-medium text-[#333333] hover:underline">
+              See all
+            </Link>
+          </div>
+          <UpcomingCard items={summary.upcoming} />
         </div>
       </div>
     </div>
