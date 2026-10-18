@@ -1132,16 +1132,40 @@ export default function Home() {
 
             <FooterColumn
               title="Product"
-              links={["Invoicing", "Payment Links", "Payroll", "Smart Savings", "Send & Receive"]}
+              links={[
+                { label: "Invoicing", href: "/invoices" },
+                { label: "Payment Links", href: "/payment-links" },
+                { label: "Payroll", href: "/payroll" },
+                { label: "Smart Savings", href: "/savings" },
+                { label: "Send & Receive", href: "/wallet" },
+              ]}
             />
-            <FooterColumn title="Company" links={["About", "Careers", "Blog", "Contact"]} />
+            <FooterColumn
+              title="Company"
+              links={[
+                { label: "About", href: "/about" },
+                { label: "Careers", href: "/careers" },
+                { label: "Blog", href: "/blog" },
+                { label: "Contact", href: "/contact" },
+              ]}
+            />
             <FooterColumn
               title="Resources"
-              links={["Help Center", "Developer API", "Security", "Status"]}
+              links={[
+                { label: "Help Center", href: "/help" },
+                { label: "Developer API", href: "/developers" },
+                { label: "Security", href: "/security" },
+                { label: "Status", href: "/status" },
+              ]}
             />
             <FooterColumn
               title="Legal"
-              links={["Terms of Service", "Privacy Policy", "Compliance", "Cookie Policy"]}
+              links={[
+                { label: "Terms of Service", href: "/terms" },
+                { label: "Privacy Policy", href: "/privacy" },
+                { label: "Compliance", href: "/compliance" },
+                { label: "Cookie Policy", href: "/cookies" },
+              ]}
             />
           </div>
 
@@ -1169,18 +1193,24 @@ export default function Home() {
 
 }
 
-function FooterColumn({ title, links }: { title: string; links: string[] }) {
+function FooterColumn({
+  title,
+  links,
+}: {
+  title: string;
+  links: { label: string; href: string }[];
+}) {
   return (
     <div className="flex flex-col gap-4">
       <h3 className="text-white text-sm font-semibold">{title}</h3>
       <ul className="flex flex-col gap-3">
-        {links.map((link) => (
-          <li key={link}>
+        {links.map(({ label, href }) => (
+          <li key={label}>
             <a
-              href="#"
+              href={href}
               className="text-white/50 text-sm hover:text-white transition-colors"
             >
-              {link}
+              {label}
             </a>
           </li>
         ))}
