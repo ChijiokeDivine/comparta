@@ -5,6 +5,7 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    seed: 'tsx scripts/seed-terms.ts',
   },
   // This ensures CLI engines safely use the direct port
   datasource: {

@@ -20,7 +20,8 @@ export default function UpcomingCard({ items }: { items: UpcomingItem[] }) {
       <div className="rounded-2xl border border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6] flex flex-col items-center justify-center min-h-[360px]">
         Nothing scheduled yet.
         <p className="mt-1 text-xs text-[#A0AEC0]">
-          Set up arecurring transfer to see it here.
+          Set up a+
+          recurring transfer to see it here.
         </p>
         <div className="mt-4 flex gap-3">
         

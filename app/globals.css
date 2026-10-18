@@ -473,3 +473,44 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+.prose-legal section {
+  scroll-margin-top: 6rem;
+  margin-bottom: 2.75rem;
+}
+.prose-legal h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0b1e4b;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
+}
+.prose-legal p {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: #3e4a6b;
+  margin-bottom: 0.9rem;
+}
+.prose-legal a {
+  color: #2a5ce6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-legal a:hover {
+  color: #1a3fa8;
+}
+/* Custom thin scrollbar for TOC */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #c5cad6 transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #c5cad6;
+  border-radius: 999px;
+}
