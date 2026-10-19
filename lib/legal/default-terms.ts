@@ -177,7 +177,7 @@ export const DEFAULT_TERMS_HTML = `
   <p>Comparta is not a bank, credit union, or insured depository institution. Balances are not covered by FDIC, SIPC, or equivalent deposit-insurance schemes. You bear the risk of loss.</p>
 
   <h3>9.5 Operational & Technology Risk</h3>
-  <p>Digital assets can be lost through phishing, malware, social engineering, smart-contract bugs, network congestion, or operational errors. You are responsible for securing your own devices and credentials.</p>
+  <p>Digital assets can be lost through phishing, malware or social engineering. You are responsible for securing your own devices and credentials.</p>
 </section>
 
 <section id="prohibited">
@@ -250,13 +250,10 @@ export const DEFAULT_TERMS_HTML = `
   <h3>14.1 Exclusion of Certain Damages</h3>
   <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, COMPARTA AND ITS AFFILIATES, OFFICERS, DIRECTORS, EMPLOYEES, AND AGENTS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, GOODWILL, OR BUSINESS OPPORTUNITY, WHETHER ARISING IN CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY, OR OTHERWISE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.</p>
 
-  <h3>14.2 Cap on Liability</h3>
-  <p>OUR TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATED TO THESE TERMS OR THE PLATFORM SHALL NOT EXCEED THE GREATER OF (A) THE FEES YOU PAID TO US IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM OR (B) ONE HUNDRED US DOLLARS (US $100).</p>
-
-  <h3>14.3 Essential Basis</h3>
+  <h3>14.2 Essential Basis</h3>
   <p>The limitations in this section are an essential basis of the bargain between you and us and will apply even if any limited remedy fails of its essential purpose.</p>
 
-  <h3>14.4 Jurisdictional Variations</h3>
+  <h3>14.3 Jurisdictional Variations</h3>
   <p>Some jurisdictions do not allow the exclusion or limitation of certain damages. In such jurisdictions, our liability is limited to the maximum extent permitted by law.</p>
 </section>
 
