@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Header } from "../components/Header";
 
 export type TocItem = { id: string; title: string };
 
@@ -58,43 +59,47 @@ export function TermsClient({ title, version, publishedAt, htmlContent, toc }: P
   return (
     <div className="min-h-screen bg-white text-[#0B1E4B]">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 border-b border-[#E8ECF2] bg-white/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/img5.png" alt="Comparta" height={28} width={90} priority />
-          </Link>
-          <nav className="flex items-center gap-6 text-[13px] font-semibold">
-            <Link href="/privacy" className="text-[#3E4A6B] hover:text-[#0B1E4B]">
-              Privacy
-            </Link>
-            <Link href="/login" className="text-[#3E4A6B] hover:text-[#0B1E4B]">
-              Log in
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-full bg-[#0B1E4B] px-4 py-2 text-white hover:bg-[#16295c] transition-colors"
-            >
-              Open account
-            </Link>
-          </nav>
+        <div className="relative overflow-hidden">
+            {/* Shared background video */}
+            <video
+            src="/9056440-hd_1280_720_50fps.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className="absolute inset-0 h-full w-full object-cover"
+            poster="/9056440-hd_1280_720_50fps.webp"
+            />
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-black/50" />
+
+            <Header />
+
+            {/* Hero section with background image */}
+            <section className="relative"  >
+
+            <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 pt-5 md:pb-20 pb-36  text-center sm:px-6 md:h-[85vh] h-[60vh]">
+                <h1 className="text-[40px] font-normal leading-[1.05] text-[#FFFFFF] sm:text-[64px] md:text-[65px] lg:text-[70px] xl:text-[74px] pt-4  md:pt-5">
+                {title}
+
+                </h1>
+                <p className="mt-3 text-[14px] text-[#FFFFFF]">
+                    Version <span className="font-medium text-[#FFFFFF]">{version}</span>
+                    <span className="mx-2 text-[#C5CAD6]">·</span>
+                    Effective {formattedDate}
+                </p>
+                <p className="mt-9 max-w-[640px] text-[17px] text-[#FFFFFF] md:text-[18px]">
+                PLEASE READ THESE TERMS OF USE CAREFULLY BEFORE USING THE SERVICES OR ACCESSING THE PLATFORM.
+                </p>
+                
+            </div>
+            </section>
         </div>
-      </header>
+
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
-        {/* Page header */}
-        <div className="mb-10 max-w-3xl">
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#2A5CE6]">
-            Legal
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-[#0B1E4B] sm:text-4xl">
-            {title}
-          </h1>
-          <p className="mt-3 text-[14px] text-[#3E4A6B]">
-            Version <span className="font-medium text-[#0B1E4B]">{version}</span>
-            <span className="mx-2 text-[#C5CAD6]">·</span>
-            Effective {formattedDate}
-          </p>
-        </div>
+    
 
         <div className="flex flex-col gap-10 lg:flex-row lg:gap-14">
           {/* Sticky sidebar TOC */}
@@ -107,7 +112,7 @@ export function TermsClient({ title, version, publishedAt, htmlContent, toc }: P
                 className="max-h-[calc(100vh-8rem)] overflow-y-auto pr-2 scrollbar-thin"
                 aria-label="Table of contents"
               >
-                <ul className="space-y-0.5 border-l border-[#E8ECF2]">
+                <ul className="space-y-3 border-l border-[#E8ECF2]">
                   {toc.map((item) => {
                     const isActive = activeId === item.id;
                     return (
@@ -116,10 +121,10 @@ export function TermsClient({ title, version, publishedAt, htmlContent, toc }: P
                           type="button"
                           onClick={() => scrollTo(item.id)}
                           className={`
-                            block w-full border-l-2 py-1.5 pl-3 text-left text-[13px] leading-snug transition-colors
+                            block w-full border-l-2 py-1.5 pl-3 text-left text-[15px] leading-snug transition-colors
                             ${
                               isActive
-                                ? "border-[#2A5CE6] font-semibold text-[#0B1E4B]"
+                                ? "border-[#0066f5] font-semibold text-[#0066f5]"
                                 : "border-transparent text-[#3E4A6B] hover:border-[#C5CAD6] hover:text-[#0B1E4B]"
                             }
                           `}

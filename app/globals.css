@@ -481,15 +481,19 @@ body {
 .prose-legal h2 {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #0b1e4b;
+  color: #082552;
   margin-bottom: 0.75rem;
   letter-spacing: -0.01em;
+}
+.prose-legal h3{
+  margin-top: 2rem;
 }
 .prose-legal p {
   font-size: 0.9375rem;
   line-height: 1.7;
   color: #3e4a6b;
   margin-bottom: 0.9rem;
+  margin-top: 0.9rem;
 }
 .prose-legal a {
   color: #2a5ce6;
