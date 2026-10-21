@@ -149,9 +149,7 @@ export default function CareersPage() {
 
         <section className="relative">
           <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-center px-4 pb-28 pt-10 text-center sm:px-6 md:h-[78vh] md:pb-24 md:pt-6">
-            <p className="mb-4 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#8EB4FF]">
-              Careers at Comparta
-            </p>
+           
             <h1 className="max-w-4xl text-[40px] font-normal leading-[1.08] text-white sm:text-[56px] md:text-[64px] lg:text-[70px]">
               Build the financial OS for modern teams
             </h1>
@@ -238,9 +236,7 @@ export default function CareersPage() {
       <section className="bg-[#0B1E4B]">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
           <div className="mb-12 max-w-xl">
-            <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#8EB4FF]">
-              Benefits
-            </p>
+          
             <h2 className="text-[28px] font-semibold tracking-tight text-white sm:text-[34px]">
               Support for the whole person
             </h2>
