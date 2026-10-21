@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useSyncExternalStore, useRef, useEffect } from "react";
 import Lenis from "lenis";
 import { Header } from "./components/Header";
+import { Footer } from "./components/Footer";
 import Link from "next/link";
 
 function useIsClient() {
@@ -899,122 +900,10 @@ export default function Home() {
           </div>
         </div>
       </section>
-      {/* Footer */}
-      <footer className="relative w-full bg-[#000000] overflow-hidden">
-
-        <div className="relative z-10 mx-auto max-w-7xl px-6 sm:px-10 md:px-16">
-          {/* CTA row */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 py-16 sm:py-20 border-b border-white/10">
-            <h2 className="text-white font-normal text-3xl sm:text-4xl md:text-5xl tracking-tight max-w-xl">
-              Ready to move money like it&apos;s easy?
-            </h2>
-            <a
-              href="#"
-              className="group shrink-0 md:inline-flex items-center gap-2 bg-[#2A5CE6] text-[#ffffff] font-semibold rounded-full px-6 py-3.5 text-sm sm:text-base hover:bg-[#2450d1]/90 transition-colors w-fit hidden "
-            >
-              Create your account
-              
-            </a>
-          </div>
-
-          {/* Links grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-10 lg:gap-8 py-14 sm:py-16">
-            {/* Brand column */}
-            <div className="col-span-2 sm:col-span-3 lg:col-span-1 flex flex-col gap-4">
-              <Link href="/" className="flex items-center gap-2 w-fit">
-              
-                <Image src="/img5.png" alt="Comparta" height={42} width={135} />
-          
-              </Link>
-           
-
-            </div>
-
-            <FooterColumn
-              title="Product"
-              links={[
-                { label: "Invoicing", href: "/invoices" },
-                { label: "Payment Links", href: "/payment-links" },
-                { label: "Payroll", href: "/payroll" },
-                { label: "Smart Savings", href: "/savings" },
-                { label: "Send & Receive", href: "/wallet" },
-              ]}
-            />
-            <FooterColumn
-              title="Company"
-              links={[
-                { label: "About", href: "/about" },
-                { label: "Careers", href: "/careers" },
-                { label: "Blog", href: "/blog" },
-                { label: "Contact", href: "/contact" },
-              ]}
-            />
-            <FooterColumn
-              title="Resources"
-              links={[
-                { label: "Help Center", href: "/help" },
-                { label: "Developer API", href: "/developers" },
-                { label: "Security", href: "/security" },
-                { label: "Status", href: "/status" },
-              ]}
-            />
-            <FooterColumn
-              title="Legal"
-              links={[
-                { label: "Terms of Service", href: "/terms" },
-                { label: "Privacy Policy", href: "/privacy" },
-                { label: "Compliance", href: "/compliance" },
-                { label: "Cookie Policy", href: "/cookies" },
-              ]}
-            />
-          </div>
-
-          {/* Bottom bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-8 border-t border-white/10">
-            <p className="text-white/40 text-sm">
-              © {new Date().getFullYear()} Comparta. All rights reserved.
-            </p>
-
-        
-          </div>
-        </div>
-
-        {/* Giant watermark wordmark */}
-        <div className="relative select-none pointer-events-none overflow-hidden">
-          <p className="text-center font-bold text-white/[0.18] leading-none text-[20vw] sm:text-[16vw] tracking-tight -mb-[4vw] sm:-mb-[3vw] pb-12">
-            Comparta
-          </p>
-        </div>
-      </footer>
+      <Footer />
 
     </div>
     </>
   );
 
-}
-
-function FooterColumn({
-  title,
-  links,
-}: {
-  title: string;
-  links: { label: string; href: string }[];
-}) {
-  return (
-    <div className="flex flex-col gap-4">
-      <h3 className="text-white text-sm font-semibold">{title}</h3>
-      <ul className="flex flex-col gap-3">
-        {links.map(({ label, href }) => (
-          <li key={label}>
-            <a
-              href={href}
-              className="text-white/50 text-sm hover:text-white transition-colors"
-            >
-              {label}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
 }
