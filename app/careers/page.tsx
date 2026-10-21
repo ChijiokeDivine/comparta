@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Header } from "../components/Header";
 import { Footer } from "../components/Footer";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Careers",
@@ -140,9 +141,9 @@ export default function CareersPage() {
           */}
           {/* Image placeholder */}
           <div className="absolute inset-0 flex items-center justify-center">
-            {/* Replace with: <Image src="" alt="" fill className="object-cover" /> */}
+            <Image src="/download-3.jpg" alt="" fill className="object-cover" />
           </div>
-          <div className="absolute inset-0 bg-black/45" />
+          {/* <div className="absolute inset-0 bg-black/45" /> */}
         </div>
 
         <Header />
@@ -153,14 +154,14 @@ export default function CareersPage() {
             <h1 className="max-w-4xl text-[40px] font-normal leading-[1.08] text-white sm:text-[56px] md:text-[64px] lg:text-[70px]">
               Build the financial OS for modern teams
             </h1>
-            <p className="mt-6 max-w-[560px] text-[17px] leading-relaxed text-white/85 md:text-[18px]">
+            <p className="mt-6 max-w-[560px] text-[15px] leading-relaxed text-white/85 md:text-[16px]">
               We’re a small team solving hard problems in money movement,
-              custody, and team finance — onchain, correctly, and at scale.
+              custody, and team finance, correctly, and at scale.
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
               <a
                 href="#open-roles"
-                className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-[14px] font-semibold text-[#0B1E4B] transition-colors hover:bg-[#F2F4F8]"
+                className="inline-flex items-center gap-2 rounded-full bg-transparent px-7 py-3.5 text-[16px] font-semibold text-[#ffffff] "
               >
                 View open roles
                 <ArrowRight size={16} strokeWidth={2.25} />
@@ -184,7 +185,7 @@ export default function CareersPage() {
             <p className="mt-4 text-[15px] leading-relaxed text-[#3E4A6B]">
               Teams still juggle banks, spreadsheets, payroll apps, and wallets
               that weren’t built for organizations. Comparta unifies treasury,
-              payments, payroll, savings, and insights on a single ledger —
+              payments, payroll, savings, and insights on a single ledger -
               backed by Circle custody on Arc.
             </p>
             <p className="mt-3 text-[15px] leading-relaxed text-[#3E4A6B]">

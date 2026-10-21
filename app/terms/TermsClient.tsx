@@ -62,14 +62,14 @@ export function TermsClient({ title, version, publishedAt, htmlContent, toc }: P
         <div className="relative overflow-hidden">
             {/* Shared background image */}
             <Image
-              src="/carlos-torres-MHNjEBeLTgw-unsplash.jpg"
+              src="/logan-voss-Pgoz3GyEcHE-unsplash.jpg"
               alt=""
               fill
               priority
               className="object-cover"
             />
             {/* Overlay */}
-            <div className="absolute inset-0 bg-black/50" />
+            <div className="absolute inset-0 bg-black/60" />
 
             <Header />
 
