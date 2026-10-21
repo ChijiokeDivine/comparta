@@ -60,16 +60,13 @@ export function TermsClient({ title, version, publishedAt, htmlContent, toc }: P
     <div className="min-h-screen bg-white text-[#0B1E4B]">
       {/* Top bar */}
         <div className="relative overflow-hidden">
-            {/* Shared background video */}
-            <video
-            src="/9056440-hd_1280_720_50fps.mp4"
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            className="absolute inset-0 h-full w-full object-cover"
-            poster="/9056440-hd_1280_720_50fps.webp"
+            {/* Shared background image */}
+            <Image
+              src="/carlos-torres-MHNjEBeLTgw-unsplash.jpg"
+              alt=""
+              fill
+              priority
+              className="object-cover"
             />
             {/* Overlay */}
             <div className="absolute inset-0 bg-black/50" />
@@ -89,7 +86,7 @@ export function TermsClient({ title, version, publishedAt, htmlContent, toc }: P
                     <span className="mx-2 text-[#C5CAD6]">·</span>
                     Effective {formattedDate}
                 </p>
-                <p className="mt-9 max-w-[640px] text-[17px] text-[#FFFFFF] md:text-[18px]">
+                <p className="mt-9 max-w-[640px] text-[15px] text-[#FFFFFF] md:text-[18px]">
                 PLEASE READ THESE TERMS OF USE CAREFULLY BEFORE USING THE SERVICES OR ACCESSING THE PLATFORM.
                 </p>
                 
