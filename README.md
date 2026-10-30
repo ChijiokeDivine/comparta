@@ -527,15 +527,32 @@ Fill in **every** value in `.env.local`. [`lib/env.ts`](lib/env.ts) validates al
 | `REDIS_URL` | Redis connection string (BullMQ + rate limiting). Local Docker Redis fine for dev. |
 | `NEXTAUTH_URL` | Full canonical site URL, e.g. `http://localhost:3000` in dev |
 | `NEXTAUTH_SECRET` | JWT signing secret. Generate: `openssl rand -base64 32` |
-| `CIRCLE_API_KEY` | Circle API key - starts with `TEST_API_KEY:` or `LIVE_API_KEY:` |
-| `CIRCLE_CLIENT_KEY` | Circle client-side publishable key (optional; used for future client-side token flows) |
+| `CIRCLE_API_KEY` | Sandbox Circle API key - starts with `TEST_API_KEY:`. Used locally and on Vercel previews. |
+| `CIRCLE_CLIENT_KEY` | Sandbox client-side publishable key (optional; used for future client-side token flows). |
 | `CIRCLE_ENTITY_SECRET` | ⚠️ **Single point of catastrophic failure.** Anyone who has this + your API key can move every dollar in every org wallet. Pull this from your platform's secrets manager in production - never a committed `.env`, never logged, never returned from an API. Must be paired with the `recovery_file_*.dat` you generated during entity-secret registration. Store that file OFFLINE / encrypted. |
-| `CIRCLE_ENVIRONMENT` | `sandbox` or `production`. App boots with guard clauses that refuse to start if a TEST key is paired with production or vice versa. |
-| `ARC_CHAIN` | `ARC_TESTNET` or `ARC_MAINNET` |
-| `CIRCLE_WALLET_SET_ID` | Optional but recommended in prod. If unset, first wallet creation lazily makes one and logs a warning. |
+| `CIRCLE_API_KEY_MAIN` | Live Circle API key (`LIVE_API_KEY:`). Only read when the process resolves to mainnet. No fallback to the sandbox key. |
+| `CIRCLE_CLIENT_KEY_MAIN` | Live client-side publishable key. |
+| `CIRCLE_ENTITY_SECRET_MAIN` | Live entity secret - same catastrophic-failure warning as above, separate recovery file. |
+| `ARC_TESTNET_RPC` / `ARC_MAINNET_RPC` | Optional per-network RPC endpoints. Each defaults to Circle's public endpoint (`https://rpc.testnet.arc.io` / `https://rpc.mainnet.arc.io`). |
+| `ARC_NETWORK` | Optional explicit override: `testnet` or `mainnet`. Otherwise mainnet is selected automatically when `VERCEL_ENV=production`. |
+| `CIRCLE_WALLET_SET_ID` | Optional but recommended in prod. If unset, first wallet creation lazily makes one and logs a warning. Shared across networks (a `_MAIN` override is honored if present). |
 | `CIRCLE_WEBHOOK_PUBLIC_KEY_URL` | Defaults to Circle's v2 pubkey endpoint - override for offline/test environments. |
 | `GROQ_API_KEY` | For Phase 9 categorization + NL querying. Get at https://console.groq.com |
 | `ADMIN_API_SECRET` | Gates the manual `/api/org/kyb/approve` stub. Generate: `openssl rand -hex 32`. Swap this entire flow for a real KYB provider before launch. |
+
+`ARC_CHAIN` and `CIRCLE_ENVIRONMENT` are **derived** from the resolved network (`ARC_TESTNET`/`sandbox` on testnet, `ARC_MAINNET`/`production` on mainnet). Setting them by hand to a contradicting value fails startup instead of being silently overwritten.
+
+#### Networks at a glance
+
+| | Testnet | Mainnet |
+|---|---|---|
+| Chain ID | `5042002` | `5042` |
+| RPC | `https://rpc.testnet.arc.io` | `https://rpc.mainnet.arc.io` |
+| Explorer | `https://explorer.testnet.arc.io` | `https://explorer.arc.io` |
+| Circle environment | `sandbox` | `production` |
+| Auto-selected when | local dev, Vercel preview | `VERCEL_ENV=production` |
+
+Unified Balance chains follow the network: Arc Testnet + Ethereum/Base/Arbitrum Sepolia on testnet; Arc + Ethereum + Base + Arbitrum on mainnet. See [`lib/config/networkProfiles.ts`](lib/config/networkProfiles.ts) for the single source of these facts.
 
 ### 3. Run database migrations
 
