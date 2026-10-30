@@ -65,3 +65,5 @@ vitest.config.ts.timestamp-*.mjs
 
 
 note.txt
+# Local DB dumps from maintenance scripts
+/backups

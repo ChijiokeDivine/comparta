@@ -12,6 +12,11 @@
 // Wallet on Arc, then creates the four default LedgerAccount buckets
 // (Operating, Tax Reserve, Payroll, Savings), all backed by that one
 // wallet.
+//
+// Re-provisioning: an already-APPROVED org may POST this again — that is the
+// supported hook after a testnet → mainnet cutover (see
+// scripts/cleanupStaleNetworkData.ts). Provisioning is idempotent per active
+// chain, so it only creates a wallet when the org has none on this network.
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -46,9 +51,19 @@ export async function POST(req: Request) {
   if (!org) {
     return NextResponse.json({ error: "Organization not found" }, { status: 404 });
   }
-  if (org.kybStatus !== "PENDING") {
+  if (org.kybStatus === "REJECTED") {
     return NextResponse.json(
-      { error: `Organization KYB status is already ${org.kybStatus}` },
+      { error: `Organization KYB status is ${org.kybStatus}; create a new organization instead` },
+      { status: 409 }
+    );
+  }
+  // An APPROVED org may call this endpoint again on purpose: after a
+  // testnet → mainnet cutover (or a wiped wallet row) it is the manual
+  // re-provisioning hook. provisionOrgWallet is idempotent per active chain,
+  // so this only creates a wallet when the org has none ON THIS NETWORK.
+  if (decision === "REJECTED" && org.kybStatus === "APPROVED") {
+    return NextResponse.json(
+      { error: "Organization is already APPROVED; refusing to reject it here" },
       { status: 409 }
     );
   }
@@ -72,14 +87,17 @@ export async function POST(req: Request) {
   try {
     const { wallet, ledgerAccounts } = await provisionOrgWallet(orgId);
 
-    const updatedOrg = await prisma.organization.update({
-      where: { id: orgId },
-      data: {
-        kybStatus: "APPROVED",
-        kybApprovedAt: new Date(),
-        kybApprovedBy: approvedByAdminId,
-      },
-    });
+    const updatedOrg =
+      org.kybStatus === "APPROVED"
+        ? org
+        : await prisma.organization.update({
+            where: { id: orgId },
+            data: {
+              kybStatus: "APPROVED",
+              kybApprovedAt: new Date(),
+              kybApprovedBy: approvedByAdminId,
+            },
+          });
 
     return NextResponse.json({
       organization: { id: updatedOrg.id, kybStatus: updatedOrg.kybStatus },

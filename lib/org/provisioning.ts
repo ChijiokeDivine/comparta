@@ -37,7 +37,18 @@ export interface ProvisionOrgWalletResult {
 }
 
 export async function provisionOrgWallet(orgId: string): Promise<ProvisionOrgWalletResult> {
-  const existing = await prisma.wallet.findFirst({ where: { orgId } });
+  // Network-scoped, NOT just org-scoped. A wallet row provisioned on
+  // testnet must never satisfy a mainnet provisioning request: Circle's
+  // production credentials cannot see (or sign for) a sandbox wallet, so
+  // treating the stale row as "already provisioned" leaves the org with a
+  // wallet the live API rejects forever (balance reads come back "—" and
+  // every send fails). After a network flip we deliberately create a NEW
+  // wallet on the active chain and leave the old row to be cleaned up.
+  const activeChain = getNetworkProfile(resolveAppNetwork()).chain;
+
+  const existing = await prisma.wallet.findFirst({
+    where: { orgId, chain: activeChain },
+  });
   if (existing) {
     const ledgerAccounts = await prisma.ledgerAccount.findMany({ where: { orgId, walletId: existing.id } });
     return { wallet: existing, ledgerAccounts, alreadyProvisioned: true };

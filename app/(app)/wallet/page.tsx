@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { getBalance } from "@/lib/ledger/engine";
 import { getUsdcBalance, getUnifiedUsdcBalance } from "@/lib/circle/wallets";
+import { getNetworkProfile, resolveAppNetwork } from "@/lib/config/network";
 import { toDecimalString } from "@/lib/circle/amount";
 import { KybBanner } from "../_components/Kyb";
 import { formatMoney } from "@/app/invoices/_components/format";
@@ -25,7 +26,11 @@ export default async function WalletPage() {
 
   const [org, wallet, ledgerAccounts] = await Promise.all([
     prisma.organization.findUnique({ where: { id: session.user.orgId }, select: { kybStatus: true } }),
-    prisma.wallet.findFirst({ where: { orgId: session.user.orgId } }),
+    // Active-chain only: a leftover wallet from another network is unusable
+    // here (Circle cannot sign for it), so treat it as "not provisioned".
+    prisma.wallet.findFirst({
+      where: { orgId: session.user.orgId, chain: getNetworkProfile(resolveAppNetwork()).chain },
+    }),
     prisma.ledgerAccount.findMany({ where: { orgId: session.user.orgId, archived: false } }),
   ]);
   if (!org) redirect("/login");
@@ -43,12 +48,31 @@ export default async function WalletPage() {
 
   // Live onchain + Unified Balance require an approved org (same gate as
   // app/api/wallet/balance and app/api/wallet/unified-balance).
+  //
+  // Failures are logged, not silently swallowed: rendering "—" is fine, but a
+  // production Circle key that cannot see the wallet (e.g. a stale sandbox
+  // wallet row after the mainnet cutover) must be diagnosable from the logs.
   const onchainUsdc =
-    isApproved && wallet ? await getUsdcBalance(wallet.circleWalletId).catch(() => null) : null;
+    isApproved && wallet
+      ? await getUsdcBalance(wallet.circleWalletId).catch((err) => {
+          console.error("[wallet/page] onchain USDC read failed", {
+            circleWalletId: wallet.circleWalletId,
+            chain: wallet.chain,
+            error: err instanceof Error ? err.message : err,
+          });
+          return null;
+        })
+      : null;
 
   const unifiedBalance =
     isApproved && wallet
-      ? await getUnifiedUsdcBalance(wallet.arcAddress).catch(() => null)
+      ? await getUnifiedUsdcBalance(wallet.arcAddress).catch((err) => {
+          console.error("[wallet/page] unified balance read failed", {
+            address: wallet.arcAddress,
+            error: err instanceof Error ? err.message : err,
+          });
+          return null;
+        })
       : null;
 
   const ubConfirmed = unifiedBalance ? toDecimalString(unifiedBalance.totalConfirmed) : null;
