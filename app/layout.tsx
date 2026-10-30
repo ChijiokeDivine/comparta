@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./(app)/_components/Providers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
 import { Analytics } from "@vercel/analytics/next"
 
-const manrope = Manrope({
+// Self-hosted variable font (latin subset) so the build never depends on
+// fetching fonts.googleapis.com at build time (which fails intermittently on
+// Vercel and produces `module-not-found` errors for the generated font CSS).
+const manrope = localFont({
+  src: "./fonts/Manrope-Variable.woff2",
   variable: "--font-Manrope",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "200 800",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
