@@ -840,7 +840,7 @@ export default function Home() {
             </h2>
             <div className="hidden md:block">
               <a
-                href="#"
+                href="mailto:hello@comparta.xyz"
                 className="btn-3d btn-3d--sm"
                 style={{
                   '--btn-bg': '#2A5CE6',

@@ -4,13 +4,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { UNIFIED_DEPOSIT_SOURCE_CHAINS } from "@/lib/config/clientChains";
 
-const SOURCE_CHAINS: { value: string; label: string }[] = [
-  { value: "ARC_TESTNET", label: "Arc Testnet" },
-  { value: "ETH_SEPOLIA", label: "Ethereum Sepolia" },
-  { value: "BASE_SEPOLIA", label: "Base Sepolia" },
-  { value: "ARBITRUM_SEPOLIA", label: "Arbitrum Sepolia" },
-];
+// Network-aware (mainnet in production, Sepolia family locally) — see
+// lib/config/clientChains.ts. The API route independently validates
+// against DEPOSIT_SOURCE_SUPPORTED_CHAINS server-side.
+const SOURCE_CHAINS = UNIFIED_DEPOSIT_SOURCE_CHAINS;
 
 const POLL_INTERVAL_MS = 2_500;
 const POLL_TIMEOUT_MS = 90_000;

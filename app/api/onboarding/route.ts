@@ -7,12 +7,15 @@
 //   1. Validates the signed-in user still requires onboarding.
 //   2. Updates organization.legalName, .country, and .accountType with
 //      the submitted values.
-//   3. Provisions the org's Circle Developer-Controlled Wallet on Arc
-//      and creates the four default ledger buckets (Operating, Tax
-//      Reserve, Payroll, Savings) — EXACTLY the same work as
-//      /api/org/kyb/approve. Reuses lib/org/provisioning.ts so the two
-//      code paths stay in sync.
-//   4. Flips organization.kybStatus = APPROVED with timestamps.
+//   3. In demo mode (DEMO_KYB_APPROVED, i.e. non-production), provisions
+//      the org's Circle Developer-Controlled Wallet on Arc and creates the
+//      four default ledger buckets (Operating, Tax Reserve, Payroll,
+//      Savings) — EXACTLY the same work as /api/org/kyb/approve. Reuses
+//      lib/org/provisioning.ts so the two code paths stay in sync.
+//   4. In demo mode, flips organization.kybStatus = APPROVED with
+//      timestamps. In production the org stays PENDING and is approved by
+//      an operator via /api/org/kyb/approve, which is what provisions the
+//      wallet.
 //   5. Sets user.onboardingCompleted = true.
 //
 // The response includes { requiresJwtUpdate: true } so the client can
@@ -32,6 +35,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { provisionOrgWallet } from "@/lib/org/provisioning";
+import { DEMO_KYB_APPROVED } from "@/lib/config/demoMode";
 
 // Keep in sync with the AccountType enum in schema.prisma.
 const ACCOUNT_TYPES = ["STUDENT", "PERSONAL", "BUSINESS", "ORGANIZATION"] as const;
@@ -69,18 +73,23 @@ export async function POST(req: Request) {
   const userId = session.user.id;
 
   try {
-    // Step 1: provision wallet + default ledger buckets first. This is
-    // idempotent (returns the existing wallet if already provisioned).
-    // We intentionally provision BEFORE flipping kybStatus, mirroring
-    // /api/org/kyb/approve's ordering. If Circle is unreachable, we
-    // return 500 and the user can retry — the org stays PENDING,
+    // Step 1 (demo mode only): provision wallet + default ledger buckets
+    // first. This is idempotent (returns the existing wallet if already
+    // provisioned). We intentionally provision BEFORE flipping kybStatus,
+    // mirroring /api/org/kyb/approve's ordering. If Circle is unreachable,
+    // we return 500 and the user can retry — the org stays PENDING,
     // nothing irreversible has happened.
-    const provisioning = await provisionOrgWallet(orgId).catch((err) => {
-      console.error(`[onboarding] provisioning failed for org ${orgId}`, err);
-      throw new Error(
-        "We couldn't provision your wallet right now. Please try again in a moment."
-      );
-    });
+    //
+    // In production this is skipped entirely: a PENDING org must not get a
+    // live custody wallet before a human has reviewed it.
+    const provisioning = DEMO_KYB_APPROVED
+      ? await provisionOrgWallet(orgId).catch((err) => {
+          console.error(`[onboarding] provisioning failed for org ${orgId}`, err);
+          throw new Error(
+            "We couldn't provision your wallet right now. Please try again in a moment."
+          );
+        })
+      : null;
 
     // Step 2: write everything else atomically.
     const [, updatedUser, updatedOrg] = await prisma.$transaction([
@@ -90,12 +99,16 @@ export async function POST(req: Request) {
           legalName,
           country,
           accountType,
-          kybStatus: "APPROVED",
-          kybApprovedAt: new Date(),
-          // "onboarding" is treated as a self-approval; since Google
-          // OAuth already verified the owner's email, we mirror the
-          // same fields that /api/org/kyb/approve sets.
-          kybApprovedBy: userId,
+          ...(DEMO_KYB_APPROVED
+            ? {
+                kybStatus: "APPROVED" as const,
+                kybApprovedAt: new Date(),
+                // "onboarding" is treated as a self-approval in demo mode;
+                // since Google OAuth already verified the owner's email, we
+                // mirror the same fields that /api/org/kyb/approve sets.
+                kybApprovedBy: userId,
+              }
+            : {}),
         },
       }),
       prisma.user.update({
@@ -113,15 +126,19 @@ export async function POST(req: Request) {
     ]);
 
     return NextResponse.json({
-      message: "Onboarding complete",
+      message: DEMO_KYB_APPROVED
+        ? "Onboarding complete"
+        : "Onboarding complete. Your organization is now under review.",
       requiresJwtUpdate: true,
       user: { onboardingCompleted: updatedUser.onboardingCompleted },
-      organization: { kybStatus: updatedOrg?.kybStatus ?? "APPROVED" },
-      wallet: {
-        id: provisioning.wallet.id,
-        arcAddress: provisioning.wallet.arcAddress,
-        alreadyProvisioned: provisioning.alreadyProvisioned,
-      },
+      organization: { kybStatus: updatedOrg?.kybStatus ?? "PENDING" },
+      wallet: provisioning
+        ? {
+            id: provisioning.wallet.id,
+            arcAddress: provisioning.wallet.arcAddress,
+            alreadyProvisioned: provisioning.alreadyProvisioned,
+          }
+        : null,
     });
   } catch (err) {
     if (err instanceof Error) {

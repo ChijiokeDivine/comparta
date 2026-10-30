@@ -6,6 +6,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search as SearchIcon, X, ArrowRight, FileText, Check } from "lucide-react";
 import Image from "next/image";
+import {
+  TRANSFER_DESTINATION_CHAINS,
+  SETTLEMENT_CHAIN,
+} from "@/lib/config/clientChains";
+import type { Chain } from "@/app/generated/prisma/client";
 interface Bucket {
   id: string;
   name: string;
@@ -28,18 +33,14 @@ interface ResolveResult {
 
 // Only ever shown when the recipient is a raw address (see resolved.type
 // below) — a Comparta @username always resolves to another org's own Arc
-// wallet, so there's no chain to pick for that case. Arc stays first/
-// default so picking a contact or pasting an Arc address behaves exactly
-// as before this existed. The other four route through Unified Balance
-// (see lib/circle/unifiedBalance.ts) instead of a plain Arc transfer —
-// invisible to the user beyond which endpoint gets called.
-const DESTINATION_CHAINS: { value: string; label: string }[] = [
-  { value: "ARC_TESTNET", label: "Arc" },
-  { value: "ETH_SEPOLIA", label: "Ethereum Sepolia" },
-  { value: "BASE_SEPOLIA", label: "Base Sepolia" },
-  { value: "ARBITRUM_SEPOLIA", label: "Arbitrum Sepolia" },
-
-];
+// wallet, so there's no chain to pick for that case. The settlement chain
+// stays first/default so picking a contact or pasting an Arc address
+// behaves exactly as before. The other chains route through Unified
+// Balance (see lib/circle/unifiedBalance.ts) instead of a plain Arc
+// transfer — invisible to the user beyond which endpoint gets called.
+// The list is network-aware (see lib/config/clientChains.ts): mainnet in
+// production, Sepolia family locally.
+const DESTINATION_CHAINS = TRANSFER_DESTINATION_CHAINS;
 
 export default function TransferForm({
   buckets,
@@ -58,7 +59,7 @@ export default function TransferForm({
   const [resolving, setResolving] = useState(false);
   const [resolved, setResolved] = useState<ResolveResult | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
-  const [destinationChain, setDestinationChain] = useState("ARC_TESTNET");
+  const [destinationChain, setDestinationChain] = useState<Chain>(SETTLEMENT_CHAIN);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -66,7 +67,7 @@ export default function TransferForm({
   // Cross-chain spends draw from Circle Gateway Unified Balance, not a
   // bucket's ledger figure. Fetch + show that when a non-Arc chain is
   // selected; still debit a ledger account under the hood for bookkeeping.
-  const isCrossChain = destinationChain !== "ARC_TESTNET";
+  const isCrossChain = destinationChain !== SETTLEMENT_CHAIN;
   const [ubConfirmed, setUbConfirmed] = useState<string | null>(null);
   const [ubPending, setUbPending] = useState<string | null>(null);
   const [ubLoading, setUbLoading] = useState(false);
@@ -146,7 +147,7 @@ export default function TransferForm({
       // there's no chain to pick for that case, so reset to Arc rather
       // than risk a leftover non-Arc selection from a previous address
       // silently applying to a username send.
-      if (data.type === "USERNAME") setDestinationChain("ARC_TESTNET");
+      if (data.type === "USERNAME") setDestinationChain(SETTLEMENT_CHAIN);
     } catch {
       setResolveError("Could not resolve this recipient");
     } finally {
@@ -269,7 +270,7 @@ export default function TransferForm({
       // through Unified Balance. See lib/transfers/sendUnified.ts's
       // module docstring for why these are kept as two functions even
       // though this form presents them as one.
-      const useUnifiedBalance = destinationChain !== "ARC_TESTNET";
+      const useUnifiedBalance = destinationChain !== SETTLEMENT_CHAIN;
 
       const res = await fetch(
         useUnifiedBalance ? "/api/wallet/unified-balance/spend" : "/api/transfers/send",
@@ -614,7 +615,7 @@ export default function TransferForm({
                       ? `@${resolved?.username ?? toIdentifier}`
                       : truncateAddress(resolved?.address ?? toIdentifier)}
                   </p>
-                  {destinationChain !== "ARC_TESTNET" && (
+                  {destinationChain !== SETTLEMENT_CHAIN && (
                     <p className="text-xs text-[#2A5CE6] font-medium mt-0.5">
                       on {DESTINATION_CHAINS.find((c) => c.value === destinationChain)?.label}
                     </p>
@@ -721,7 +722,7 @@ export default function TransferForm({
                       ? `@${resolved?.username ?? toIdentifier}`
                       : truncateAddress(resolved?.address ?? toIdentifier)}
                   </p>
-                  {destinationChain !== "ARC_TESTNET" && (
+                  {destinationChain !== SETTLEMENT_CHAIN && (
                     <p className="text-[10px] text-[#2A5CE6] font-medium mt-0.5">
                       on {DESTINATION_CHAINS.find((c) => c.value === destinationChain)?.label}
                     </p>

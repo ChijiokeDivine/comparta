@@ -314,12 +314,6 @@ function NavSection({
 
   const hasChildren = children.length > 0;
 
-  // If managerOnly is set and user isn't a manager, skip the whole group
-  // unless it has children that are visible (which shouldn't really happen
-  // since children inherit, but this guards against a bad nav config).
-  const canViewGroup = !item.managerOnly || isManager(userRole);
-  if (!canViewGroup && children.length === 0) return null;
-
   const parentHref = item.href;
   const parentActive = parentHref ? isActive(pathname, parentHref) : false;
   const anyChildActive = children.some((c) => isActive(pathname, c.href));
@@ -332,10 +326,18 @@ function NavSection({
   // Auto-expand this group (and thus collapse any other open group, since
   // openDropdown replaces the shared id) whenever navigation lands on a
   // route inside it — e.g. via browser back/forward or the cmd-k palette.
+  // NOTE: this hook must stay above the early return below; conditionally
+  // skipping a hook changes hook order between renders.
   useEffect(() => {
     if (parentActive || anyChildActive) openDropdown(dropdownId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parentActive, anyChildActive, dropdownId]);
+
+  // If managerOnly is set and user isn't a manager, skip the whole group
+  // unless it has children that are visible (which shouldn't really happen
+  // since children inherit, but this guards against a bad nav config).
+  const canViewGroup = !item.managerOnly || isManager(userRole);
+  if (!canViewGroup && children.length === 0) return null;
 
   if (!hasChildren) {
     // Plain leaf item — no children, no chevron, no toggle.

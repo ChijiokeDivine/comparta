@@ -68,6 +68,7 @@ import { AppKit } from "@circle-fin/app-kit";
 import type { SendParams } from "@circle-fin/app-kit";
 import { createCircleWalletsAdapter } from "@circle-fin/adapter-circle-wallets";
 import { getEnv } from "@/lib/env";
+import { APPKIT_CHAIN_CODES, type AppKitChainCode } from "@/lib/config/networkProfiles";
 import { toDecimalString } from "./amount";
 import type { Chain } from "@/app/generated/prisma/client";
 
@@ -123,18 +124,23 @@ export function getAppKit(): AppKit {
 
 /**
  * Maps Comparta's Chain enum to App Kit's chain identifier literal.
- * Only ARC_TESTNET is mapped — Arc is testnet-only today (per
- * docs.arc.io), and App Kit's mainnet chain literal for Arc isn't
- * documented anywhere used to build this. Throwing here on
- * ARC_MAINNET is deliberate: guessing at an unverified chain literal
- * for a real-money mainnet send is worse than failing loudly.
+ *
+ * Arc mainnet is `"Arc"` and Arc testnet is `"Arc_Testnet"` (confirmed
+ * against @circle-fin/app-kit@1.19's chains.d.ts — mainnet support was
+ * added upstream after 1.12, which is why this used to throw for
+ * ARC_MAINNET). Every other mapping comes from the single table in
+ * lib/config/networkProfiles.ts. Throwing on an unmapped chain is still
+ * deliberate: guessing a chain literal for a real-money send is worse than
+ * failing loudly.
  */
-function toAppKitChain(chain: Chain): "Arc_Testnet" {
-  if (chain === "ARC_TESTNET") return "Arc_Testnet";
-  throw new AppKitSendError(
-    `No verified App Kit chain literal for Comparta chain "${chain}". ` +
-      `Arc mainnet support needs confirming against current App Kit docs before this can send real funds.`
-  );
+function toAppKitChain(chain: Chain): AppKitChainCode {
+  const literal = APPKIT_CHAIN_CODES[chain];
+  if (!literal) {
+    throw new AppKitSendError(
+      `No verified App Kit chain literal for Comparta chain "${chain}".`
+    );
+  }
+  return literal;
 }
 
 export interface AppKitSendResult {

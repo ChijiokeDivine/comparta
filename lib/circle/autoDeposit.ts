@@ -65,17 +65,20 @@ import { prisma } from "@/lib/db/prisma";
 import { recordEntry } from "@/lib/ledger/engine";
 import { resolveDefaultLedgerAccountId } from "@/lib/transfers/receive";
 import { getUsdcBalance, depositIntoUnifiedBalance, getUnifiedUsdcBalance, CircleApiError } from "./wallets";
-import { waitForConfirmedBalance } from "./unifiedBalance";
+import { waitForConfirmedBalance, DEPOSIT_SOURCE_SUPPORTED_CHAINS } from "./unifiedBalance";
+import { getNetworkProfile } from "@/lib/config/networkProfiles";
+import { resolveAppNetwork } from "@/lib/config/network";
 import { toSmallestUnit, toDecimalString } from "./amount";
 import type { Chain, Prisma, Wallet } from "@/app/generated/prisma/client";
 
-/** Never touched by the PERIODIC sweep — see module docstring. Arc IS a
- * valid source for ensureUnifiedBalanceCovers()'s on-demand top-up. */
-export const AUTO_DEPOSIT_SOURCE_CHAINS: readonly Chain[] = [
-  "ETH_SEPOLIA",
-  "BASE_SEPOLIA",
-  "ARBITRUM_SEPOLIA",
-] as const;
+const ACTIVE_NETWORK_PROFILE = getNetworkProfile(resolveAppNetwork());
+
+/** Never touched by the PERIODIC sweep — see module docstring. Arc (the
+ * settlement chain) IS a valid source for ensureUnifiedBalanceCovers()'s
+ * on-demand top-up. Network-aware: Sepolia family on testnet, mainnet
+ * family in production. */
+export const AUTO_DEPOSIT_SOURCE_CHAINS: readonly Chain[] =
+  DEPOSIT_SOURCE_SUPPORTED_CHAINS.filter((chain) => chain !== ACTIVE_NETWORK_PROFILE.chain);
 
 /** 0.01 USDC — deltas smaller than this aren't worth an on-chain deposit tx. */
 const DUST_THRESHOLD_SMALLEST_UNIT = 10_000n;
@@ -161,7 +164,9 @@ export async function ensureUnifiedBalanceCovers(
     if (arcPlain > 0n) {
       const arcDeposit = arcPlain < shortfall ? arcPlain : shortfall;
       if (arcDeposit > 0n) {
-        await depositIntoUnifiedBalance(wallet.arcAddress, arcDeposit, "ARC_TESTNET");
+        // wallet.chain, not a hardcoded ARC_TESTNET: on mainnet the
+        // settlement wallet's home chain is ARC_MAINNET.
+        await depositIntoUnifiedBalance(wallet.arcAddress, arcDeposit, wallet.chain);
         totalDeposited += arcDeposit;
         shortfall -= arcDeposit;
       }

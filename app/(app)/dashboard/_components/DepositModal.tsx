@@ -12,19 +12,18 @@ import {
   CircleDollarSign,
 } from "lucide-react";
 import QRCodeStyling from "qr-code-styling";
+import {
+  DEPOSIT_CHAINS,
+  SETTLEMENT_CHAIN,
+} from "@/lib/config/clientChains";
 
 // The wallet's address is the same across every one of these chains (see
 // lib/circle/unifiedBalance.ts's module docstring) - only the label
-// changes. Arc stays first/default since it's the only chain that settles
-// instantly with no extra step; the other three are detected and folded
-// into the spendable balance automatically within a few minutes (see
-// lib/circle/autoDeposit.ts) rather than being instant like Arc.
-const DEPOSIT_CHAINS: { value: string; label: string }[] = [
-  { value: "ARC_TESTNET", label: "Arc" },
-  { value: "ETH_SEPOLIA", label: "ETH Sepolia" },
-  { value: "BASE_SEPOLIA", label: "Base Sepolia" },
-  { value: "ARBITRUM_SEPOLIA", label: "ARB Sepolia" },
-];
+// changes. The settlement chain (Arc on mainnet, Arc Testnet locally) stays
+// first/default since it's the only one that settles instantly with no
+// extra step; the others are detected and folded into the spendable
+// balance automatically within a few minutes (see lib/circle/autoDeposit.ts).
+// The list itself is network-aware — see lib/config/clientChains.ts.
 
 interface DepositModalProps {
   open: boolean;
@@ -37,7 +36,7 @@ export default function DepositModal({
   open,
   onClose,
   address,
-  chain = "ARC_TESTNET",
+  chain = SETTLEMENT_CHAIN,
 }: DepositModalProps) {
   const qrRef = useRef<HTMLDivElement | null>(null);
   const qrInstance = useRef<QRCodeStyling | null>(null);
@@ -128,7 +127,7 @@ export default function DepositModal({
   const displayChain =
     DEPOSIT_CHAINS.find((c) => c.value === selectedChain)?.label ??
     selectedChain;
-  const isArc = selectedChain === "ARC_TESTNET";
+  const isArc = selectedChain === SETTLEMENT_CHAIN;
 
   return createPortal(
     <div

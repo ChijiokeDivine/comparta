@@ -5,6 +5,7 @@
 // three files deep into a Circle (or Groq) API call.
 
 import { z } from "zod";
+import { applyNetworkEnv, resolveNetwork, type AppNetwork } from "@/lib/config/network";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -19,7 +20,13 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 
-  // Circle Developer-Controlled Wallets
+  // Which Arc network this process runs against. Derived from
+  // ARC_NETWORK / VERCEL_ENV by lib/config/network.ts — do not set by hand.
+  APP_NETWORK: z.enum(["testnet", "mainnet"]).default("testnet"),
+
+  // Circle Developer-Controlled Wallets. These canonical names are filled
+  // in from the network-specific variables (…_MAIN on mainnet) by
+  // lib/config/network.ts#applyNetworkEnv before validation.
   CIRCLE_API_KEY: z.string().min(1, "CIRCLE_API_KEY is required"),
   CIRCLE_APP_ID: z.string().optional(),
   CIRCLE_CLIENT_KEY: z.string().optional(),
@@ -69,7 +76,10 @@ const envSchema = z.object({
   STREAM_MODULE_ADDRESS: z.string().optional(),
   ONCHAIN_USDC_ADDRESS: z.string().optional(),
 
-  // EVM RPC endpoint for Arc Testnet / Mainnet.
+  // EVM RPC endpoint for the ACTIVE Arc network (resolved from
+  // ARC_MAINNET_RPC / ARC_TESTNET_RPC by lib/config/network.ts).
+  ARC_RPC_URL: z.string().url().optional(),
+  // Legacy aliases kept for scripts that read them directly.
   ARC_TESTNET_RPC_URL: z.string().optional(),
   ARC_MAINNET_RPC_URL: z.string().optional(),
 
@@ -83,14 +93,28 @@ type Env = z.infer<typeof envSchema>;
 
 let cached: Env | null = null;
 
+/**
+ * Parses the environment for the ACTIVE network. The raw process.env is
+ * first normalised by lib/config/network.ts#applyNetworkEnv, which maps the
+ * network-specific credentials (e.g. CIRCLE_API_KEY_MAIN on mainnet) onto
+ * the canonical names used everywhere below.
+ */
 export function getEnv(): Env {
   if (cached) return cached;
-  const parsed = envSchema.safeParse(process.env);
+
+  const normalized = applyNetworkEnv(process.env);
+  const parsed = envSchema.safeParse(normalized);
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
       .join("\n");
-    throw new Error(`Invalid/missing environment variables:\n${issues}`);
+    const network = resolveNetwork(process.env).network;
+    const hint =
+      network === "mainnet"
+        ? " (APP_NETWORK=mainnet reads CIRCLE_API_KEY_MAIN / CIRCLE_ENTITY_SECRET_MAIN — " +
+          "set those in the production environment, or set ARC_NETWORK=testnet to stay on sandbox)"
+        : "";
+    throw new Error(`Invalid/missing environment variables${hint}:\n${issues}`);
   }
 
   const nextauthUrl =
@@ -107,4 +131,9 @@ export function getEnv(): Env {
     NEXTAUTH_URL: nextauthUrl,
   };
   return cached;
+}
+
+/** The Arc network this server process is configured for. */
+export function getAppNetwork(): AppNetwork {
+  return getEnv().APP_NETWORK;
 }

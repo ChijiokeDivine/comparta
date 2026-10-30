@@ -3,29 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
-import {
-  ArrowLeftRight,
-  Code2,
-  CreditCard,
-  Receipt,
-  TrendingUp,
-  Users,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
 import { NavDropdown } from "./NavDropdown";
-
-const PERSONAL_ITEMS: { label: string; icon: LucideIcon }[] = [
-  { label: "Grow & Invest", icon: TrendingUp },
-  { label: "Move Money", icon: ArrowLeftRight },
-  { label: "Payments", icon: CreditCard },
-];
-
-const BUSINESS_ITEMS: { label: string; icon: LucideIcon }[] = [
-  { label: "Account & Payments", icon: Wallet },
-  { label: "Spend & Invoices", icon: Receipt },
-  { label: "Payroll", icon: Users },
-];
+import { MARKETING_NAV } from "./navLinks";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -38,26 +17,27 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center gap-10 md:flex">
-          <NavDropdown label="Personal" />
-          <NavDropdown label="Business" />
-          <NavDropdown label="Developer" />
+          {MARKETING_NAV.map((section) => (
+            <NavDropdown key={section.key} section={section} />
+          ))}
         </nav>
 
         <div className="hidden items-center gap-8 md:flex">
-          <a
+          <Link
             href="/login"
             className="text-[14px] font-semibold text-[#FFFFFF] hover:opacity-80"
           >
             Log in
-          </a>
-          <a href="/register" className="btn-3d btn-3d--sm">
+          </Link>
+          <Link href="/register" className="btn-3d btn-3d--sm">
             Open account
-          </a>
+          </Link>
         </div>
 
         <button
           className="flex flex-col gap-1.5 md:hidden"
           aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileMenuOpen}
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           <span
@@ -91,6 +71,7 @@ export function Header() {
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  aria-hidden="true"
                 >
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
@@ -98,84 +79,70 @@ export function Header() {
             </div>
 
             <nav className="space-y-10">
-              <div>
-                <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
-                  Personal
-                </h3>
-                <div className="space-y-3">
-                  {PERSONAL_ITEMS.map(({ label, icon: Icon }) => (
-                    <a
-                      key={label}
-                      href="#"
-                      className="flex items-center gap-3 px-3 py-0 rounded-lg hover:bg-[#F2F4F8] transition-colors"
-                    >
-                      <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                        <Icon size={20} strokeWidth={2} color="#0B1E3F" />
-                      </div>
-                      <span className="text-[14px] font-medium text-[#0B1E3F]">
-                        {label}
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              </div>
+              {MARKETING_NAV.map((section) => (
+                <div key={section.key}>
+                  <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
+                    {section.label}
+                  </h3>
+                  <div className="space-y-3">
+                    {section.items.map(({ label, href, icon: Icon, comingSoon }) => {
+                      const content = (
+                        <>
+                          <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                            <Icon size={20} strokeWidth={2} color="#0B1E3F" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[14px] font-medium text-[#0B1E3F]">
+                              {label}
+                            </span>
+                            {comingSoon && (
+                              <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
+                                Soon
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      );
 
-              <div>
-                <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
-                  Business
-                </h3>
-                <div className="space-y-3">
-                  {BUSINESS_ITEMS.map(({ label, icon: Icon }) => (
-                    <a
-                      key={label}
-                      href="#"
-                      className="flex items-center gap-3 px-3 py-0 rounded-lg hover:bg-[#F2F4F8] transition-colors"
-                    >
-                      <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                        <Icon size={20} strokeWidth={2} color="#0B1E3F" />
-                      </div>
-                      <span className="text-[14px] font-medium text-[#0B1E3F]">
-                        {label}
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              </div>
+                      if (!href) {
+                        return (
+                          <div
+                            key={label}
+                            aria-disabled="true"
+                            className="flex items-center gap-3 px-3 py-0 rounded-lg cursor-default opacity-60"
+                          >
+                            {content}
+                          </div>
+                        );
+                      }
 
-              <div>
-                <h3 className="text-[12px] font-semibold text-[#7C8CA6] uppercase tracking-wider mb-4">
-                  Developer
-                </h3>
-                <div className="space-y-3">
-                  <a
-                    href="#"
-                    className="flex items-center gap-3 px-3 py-0 rounded-lg hover:bg-[#F2F4F8] transition-colors"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                      <Code2 size={20} strokeWidth={2} color="#0B1E3F" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-medium text-[#0B1E3F]">
-                        API
-                      </span>
-                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
-                        Soon
-                      </span>
-                    </div>
-                  </a>
+                      return (
+                        <Link
+                          key={label}
+                          href={href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-3 py-0 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+                        >
+                          {content}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              ))}
             </nav>
 
             <div className="mt-12 flex flex-col gap-4 items-center">
-              <a
+              <Link
                 href="/login"
+                onClick={() => setMobileMenuOpen(false)}
                 className="text-[16px] font-semibold text-[#2F6FF0] hover:opacity-80 text-center"
               >
                 Log in
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/register"
+                onClick={() => setMobileMenuOpen(false)}
                 className="btn-3d text-center"
                 style={{
                   "--btn-bg": "#2A5CE6",
@@ -188,7 +155,7 @@ export function Header() {
                 } as CSSProperties}
               >
                 Sign up for free
-              </a>
+              </Link>
             </div>
           </div>
         </div>

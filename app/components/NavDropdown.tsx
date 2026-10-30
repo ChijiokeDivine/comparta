@@ -1,77 +1,47 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import {
-  PiggyBank,
-  Landmark,
-  TrendingUp,
-  ArrowLeftRight,
-  Receipt,
-  Building2,
-  FileText,
-  Users,
-  CreditCard,
-  BookOpen,
-  Wallet,
-  Calculator,
-} from "lucide-react";
+import { MARKETING_NAV, type MarketingNavSection } from "./navLinks";
 
-const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>> = {
-  savings: PiggyBank,
-  deposit: Landmark,
-  invest: TrendingUp,
-  transfer: ArrowLeftRight,
-  bill: Receipt,
-  business: Building2,
-  invoice: FileText,
-  payroll: Users,
-  payment: CreditCard,
-  api: BookOpen,
-  wallet: Wallet,
-  expense: Calculator,
+const COLUMN_CLASSES: Record<1 | 2 | 3, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-3",
 };
 
-export function NavDropdown({ label }: { label: string }) {
+/**
+ * Desktop marketing nav dropdown. Renders one `MARKETING_NAV` section.
+ *
+ * Items without an `href` are `comingSoon` and render as a disabled row, so
+ * we never ship a link that goes nowhere.
+ */
+export function NavDropdown({ section }: { section: MarketingNavSection }) {
   const [isOpen, setIsOpen] = useState(false);
-
-  const dropdownData: Record<string, { items: { label: string; icon?: string; isComingSoon?: boolean }[]; columns: number }> = {
-    Personal: {
-      columns: 3,
-      items: [
-        { label: "Savings Account", icon: "savings" },
-        { label: "Fixed Deposits", icon: "deposit" },
-        { label: "Investments", icon: "invest" },
-        { label: "Transfers", icon: "transfer" },
-        { label: "Payments", icon: "bill" },
-      ],
-    },
-    Business: {
-      columns: 3,
-      items: [
-        { label: "Business Account", icon: "business" },
-        { label: "Invoicing", icon: "invoice" },
-        { label: "Payroll", icon: "payroll" },
-        { label: "Payments", icon: "payment" },
-      ],
-    },
-    Developer: {
-      columns: 1,
-      items: [
-        { label: "API Documentation", icon: "api", isComingSoon: true },
-      ],
-    },
-  };
-
-  const currentData = dropdownData[label] || { columns: 1, items: [] };
+  const menuClass =
+    section.columns === 1
+      ? "nav-dropdown-menu nav-dropdown-menu--compact"
+      : "nav-dropdown-menu";
 
   return (
     <div
       className="relative group"
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
+      onFocus={() => setIsOpen(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setIsOpen(false);
+        }
+      }}
     >
-      <button className="flex items-center gap-1.5 text-[16px] md:text-[14px] font-medium text-[#FFFFFF] hover:text-[#FFFFFF]">
-        {label}
+      <button
+        type="button"
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+        className="flex items-center gap-1.5 text-[16px] md:text-[14px] font-medium text-[#FFFFFF] hover:text-[#FFFFFF]"
+      >
+        {section.label}
         <svg
           width="14"
           height="14"
@@ -81,147 +51,61 @@ export function NavDropdown({ label }: { label: string }) {
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
+          aria-hidden="true"
           className="transition-transform duration-300 group-hover:rotate-180"
         >
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
 
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div className="nav-dropdown-menu">
-          <div
-            className={`grid gap-6 ${
-              currentData.columns === 3
-                ? "grid-cols-1 sm:grid-cols-3"
-                : "grid-cols-1"
-            }`}
-          >
-            {currentData.items.map((item, idx) => (
-              <a
-                key={idx}
-                href="#"
-                className="nav-dropdown-item flex items-center gap-3 px-4  rounded-lg hover:bg-[#F2F4F8] transition-colors"
-              >
+      <div className={menuClass} role="menu" aria-label={section.label}>
+        <div className={`grid gap-6 ${COLUMN_CLASSES[section.columns]}`}>
+          {section.items.map(({ label, href, icon: Icon, comingSoon }) => {
+            const content = (
+              <>
                 <div className="w-9 h-9 rounded-full bg-[#ffffff] flex items-center justify-center flex-shrink-0">
-                  {(() => {
-                    const IconComponent = item.icon ? ICON_MAP[item.icon] : null;
-                    return IconComponent ? (
-                      <IconComponent size={20} color="#0B1E3F" strokeWidth={2} />
-                    ) : null;
-                  })()}
+                  <Icon size={20} color="#0B1E3F" strokeWidth={2} />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[14px] font-medium text-[#0B1E3F]">
-                      {item.label}
+                      {label}
                     </span>
-                    {item.isComingSoon && (
+                    {comingSoon && (
                       <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
                         Soon
                       </span>
                     )}
                   </div>
                 </div>
-              </a>
-            ))}
-          </div>
+              </>
+            );
+
+            if (!href) {
+              return (
+                <div
+                  key={label}
+                  aria-disabled="true"
+                  className="nav-dropdown-item flex items-center gap-3 px-4 rounded-lg cursor-default opacity-60"
+                >
+                  {content}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={label}
+                href={href}
+                role="menuitem"
+                className="nav-dropdown-item flex items-center gap-3 px-4 rounded-lg hover:bg-[#F2F4F8] transition-colors"
+              >
+                {content}
+              </Link>
+            );
+          })}
         </div>
-      )}
-    </div>
-  );
-}
-
-export function MobileNavDropdown({ label }: { label: string }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  // Define dropdown items for each section
-  const dropdownData: Record<string, { items: { label: string; icon?: string; isComingSoon?: boolean }[]; columns: number }> = {
-    Personal: {
-      columns: 3,
-      items: [
-        { label: "Savings Account", icon: "savings" },
-        { label: "Fixed Deposits", icon: "deposit" },
-        { label: "Investments", icon: "invest" },
-        { label: "Transfers", icon: "transfer" },
-        { label: "Bill Payments", icon: "bill" },
-      ],
-    },
-    Business: {
-      columns: 3,
-      items: [
-        { label: "Business Account", icon: "business" },
-        { label: "Invoicing", icon: "invoice" },
-        { label: "Payroll", icon: "payroll" },
-        { label: "Payments", icon: "payment" },
-        { label: "Expense Management", icon: "expense" },
-      ],
-    },
-    Developer: {
-      columns: 1,
-      items: [
-        { label: "API Documentation", icon: "api", isComingSoon: true },
-      ],
-    },
-  };
-
-  const currentData = dropdownData[label] || { columns: 1, items: [] };
-
-  return (
-    <div>
-      <button
-        className="flex items-center justify-between w-full text-[16px] font-medium text-[#4A5A78] hover:text-[#0B1E3F]"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {label}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={`transition-transform duration-300 ${
-            isOpen ? "rotate-180" : ""
-          }`}
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-
-      {/* Mobile Dropdown Menu */}
-      {isOpen && (
-        <div className="mt-3 pl-4 border-l-2 border-[#EEF1F8] flex flex-col gap-2">
-          {currentData.items.map((item, idx) => (
-            <a
-              key={idx}
-              href="#"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#F2F4F8] transition-colors"
-            >
-              <div className="w-8 h-8 rounded-full bg-[#EEF1F8] flex items-center justify-center flex-shrink-0">
-                {(() => {
-                  const IconComponent = item.icon ? ICON_MAP[item.icon] : null;
-                  return IconComponent ? (
-                    <IconComponent size={16} color="#0B1E3F" strokeWidth={2} />
-                  ) : null;
-                })()}
-              </div>
-              <div className="flex-1 flex items-center gap-2">
-                <span className="text-[14px] font-medium text-[#0B1E3F]">
-                  {item.label}
-                </span>
-                {item.isComingSoon && (
-                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#2A5CE6] text-white uppercase tracking-wider">
-                    Soon
-                  </span>
-                )}
-              </div>
-            </a>
-          ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

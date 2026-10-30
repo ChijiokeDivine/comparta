@@ -1,27 +1,31 @@
 import type { Chain } from "@/app/generated/prisma/client";
-import { UNIFIED_BALANCE_SUPPORTED_CHAINS } from "./unifiedBalance";
+import {
+  CIRCLE_BLOCKCHAIN_CODES,
+  getNetworkProfile,
+  type CircleBlockchainCode,
+} from "@/lib/config/networkProfiles";
+import { resolveAppNetwork } from "@/lib/config/network";
 
-/** Circle Developer Wallets API blockchain codes we can create SCAs on. */
+/**
+ * Circle Developer Wallets API blockchain codes we can create/derive SCAs
+ * on. Kept in one table in lib/config/networkProfiles.ts so the wallet
+ * derivation path, chain mapping and UI never drift apart.
+ */
 export const CHAIN_TO_CIRCLE_BLOCKCHAIN: Partial<Record<Chain, string>> = {
-  ARC_TESTNET: "ARC-TESTNET",
-  ARC_MAINNET: "ARC",
-  ETH_SEPOLIA: "ETH-SEPOLIA",
-  ETH_MAINNET: "ETH",
-  BASE_SEPOLIA: "BASE-SEPOLIA",
-  ARBITRUM_SEPOLIA: "ARB-SEPOLIA",
-  // HyperEVM Testnet: confirm Circle DCW supports wallet create before enabling.
-  // HYPEREVM_TESTNET: "HYPEREVM-TESTNET",
+  ...CIRCLE_BLOCKCHAIN_CODES,
 };
 
-/** Chains we provision SCAs for so Unified Balance deposit can sign. */
+/**
+ * Chains we provision SCAs for so Unified Balance deposit can sign.
+ * Network-aware: Sepolia family on testnet, Ethereum/Base/Arbitrum on
+ * mainnet, plus the settlement chain (Arc) in both cases.
+ */
 export function getUnifiedBalanceProvisionChains(): Chain[] {
-  return UNIFIED_BALANCE_SUPPORTED_CHAINS.filter(
-    (c) => CHAIN_TO_CIRCLE_BLOCKCHAIN[c] != null
-  );
+  return getNetworkProfile(resolveAppNetwork()).depositSourceChains as Chain[];
 }
 
-export function toCircleBlockchain(chain: Chain): string {
-  const code = CHAIN_TO_CIRCLE_BLOCKCHAIN[chain];
+export function toCircleBlockchain(chain: Chain): CircleBlockchainCode {
+  const code = CIRCLE_BLOCKCHAIN_CODES[chain];
   if (!code) {
     throw new Error(`No Circle blockchain code for Comparta chain "${chain}"`);
   }

@@ -124,7 +124,7 @@ export default function OnboardingForm() {
       // and back in again, which means the KYB gate keeps blocking dashboard
       // actions (transfers/wallet/etc.) would still say "under review".
       const nextKybStatus =
-        (data.organization as { kybStatus?: string } | undefined)?.kybStatus ?? "APPROVED";
+        (data.organization as { kybStatus?: string } | undefined)?.kybStatus ?? "PENDING";
       await update({ onboardingCompleted: true, kybStatus: nextKybStatus });
       // router.push("/dashboard")
       //

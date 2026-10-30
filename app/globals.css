@@ -406,10 +406,17 @@ body {
   animation: dropdownFadeIn 0.3s ease forwards;
 }
 
-.group:hover .nav-dropdown-menu {
+.group:hover .nav-dropdown-menu,
+.group:focus-within .nav-dropdown-menu {
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(0);
+}
+
+/* Single-column menus (e.g. Developer) should not stretch to the 3-column width. */
+.nav-dropdown-menu--compact {
+  min-width: 320px;
+  max-width: 380px;
 }
 
 @keyframes dropdownFadeIn {

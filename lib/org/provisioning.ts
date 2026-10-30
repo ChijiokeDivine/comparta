@@ -19,6 +19,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { createWalletForOrg, ensureWalletDerivedOnDepositChains } from "@/lib/circle/wallets";
+import { mapCircleBlockchain } from "@/lib/circle/chainMapping";
+import { getNetworkProfile, resolveAppNetwork } from "@/lib/config/network";
 import type { LedgerAccount, Wallet } from "@/app/generated/prisma/client";
 
 const DEFAULT_LEDGER_BUCKETS = [
@@ -54,7 +56,9 @@ export async function provisionOrgWallet(orgId: string): Promise<ProvisionOrgWal
           orgId,
           circleWalletId: circleWallet.circleWalletId,
           arcAddress: circleWallet.arcAddress,
-          chain: circleWallet.chain === "ARC" ? "ARC_MAINNET" : "ARC_TESTNET",
+          chain:
+            mapCircleBlockchain(circleWallet.chain) ??
+            getNetworkProfile(resolveAppNetwork()).chain,
         },
       });
 

@@ -4,6 +4,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { UNIFIED_SPEND_DESTINATION_CHAINS } from "@/lib/config/clientChains";
+import type { Chain } from "@/app/generated/prisma/client";
 
 interface Bucket {
   id: string;
@@ -15,13 +17,9 @@ interface Bucket {
 // same tradeoff as TransferForm.tsx not fetching enum metadata — this is
 // display-only; the API route independently validates against
 // UNIFIED_BALANCE_SUPPORTED_CHAINS server-side, so a stale label here
-// can't let an unsupported chain through.
-const DESTINATION_CHAINS: { value: string; label: string }[] = [
-  { value: "ARC_TESTNET", label: "Arc Testnet" },
-  { value: "ETH_SEPOLIA", label: "Ethereum Sepolia" },
-  { value: "BASE_SEPOLIA", label: "Base Sepolia" },
-  { value: "ARBITRUM_SEPOLIA", label: "Arbitrum Sepolia" },
-];
+// can't let an unsupported chain through. The list is network-aware (see
+// lib/config/clientChains.ts).
+const DESTINATION_CHAINS = UNIFIED_SPEND_DESTINATION_CHAINS;
 
 export default function UnifiedSpendForm({
   buckets,
@@ -128,7 +126,7 @@ export default function UnifiedSpendForm({
         <select
           id="destinationChain"
           value={destinationChain}
-          onChange={(e) => setDestinationChain(e.target.value)}
+          onChange={(e) => setDestinationChain(e.target.value as Chain)}
           disabled={disabled || confirming}
           className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm md:text-base disabled:opacity-50"
         >

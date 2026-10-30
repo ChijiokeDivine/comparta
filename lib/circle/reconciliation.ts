@@ -20,6 +20,7 @@
 // Check both against your actual schema.prisma / node_modules types.
 
 import { getCircleClient } from "./client";
+import { toCircleBlockchain } from "./circleBlockchains";
 import { prisma } from "@/lib/db/prisma";
 import { recordEntry, InsufficientBalanceError as LedgerInsufficientBalanceError } from "@/lib/ledger/engine";
 import { handlePayrollTransactionResolved } from "@/lib/payroll/completion";
@@ -61,7 +62,7 @@ async function reconcileOne(tx: StuckTx): Promise<void> {
 
   const res = await client.listTransactions({
     walletIds: [tx.wallet.circleWalletId],
-    blockchain: tx.wallet.chain === "ARC_MAINNET" ? "ARC" : "ARC-TESTNET",
+    blockchain: toCircleBlockchain(tx.wallet.chain),
     txType: "OUTBOUND",
     destinationAddress: tx.counterpartyAddress,
     from: tx.submittedAt!.toISOString(),

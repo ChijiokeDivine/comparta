@@ -46,9 +46,10 @@ let cachedSigner: Signer | null = null;
 
 function resolveRpcUrl(env: ReturnType<typeof getEnv>): string {
   const url =
-    env.ARC_CHAIN === "ARC_MAINNET"
+    env.ARC_RPC_URL ??
+    (env.ARC_CHAIN === "ARC_MAINNET"
       ? env.ARC_MAINNET_RPC_URL
-      : env.ARC_TESTNET_RPC_URL;
+      : env.ARC_TESTNET_RPC_URL);
   if (!url) {
     throw new OnchainNotConfiguredError(
       `missing RPC URL for ARC_CHAIN=${env.ARC_CHAIN}`
@@ -151,7 +152,7 @@ export function isOnchainConfigured(): boolean {
   try {
     const env = getEnv();
     return Boolean(
-      (env.ARC_MAINNET_RPC_URL || env.ARC_TESTNET_RPC_URL) &&
+      env.ARC_RPC_URL &&
         env.AGREEMENT_CORE_ADDRESS &&
         env.CONDITIONAL_MODULE_ADDRESS &&
         env.STREAM_MODULE_ADDRESS

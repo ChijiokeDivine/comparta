@@ -136,8 +136,8 @@ export async function fundUnifiedBalance(
     }
   }
 
-  // Arc plain onchain must cover the deposit (source is typically ARC_TESTNET).
-  if (input.sourceChain === "ARC_TESTNET" || input.sourceChain === wallet.chain) {
+  // The settlement chain's plain onchain balance must cover the deposit.
+  if (input.sourceChain === wallet.chain) {
     try {
       const onchainStr = await getUsdcBalance(wallet.circleWalletId);
       const onchain = toSmallestUnit(onchainStr);

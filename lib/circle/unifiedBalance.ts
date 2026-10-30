@@ -40,25 +40,23 @@
 // it's how Gateway works — so any UI/flow that wants a deposit to actually
 // register needs to trigger a deposit() call, not just wait.
 //
-// WHICH CHAINS ARE ACTUALLY WIRED HERE, AND WHY (checked against the
-// UnifiedBalanceChain enum in the installed package on 2026-09-19 — that
-// enum, not the broader Blockchain enum, is Gateway's actual supported-
-// chain allowlist): ARC_TESTNET, ETH_SEPOLIA, BASE_SEPOLIA,
-// ARBITRUM_SEPOLIA, HYPEREVM_TESTNET are present in UnifiedBalanceChain and
-// are the only chains toUnifiedBalanceChain() below will map. Celo and
-// Monad Testnet were requested but are intentionally absent from the Chain
-// enum itself (see prisma/schema.prisma) rather than kept-and-blocked
-// here: neither appears in UnifiedBalanceChain at all (Monad and
-// Celo_Alfajores_Testnet exist only in the broader Blockchain enum, which
-// covers Send/Bridge/Swap, not Unified Balance). Re-add either only once a
-// fresh check of the installed package's UnifiedBalanceChain enum shows it
-// listed, updating the Chain enum, UNIFIED_BALANCE_SUPPORTED_CHAINS, and
+// WHICH CHAINS ARE ACTUALLY WIRED HERE: driven by the active network
+// profile in lib/config/networkProfiles.ts — Sepolia family (Arc Testnet,
+// Ethereum/Base/Arbitrum Sepolia) on testnet, mainnet family (Arc,
+// Ethereum, Base, Arbitrum) on mainnet. Both lists were checked against
+// the UnifiedBalanceChain enum in @circle-fin/app-kit@1.19 (Arc mainnet is
+// `Arc`, testnet is `Arc_Testnet`; mainnet support was added upstream
+// after 1.12). Celo and Monad remain deliberately absent from the Chain
+// enum entirely — neither is supported by Unified Balance yet. Re-add
+// either only once a fresh check of the installed package's enum shows it
+// listed, updating the Chain enum, the network profile, and
 // toUnifiedBalanceChain() together.
 //
-// STILL ON TESTNET: networkType is hardcoded to "testnet" in
-// getUnifiedBalance, and every chain literal this module maps to is a
-// testnet chain. Flip that — and re-verify each chain's MAINNET Unified
-// Balance support the same way — before pointing this at production funds.
+// NETWORK TYPE: getUnifiedBalance() passes the active network's
+// `networkType` to Gateway (testnet locally/preview, mainnet in
+// production). Before this was wired, it was hardcoded to "testnet",
+// which would have silently asked Gateway for sandbox balances while
+// sending real funds on mainnet.
 //
 // ADDRESS SHARING vs. WALLET REGISTRATION — TWO SEPARATE THINGS (resolved
 // 2026-09-19): an SCA wallet's address is deterministically the same
@@ -83,7 +81,17 @@
 
 import { getAppKit, getCircleWalletsAdapter } from "./appKit";
 import { toDecimalString, toSmallestUnit } from "./amount";
+import {
+  APPKIT_CHAIN_CODES,
+  CIRCLE_BLOCKCHAIN_CODES,
+  getNetworkProfile,
+  type AppKitChainCode,
+  type CircleBlockchainCode,
+} from "@/lib/config/networkProfiles";
+import { resolveAppNetwork } from "@/lib/config/network";
 import type { Chain } from "@/app/generated/prisma/client";
+
+const ACTIVE_NETWORK_PROFILE = getNetworkProfile(resolveAppNetwork());
 
 export class UnifiedBalanceError extends Error {
   constructor(message: string, public readonly cause?: unknown) {
@@ -98,17 +106,13 @@ export class UnifiedBalanceUnsupportedChainError extends UnifiedBalanceError {}
 
 /**
  * Every Chain value this module will map to an App Kit Unified Balance
- * chain literal. Kept as an explicit allowlist (rather than "anything not
- * in a blocklist") so a future Chain enum addition defaults to unsupported
- * until someone deliberately wires it up here.
+ * chain literal, for the ACTIVE network. Kept as an explicit allowlist
+ * (rather than "anything not in a blocklist") so a future Chain enum
+ * addition defaults to unsupported until someone deliberately wires it up
+ * here / in the network profile.
  */
-export const UNIFIED_BALANCE_SUPPORTED_CHAINS: readonly Chain[] = [
-  "ARC_TESTNET",
-  "ETH_SEPOLIA",
-  "BASE_SEPOLIA",
-  "ARBITRUM_SEPOLIA",
-
-] as const;
+export const UNIFIED_BALANCE_SUPPORTED_CHAINS: readonly Chain[] =
+  ACTIVE_NETWORK_PROFILE.unifiedBalanceChains as readonly Chain[];
 
 export function isUnifiedBalanceSupported(chain: Chain): boolean {
   return (UNIFIED_BALANCE_SUPPORTED_CHAINS as Chain[]).includes(chain);
@@ -118,21 +122,16 @@ export function isUnifiedBalanceSupported(chain: Chain): boolean {
  * Subset of UNIFIED_BALANCE_SUPPORTED_CHAINS that Comparta will accept as
  * a DEPOSIT source — i.e. chains where lib/circle/wallets.ts#deriveWalletOnChain
  * can register the org's wallet with a confirmed, unambiguous blockchain
- * code. Deliberately excludes HYPEREVM_TESTNET: the installed
- * @circle-fin/developer-controlled-wallets SDK's EvmBlockchain enum has no
+ * code. On testnet this is Arc + the three Sepolia chains; on mainnet it
+ * is Arc + Ethereum + Base + Arbitrum. HyperEVM is deliberately excluded:
+ * the installed @circle-fin/developer-controlled-wallets SDK has no
  * dedicated HyperEVM entry (only a generic 'EVM-TESTNET' catch-all that
  * couldn't be confirmed to map to HyperEVM specifically), and guessing
  * wrong on a wallet-provisioning call is a worse failure mode than simply
- * not offering it yet. HyperEVM Testnet remains fully usable as a SPEND
- * DESTINATION (spendFromUnifiedBalance's Forwarder path needs no wallet
- * registration on the destination chain at all), just not as a source.
+ * not offering it yet.
  */
-export const DEPOSIT_SOURCE_SUPPORTED_CHAINS: readonly Chain[] = [
-  "ARC_TESTNET",
-  "ETH_SEPOLIA",
-  "BASE_SEPOLIA",
-  "ARBITRUM_SEPOLIA",
-] as const;
+export const DEPOSIT_SOURCE_SUPPORTED_CHAINS: readonly Chain[] =
+  ACTIVE_NETWORK_PROFILE.depositSourceChains as readonly Chain[];
 
 export function isDepositSourceSupported(chain: Chain): boolean {
   return (DEPOSIT_SOURCE_SUPPORTED_CHAINS as Chain[]).includes(chain);
@@ -146,24 +145,20 @@ export function isDepositSourceSupported(chain: Chain): boolean {
  * DEPOSIT_SOURCE_SUPPORTED_CHAINS; throws for anything else, same
  * fail-loudly posture as toUnifiedBalanceChain().
  */
-export function toCircleDeveloperWalletsBlockchain(
-  chain: Chain
-): "ARC-TESTNET" | "ETH-SEPOLIA" | "BASE-SEPOLIA" | "ARB-SEPOLIA" {
-  switch (chain) {
-    case "ARC_TESTNET":
-      return "ARC-TESTNET";
-    case "ETH_SEPOLIA":
-      return "ETH-SEPOLIA";
-    case "BASE_SEPOLIA":
-      return "BASE-SEPOLIA";
-    case "ARBITRUM_SEPOLIA":
-      return "ARB-SEPOLIA";
-    default:
-      throw new UnifiedBalanceUnsupportedChainError(
-        `"${chain}" has no confirmed Developer-Controlled-Wallets blockchain code — ` +
-          `not in DEPOSIT_SOURCE_SUPPORTED_CHAINS.`
-      );
+export function toCircleDeveloperWalletsBlockchain(chain: Chain): CircleBlockchainCode {
+  if (!isDepositSourceSupported(chain)) {
+    throw new UnifiedBalanceUnsupportedChainError(
+      `"${chain}" is not a supported deposit source on ${ACTIVE_NETWORK_PROFILE.network} — ` +
+        `not in DEPOSIT_SOURCE_SUPPORTED_CHAINS.`
+    );
   }
+  const code = CIRCLE_BLOCKCHAIN_CODES[chain];
+  if (!code) {
+    throw new UnifiedBalanceUnsupportedChainError(
+      `"${chain}" has no Developer-Controlled-Wallets blockchain code.`
+    );
+  }
+  return code;
 }
 
 /**
@@ -173,25 +168,21 @@ export function toCircleDeveloperWalletsBlockchain(
  * UnifiedBalanceUnsupportedChainError for anything not in
  * UNIFIED_BALANCE_SUPPORTED_CHAINS.
  */
-export function toUnifiedBalanceChain(
-  chain: Chain
-): "Arc_Testnet" | "Ethereum_Sepolia" | "Base_Sepolia" | "Arbitrum_Sepolia" | "HyperEVM_Testnet" {
-  switch (chain) {
-    case "ARC_TESTNET":
-      return "Arc_Testnet";
-    case "ETH_SEPOLIA":
-      return "Ethereum_Sepolia";
-    case "BASE_SEPOLIA":
-      return "Base_Sepolia";
-    case "ARBITRUM_SEPOLIA":
-      return "Arbitrum_Sepolia";
-
-    default:
-      throw new UnifiedBalanceUnsupportedChainError(
-        `No Unified Balance chain literal mapped for Comparta chain "${chain}". Check the ` +
-          `installed @circle-fin/app-kit package's UnifiedBalanceChain enum before wiring this in.`
-      );
+export function toUnifiedBalanceChain(chain: Chain): AppKitChainCode {
+  if (!isUnifiedBalanceSupported(chain)) {
+    throw new UnifiedBalanceUnsupportedChainError(
+      `No Unified Balance chain literal mapped for Comparta chain "${chain}" on ` +
+        `${ACTIVE_NETWORK_PROFILE.network}. Check the installed @circle-fin/app-kit ` +
+        `package's UnifiedBalanceChain enum before wiring this in.`
+    );
   }
+  const literal = APPKIT_CHAIN_CODES[chain];
+  if (!literal) {
+    throw new UnifiedBalanceUnsupportedChainError(
+      `Comparta chain "${chain}" is marked Unified-Balance-supported but has no App Kit literal.`
+    );
+  }
+  return literal;
 }
 
 export interface UnifiedBalanceChainAmount {
@@ -236,7 +227,7 @@ export async function getUnifiedBalance(address: string): Promise<UnifiedBalance
   try {
     result = (await kit.unifiedBalance.getBalances({
       sources: { address, chains },
-      networkType: "testnet",
+      networkType: ACTIVE_NETWORK_PROFILE.network,
       includePending: true,
     })) as GetBalancesResult;
   } catch (err) {
@@ -251,12 +242,13 @@ export async function getUnifiedBalance(address: string): Promise<UnifiedBalance
     perChainTotals.set(supported, { confirmed: 0n, pending: 0n });
   }
 
-  const CHAIN_LITERAL_TO_INTERNAL: Record<string, Chain> = {
-    Arc_Testnet: "ARC_TESTNET",
-    Ethereum_Sepolia: "ETH_SEPOLIA",
-    Base_Sepolia: "BASE_SEPOLIA",
-    Arbitrum_Sepolia: "ARBITRUM_SEPOLIA",
-  };
+  // Built from the active profile's allowlist (rather than a hardcoded
+  // testnet-only table) so mainnet balances are attributed correctly.
+  const CHAIN_LITERAL_TO_INTERNAL: Record<string, Chain> = {};
+  for (const supported of UNIFIED_BALANCE_SUPPORTED_CHAINS) {
+    const literal = APPKIT_CHAIN_CODES[supported];
+    if (literal) CHAIN_LITERAL_TO_INTERNAL[literal] = supported;
+  }
 
   const breakdown = result.breakdown ?? [];
 

@@ -105,18 +105,17 @@ export const NAV_ITEMS: NavItem[] = [
 
   },
 
-  // {
-  //   href: "/payroll",
-  //   label: "Payroll",
-  //   icon: PayrollIcon,
-  //   managerOnly: true,
-  //   children: [
-
-  //     { href: "/payroll/payees", label: "Payees", icon: UsersIcon, managerOnly: true },
-  //     { href: "/payroll/payees/new", label: "New payee", icon: UserPlusIcon, managerOnly: true },
-  //     { href: "/payroll/runs/new", label: "Run payroll", icon: PlayIcon, managerOnly: true },
-  //   ],
-  // },
+  {
+    href: "/payroll",
+    label: "Payroll",
+    icon: PayrollIcon,
+    managerOnly: true,
+    children: [
+      { href: "/payroll/payees", label: "Payees", icon: UsersIcon, managerOnly: true },
+      { href: "/payroll/payees/new", label: "New payee", icon: UserPlusIcon, managerOnly: true },
+      { href: "/payroll/runs/new", label: "Run payroll", icon: PlayIcon, managerOnly: true },
+    ],
+  },
 
   {
     href: "/savings",
@@ -137,12 +136,15 @@ export const NAV_ITEMS: NavItem[] = [
 
   },
 
-  // { href: "/recurring", label: "Recurring Transfers", icon: RecurringIcon },
+  {
+    href: "/recurring",
+    label: "Recurring Transfers",
+    icon: RecurringIcon,
+  },
 
-  // {
-  //   href: "/insights",
-  //   label: "Insights",
-  //   icon: InsightsIcon,
-
-  // },
+  {
+    href: "/insights",
+    label: "Insights",
+    icon: InsightsIcon,
+  },
 ];

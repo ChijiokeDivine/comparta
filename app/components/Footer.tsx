@@ -1,42 +1,45 @@
 import Image from "next/image";
 import Link from "next/link";
 
+// Every link below points at a route that exists in the app (or a working
+// mailto). Marketing pages that were never built — /about, /blog, /help,
+// /developers, /security, /status, /privacy, /compliance, /cookies — were
+// removed rather than left as 404s.
 const FOOTER_COLUMNS = [
   {
     title: "Product",
     links: [
       { label: "Invoicing", href: "/invoices" },
-      { label: "Payment Links", href: "/payment-links" },
+      { label: "Payment links", href: "/payment-links" },
       { label: "Payroll", href: "/payroll" },
-      { label: "Smart Savings", href: "/savings" },
-      { label: "Send & Receive", href: "/wallet" },
+      { label: "Smart savings", href: "/savings" },
+      { label: "Send & receive", href: "/wallet" },
+    ],
+  },
+  {
+    title: "Platform",
+    links: [
+      { label: "Transfers", href: "/wallet/transfers" },
+      { label: "Buckets", href: "/buckets" },
+      { label: "Allocation rules", href: "/allocation-rules" },
+      { label: "Recurring transfers", href: "/recurring" },
+      { label: "Insights", href: "/insights" },
+    ],
+  },
+  {
+    title: "Developers",
+    links: [
+      { label: "API keys & team", href: "/settings" },
+      { label: "Webhooks & events", href: "/settings/webhooks" },
+      { label: "Account settings", href: "/settings/account" },
     ],
   },
   {
     title: "Company",
     links: [
-      { label: "About", href: "/about" },
       { label: "Careers", href: "/careers" },
-      { label: "Blog", href: "/blog" },
-      { label: "Contact", href: "/contact" },
-    ],
-  },
-  {
-    title: "Resources",
-    links: [
-      { label: "Help Center", href: "/help" },
-      { label: "Developer API", href: "/developers" },
-      { label: "Security", href: "/security" },
-      { label: "Status", href: "/status" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { label: "Terms of Service", href: "/terms" },
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Compliance", href: "/compliance" },
-      { label: "Cookie Policy", href: "/cookies" },
+      { label: "Contact", href: "mailto:hello@comparta.xyz" },
+      { label: "Terms of service", href: "/terms" },
     ],
   },
 ];
@@ -49,12 +52,12 @@ export function Footer() {
           <h2 className="max-w-xl text-3xl font-normal tracking-tight text-white sm:text-4xl md:text-5xl">
             Ready to move money like it&apos;s easy?
           </h2>
-          <a
-            href="#"
+          <Link
+            href="/register"
             className="group hidden w-fit shrink-0 items-center gap-2 rounded-full bg-[#2A5CE6] px-6 py-3.5 text-sm font-semibold text-[#ffffff] transition-colors hover:bg-[#2450d1]/90 sm:text-base md:inline-flex"
           >
             Create your account
-          </a>
+          </Link>
         </div>
 
         <div className="grid grid-cols-2 gap-10 py-14 sm:grid-cols-3 sm:py-16 lg:grid-cols-5 lg:gap-8">
@@ -70,12 +73,12 @@ export function Footer() {
               <ul className="flex flex-col gap-3">
                 {links.map(({ label, href }) => (
                   <li key={label}>
-                    <a
+                    <Link
                       href={href}
                       className="text-sm text-white/50 transition-colors hover:text-white"
                     >
                       {label}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>

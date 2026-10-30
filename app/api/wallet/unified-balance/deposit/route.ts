@@ -3,7 +3,8 @@
 // Hybrid model C: Fund Unified Balance with user-selected bucket debits.
 // Body:
 //   {
-//     sourceChain: "ARC_TESTNET" | ...,
+//     sourceChain: "ARC_MAINNET" | "ETH_MAINNET" | "BASE" | "ARBITRUM" (testnet:
+//                  "ARC_TESTNET" | "ETH_SEPOLIA" | "BASE_SEPOLIA" | "ARBITRUM_SEPOLIA"),
 //     amount: "50.00",
 //     allocations: [{ ledgerAccountId, amount }, ...]  // must sum to amount
 //   }
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
         where: { walletId_chain: { walletId: wallet.id, chain: sourceChain } },
       });
       if (!existing) {
-        if (sourceChain === wallet.chain || sourceChain === "ARC_TESTNET") {
+        if (sourceChain === wallet.chain) {
           await prisma.walletChainRegistration.upsert({
             where: { walletId_chain: { walletId: wallet.id, chain: sourceChain } },
             create: {
