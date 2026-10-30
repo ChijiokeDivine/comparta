@@ -172,16 +172,18 @@ describe("applyNetworkEnv", () => {
     ).toThrow(/LIVE_API_KEY/);
   });
 
-  it("throws when ARC_CHAIN contradicts the resolved network", () => {
-    expect(() =>
-      applyNetworkEnv({ ARC_NETWORK: "mainnet", ARC_CHAIN: "ARC_TESTNET" })
-    ).toThrow(/contradicts/);
+  it("overrides a stale ARC_CHAIN instead of failing the build", () => {
+    const out = applyNetworkEnv({ ARC_NETWORK: "mainnet", ARC_CHAIN: "ARC_TESTNET" });
+    expect(out.ARC_CHAIN).toBe("ARC_MAINNET");
   });
 
-  it("throws when CIRCLE_ENVIRONMENT contradicts the resolved network", () => {
-    expect(() =>
-      applyNetworkEnv({ ARC_NETWORK: "testnet", CIRCLE_ENVIRONMENT: "production" })
-    ).toThrow(/contradicts/);
+  it("overrides a stale CIRCLE_ENVIRONMENT (common on existing deployments)", () => {
+    const out = applyNetworkEnv({
+      VERCEL_ENV: "production",
+      CIRCLE_ENVIRONMENT: "sandbox",
+      CIRCLE_API_KEY_MAIN: LIVE_KEY,
+    });
+    expect(out.CIRCLE_ENVIRONMENT).toBe("production");
   });
 
   it("uses the network-specific RPC variable", () => {

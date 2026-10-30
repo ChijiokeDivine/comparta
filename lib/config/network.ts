@@ -152,9 +152,12 @@ function apiKeyPrefix(key: string | undefined): "live" | "test" | null {
  * the canonical variable names, plus the derived network facts
  * (APP_NETWORK, ARC_CHAIN, CIRCLE_ENVIRONMENT, ARC_RPC_URL).
  *
- * Throws on configuration that would be dangerous to run:
- *   - explicit ARC_CHAIN / CIRCLE_ENVIRONMENT contradicting the network
+ * Throws only on configuration that would be dangerous to run:
  *   - a test key in a mainnet process (or a live key in a testnet process)
+ *
+ * Stale hand-set ARC_CHAIN / CIRCLE_ENVIRONMENT values are ignored with a
+ * warning (the derived value always wins), so an old deployment carrying
+ * `CIRCLE_ENVIRONMENT=sandbox` still builds and boots correctly on mainnet.
  */
 export function applyNetworkEnv(env: EnvLike = process.env): EnvLike {
   const { network } = resolveNetwork(env);
@@ -167,20 +170,25 @@ export function applyNetworkEnv(env: EnvLike = process.env): EnvLike {
 
   const configuredChain = env.ARC_CHAIN?.trim();
   if (configuredChain && configuredChain !== profile.chain) {
-    throw new Error(
-      `ARC_CHAIN=${configuredChain} contradicts APP_NETWORK=${network} ` +
-        `(expected ${profile.chain}). ARC_CHAIN is derived from ARC_NETWORK/VERCEL_ENV — ` +
-        `remove the manual ARC_CHAIN override.`
+    console.warn(
+      `[network] Ignoring ARC_CHAIN=${configuredChain}: it is derived from ` +
+        `ARC_NETWORK/VERCEL_ENV and must be ${profile.chain}. Remove the manual ` +
+        `override from your environment to silence this warning.`
     );
   }
   out.ARC_CHAIN = profile.chain;
 
   const configuredCircleEnv = env.CIRCLE_ENVIRONMENT?.trim();
   if (configuredCircleEnv && configuredCircleEnv !== profile.circleEnvironment) {
-    throw new Error(
-      `CIRCLE_ENVIRONMENT=${configuredCircleEnv} contradicts APP_NETWORK=${network} ` +
-        `(expected ${profile.circleEnvironment}). CIRCLE_ENVIRONMENT is derived — ` +
-        `remove the manual override.`
+    // This is common on existing deployments that still carry the old
+    // hand-set value (e.g. CIRCLE_ENVIRONMENT=sandbox in a production
+    // project). Failing the deploy here would block the mainnet cutover
+    // over a variable that no longer has any effect, so the derived value
+    // wins and the stale one is reported instead.
+    console.warn(
+      `[network] Ignoring CIRCLE_ENVIRONMENT=${configuredCircleEnv}: it is ` +
+        `derived from ARC_NETWORK/VERCEL_ENV and is ${profile.circleEnvironment}. ` +
+        `Remove the manual override from your environment to silence this warning.`
     );
   }
   out.CIRCLE_ENVIRONMENT = profile.circleEnvironment;

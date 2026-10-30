@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { MARKETING_NAV, type MarketingNavSection } from "./navLinks";
+import type { MarketingNavSection } from "./navLinks";
 
 const COLUMN_CLASSES: Record<1 | 2 | 3, string> = {
   1: "grid-cols-1",
