@@ -4,7 +4,6 @@ import Link from "next/link";
 export default function SettingsSubNav({ active }: { active: "organization" | "team" | "account" }) {
   const items = [
     { key: "organization" as const, href: "/settings", label: "Organization" },
-    { key: "team" as const, href: "/settings/team", label: "Team" },
     { key: "account" as const, href: "/settings/account", label: "My account" },
   ];
 
