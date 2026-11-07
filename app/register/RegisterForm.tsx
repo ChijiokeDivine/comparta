@@ -5,11 +5,9 @@ import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
+import { Briefcase, User } from "lucide-react";
 import { googleErrorMessage } from "./googleErrorMessage";
 import CountrySelect from "@/app/components/onboarding/CountrySelect";
-import AccountTypeSelect, {
-  type AccountTypeValue,
-} from "@/app/components/onboarding/AccountTypeSelect";
 
 type RegisterResponse = {
   error?: string;
@@ -17,12 +15,59 @@ type RegisterResponse = {
   message?: string;
 };
 
-const STEPS = [
-  { label: "Organization", title: "Tell us about your organization", hint: "Just a couple of quick details to get started." },
-  { label: "Account", title: "Your sign-in email", hint: "We'll use this for login and important updates." },
-  { label: "About you", title: "A couple more details", hint: "Helps us tailor Comparta to how you'll use it." },
-  { label: "Security", title: "Secure your account", hint: "Pick a strong password you don't use elsewhere." },
+// The two signup paths. Business accounts get a business name; individuals
+// just sign up with their own name. Both are submitted to the API as the
+// AccountType enum values BUSINESS / PERSONAL.
+type AccountKind = "BUSINESS" | "INDIVIDUAL";
+
+const KIND_OPTIONS: {
+  value: AccountKind;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+}[] = [
+  {
+    value: "BUSINESS",
+    label: "Business",
+    description: "Freelancers, startups, and companies",
+    icon: Briefcase,
+  },
+  {
+    value: "INDIVIDUAL",
+    label: "Individual",
+    description: "Personal and everyday money",
+    icon: User,
+  },
 ];
+
+function stepsFor(kind: AccountKind | "") {
+  const first =
+    kind === "INDIVIDUAL"
+      ? {
+          label: "About you",
+          title: "Tell us about you",
+          hint: "Just the essentials — you can add more later.",
+        }
+      : {
+          label: "Business",
+          title: "Tell us about your business",
+          hint: "Just the essentials — you can add more later.",
+        };
+
+  return [
+    first,
+    {
+      label: "Account",
+      title: "Your sign-in email",
+      hint: "We'll use this for login and important updates.",
+    },
+    {
+      label: "Security",
+      title: "Secure your account",
+      hint: "Pick a strong password you don't use elsewhere.",
+    },
+  ];
+}
 
 function useIsClient() {
   return useSyncExternalStore(
@@ -42,10 +87,10 @@ export default function RegisterForm() {
   const searchParams = useSearchParams();
   const mounted = useIsClient();
 
+  const [accountKind, setAccountKind] = useState<AccountKind | "">("");
   const [legalName, setLegalName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [country, setCountry] = useState("");
-  const [accountType, setAccountType] = useState<AccountTypeValue | "">("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -58,6 +103,9 @@ export default function RegisterForm() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const stepRef = useRef<HTMLDivElement>(null);
+
+  const steps = stepsFor(accountKind);
+  const step = steps[currentStep - 1];
 
   const googleError = googleErrorMessage(searchParams.get("error"));
   const displayedError = googleError || formError;
@@ -72,19 +120,28 @@ export default function RegisterForm() {
     setStepErrors({});
   }
 
-  function validateStep(step: number): boolean {
+  function selectKind(kind: AccountKind) {
+    setAccountKind(kind);
+    setStepErrors((s) => ({ ...s, accountKind: "" }));
+  }
+
+  function validateStep(stepNumber: number): boolean {
     const next: Record<string, string> = {};
 
-    if (step === 1) {
-      if (!legalName.trim()) next.legalName = "Please enter your organization or business name.";
-    } else if (step === 2) {
+    if (stepNumber === 1) {
+      if (!accountKind) {
+        next.accountKind = "Please choose whether this is a business or individual account.";
+      } else if (accountKind === "BUSINESS") {
+        if (!legalName.trim()) next.legalName = "Please enter your organization or business name.";
+      } else if (!ownerName.trim()) {
+        next.ownerName = "Please enter your full name.";
+      }
+      if (!country) next.country = "Please select your country.";
+    } else if (stepNumber === 2) {
       const t = email.trim();
       if (!t) next.email = "Email is required.";
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) next.email = "Please enter a valid email address.";
-    } else if (step === 3) {
-      if (!country) next.country = "Please select your country.";
-      if (!accountType) next.accountType = "Please choose what best describes you.";
-    } else if (step === 4) {
+    } else if (stepNumber === 3) {
       if (password.length < 10) next.password = "Password must be at least 10 characters.";
       if (!confirmPassword) next.confirmPassword = "Please confirm your password.";
       else if (password !== confirmPassword) next.confirmPassword = "Passwords do not match.";
@@ -97,7 +154,7 @@ export default function RegisterForm() {
   function goNext() {
     if (!validateStep(currentStep)) return;
     setStepErrors({});
-    setCurrentStep((s) => Math.min(s + 1, STEPS.length));
+    setCurrentStep((s) => Math.min(s + 1, steps.length));
   }
 
   function goPrev() {
@@ -105,32 +162,60 @@ export default function RegisterForm() {
     setCurrentStep((s) => Math.max(s - 1, 1));
   }
 
+  function applyFieldErrors(flat: Record<string, string>) {
+    setFieldErrors(flat);
+    if (
+      flat.accountKind ||
+      flat.legalName ||
+      flat.ownerName ||
+      flat.country ||
+      flat.accountType
+    ) {
+      setCurrentStep(1);
+    } else if (flat.email) {
+      setCurrentStep(2);
+    } else if (flat.password || flat.confirmPassword) {
+      setCurrentStep(3);
+    }
+  }
+
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     resetMessages();
 
-    if (currentStep < STEPS.length) {
+    if (currentStep < steps.length) {
       goNext();
       return;
     }
 
-    if (!validateStep(STEPS.length)) return;
+    if (!validateStep(steps.length)) return;
     if (password !== confirmPassword) {
       setFormError("Passwords do not match");
+      return;
+    }
+    if (!accountKind) {
+      setCurrentStep(1);
+      setStepErrors({
+        accountKind: "Please choose whether this is a business or individual account.",
+      });
       return;
     }
 
     setSubmitting(true);
 
     try {
+      const isBusiness = accountKind === "BUSINESS";
+      const fullName = ownerName.trim();
+
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          legalName,
-          ownerName: ownerName || undefined,
+          // Individuals sign up under their own name, so legalName mirrors it.
+          legalName: isBusiness ? legalName.trim() : fullName,
+          ownerName: fullName || undefined,
           country,
-          accountType,
+          accountType: isBusiness ? "BUSINESS" : "PERSONAL",
           email,
           password,
         }),
@@ -144,11 +229,7 @@ export default function RegisterForm() {
           for (const [key, arr] of Object.entries(data.issues.fieldErrors)) {
             if (Array.isArray(arr) && arr[0]) flat[key] = arr[0];
           }
-          setFieldErrors(flat);
-          if (flat.legalName || flat.ownerName) setCurrentStep(1);
-          else if (flat.email) setCurrentStep(2);
-          else if (flat.country || flat.accountType) setCurrentStep(3);
-          else if (flat.password || flat.confirmPassword) setCurrentStep(4);
+          applyFieldErrors(flat);
         }
         setFormError(data.error ?? "Registration failed");
         return;
@@ -258,10 +339,13 @@ export default function RegisterForm() {
 
         <div className="w-full max-w-md mx-auto">
           <div className="anim-form-header">
-            <h1 className="text-3xl md:text-4xl font-normal tracking-tight text-[#0B1E3F] mb-3">
+            <h1 className="text-3xl md:text-4xl font-normal tracking-tight text-[#0B1E3F] mb-2">
               Create account
             </h1>
-      
+            <p className="text-sm text-[#7C8CA6]">
+              Step {currentStep} of {steps.length} · {step.label}
+            </p>
+            <p className="mt-3 text-sm md:text-base text-[#4A5A78]">{step.hint}</p>
           </div>
 
           
@@ -280,43 +364,120 @@ export default function RegisterForm() {
               {currentStep === 1 && (
                 <>
                   <div className="anim-form-field">
-                    <label htmlFor="legalName" className="block text-sm font-semibold text-[#0B1E3F] mb-2">Organization / business name</label>
-                    <input
-                      id="legalName"
-                      type="text"
-                      placeholder="Acme Inc."
-                      value={legalName}
-                      onChange={(e) => { setLegalName(e.target.value); if (stepErrors.legalName) setStepErrors((s) => ({ ...s, legalName: "" })); }}
-                      required
-                      className={`w-full px-4 py-3 rounded-xl border transition-all text-[#0B1E3F] placeholder:text-[#7C8CA6]/60 text-sm md:text-base focus:border-[#2A5CE6] ${stepErrors.legalName || fieldErrors.legalName ? 'border-red-300' : 'border-[#E5E9F2]'}`}
-                    />
-                    <FieldError message={stepErrors.legalName || fieldErrors.legalName} />
+                    <span className="block text-sm font-semibold text-[#0B1E3F] mb-3">
+                      What kind of account is this?
+                    </span>
+                    <div role="radiogroup" aria-label="Account kind" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {KIND_OPTIONS.map(({ value, label, description, icon: Icon }) => {
+                        const active = accountKind === value;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            onClick={() => selectKind(value)}
+                            className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
+                              active
+                                ? "border-[#2A5CE6] bg-[#2A5CE6]/5"
+                                : "border-[#E5E9F2] hover:border-[#2A5CE6]/40"
+                            }`}
+                          >
+                            <Icon
+                              size={18}
+                              strokeWidth={2}
+                              className={active ? "text-[#2A5CE6] mt-0.5" : "text-[#7C8CA6] mt-0.5"}
+                            />
+                            <span>
+                              <span className={`block text-sm md:text-base font-medium ${active ? "text-[#0B1E3F]" : "text-[#4A5A78]"}`}>
+                                {label}
+                              </span>
+                              <span className="block text-xs text-[#7C8CA6]">{description}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <FieldError message={stepErrors.accountKind} />
                   </div>
 
-                  <div className="anim-form-field" style={{ marginBottom: "25px" }}>
-                    <label htmlFor="ownerName" className="block text-sm font-semibold text-[#0B1E3F] mb-2">Your full name <span className="font-normal text-[#7C8CA6]">(optional)</span></label>
-                    <input
-                      id="ownerName"
-                      type="text"
-                      autoComplete="name"
-                      placeholder="Jane Doe"
-                      value={ownerName}
-                      onChange={(e) => setOwnerName(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] transition-all focus:border-[#2A5CE6] text-[#0B1E3F] placeholder:text-[#7C8CA6]/60 text-sm md:text-base"
-                    />
-                  </div>
+                  {accountKind === "BUSINESS" ? (
+                    <>
+                      <div className="anim-form-field">
+                        <label htmlFor="legalName" className="block text-sm font-semibold text-[#0B1E3F] mb-2">Organization / business name</label>
+                        <input
+                          id="legalName"
+                          type="text"
+                          placeholder="Acme Inc."
+                          value={legalName}
+                          onChange={(e) => { setLegalName(e.target.value); if (stepErrors.legalName) setStepErrors((s) => ({ ...s, legalName: "" })); }}
+                          required
+                          className={`w-full px-4 py-3 rounded-xl border transition-all text-[#0B1E3F] placeholder:text-[#7C8CA6]/60 text-sm md:text-base focus:border-[#2A5CE6] ${stepErrors.legalName || fieldErrors.legalName ? 'border-red-300' : 'border-[#E5E9F2]'}`}
+                        />
+                        <FieldError message={stepErrors.legalName || fieldErrors.legalName} />
+                      </div>
+
+                      <div className="anim-form-field">
+                        <label htmlFor="ownerName" className="block text-sm font-semibold text-[#0B1E3F] mb-2">Your full name <span className="font-normal text-[#7C8CA6]">(optional)</span></label>
+                        <input
+                          id="ownerName"
+                          type="text"
+                          autoComplete="name"
+                          placeholder="Jane Doe"
+                          value={ownerName}
+                          onChange={(e) => setOwnerName(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] transition-all focus:border-[#2A5CE6] text-[#0B1E3F] placeholder:text-[#7C8CA6]/60 text-sm md:text-base"
+                        />
+                      </div>
+                    </>
+                  ) : accountKind === "INDIVIDUAL" ? (
+                    <div className="anim-form-field">
+                      <label htmlFor="ownerName" className="block text-sm font-semibold text-[#0B1E3F] mb-2">Your full name</label>
+                      <input
+                        id="ownerName"
+                        type="text"
+                        autoComplete="name"
+                        placeholder="Jane Doe"
+                        value={ownerName}
+                        onChange={(e) => { setOwnerName(e.target.value); if (stepErrors.ownerName) setStepErrors((s) => ({ ...s, ownerName: "" })); }}
+                        required
+                        className={`w-full px-4 py-3 rounded-xl border transition-all text-[#0B1E3F] placeholder:text-[#7C8CA6]/60 text-sm md:text-base focus:border-[#2A5CE6] ${stepErrors.ownerName || fieldErrors.ownerName ? 'border-red-300' : 'border-[#E5E9F2]'}`}
+                      />
+                      <FieldError message={stepErrors.ownerName || fieldErrors.ownerName} />
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-xs text-[#7C8CA6]">
+                      Choose an account type to continue.
+                    </p>
+                  )}
+
+                  {accountKind && (
+                    <div className="anim-form-field" style={{ marginBottom: "25px" }}>
+                      <CountrySelect
+                        value={country}
+                        onChange={(value) => {
+                          setCountry(value);
+                          if (stepErrors.country) setStepErrors((s) => ({ ...s, country: "" }));
+                        }}
+                        error={stepErrors.country || fieldErrors.country}
+                        required
+                      />
+                    </div>
+                  )}
                 </>
               )}
 
               {currentStep === 2 && (
                 <>
                   <div className="anim-form-field " style={{marginBottom:"25px"}}>
-                    <label htmlFor="email" className="block text-sm font-semibold text-[#0B1E3F] mb-3">Work email</label>
+                    <label htmlFor="email" className="block text-sm font-semibold text-[#0B1E3F] mb-3">
+                      {accountKind === "BUSINESS" ? "Work email" : "Email"}
+                    </label>
                     <input
                       id="email"
                       type="email"
                       autoComplete="email"
-                      placeholder="you@company.com"
+                      placeholder={accountKind === "BUSINESS" ? "you@company.com" : "you@example.com"}
                       value={email}
                       onChange={(e) => { setEmail(e.target.value); if (stepErrors.email) setStepErrors((s) => ({ ...s, email: "" })); }}
                       required
@@ -328,33 +489,6 @@ export default function RegisterForm() {
               )}
 
               {currentStep === 3 && (
-                <>
-                  <div className="anim-form-field">
-                    <CountrySelect
-                      value={country}
-                      onChange={(value) => {
-                        setCountry(value);
-                        if (stepErrors.country) setStepErrors((s) => ({ ...s, country: "" }));
-                      }}
-                      error={stepErrors.country || fieldErrors.country}
-                      required
-                    />
-                  </div>
-
-                  <div className="anim-form-field" style={{ marginBottom: "25px" }}>
-                    <AccountTypeSelect
-                      value={accountType}
-                      onChange={(value) => {
-                        setAccountType(value);
-                        if (stepErrors.accountType) setStepErrors((s) => ({ ...s, accountType: "" }));
-                      }}
-                      error={stepErrors.accountType || fieldErrors.accountType}
-                    />
-                  </div>
-                </>
-              )}
-
-              {currentStep === 4 && (
                 <>
                   <div className="anim-form-field">
                     <label htmlFor="password" className="block text-sm font-semibold text-[#0B1E3F] mb-2">Password <span className="font-normal text-[#7C8CA6]">(10 characters minimum)</span></label>
@@ -408,7 +542,7 @@ export default function RegisterForm() {
                 </button>
               )}
 
-              {currentStep < STEPS.length ? (
+              {currentStep < steps.length ? (
                 <button
                   type="submit"
                   disabled={submitting}

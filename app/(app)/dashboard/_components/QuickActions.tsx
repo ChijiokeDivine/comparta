@@ -3,12 +3,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Wallet as WalletIcon,
   FileText as InvoicesIcon,
   Link2 as PaymentLinksIcon,
   Contact as ContactsIcon,
   ArrowDownLeft as DepositIcon,
+  Plus as CreateWalletIcon,
 } from "lucide-react";
 import DepositModal from "./DepositModal";
 
@@ -16,12 +18,11 @@ interface QuickAction {
   href?: string;
   label: string;
   icon: typeof WalletIcon;
-  action?: "deposit";
+  action?: "deposit" | "create-wallet";
   hideOnMobile?: boolean;
 }
 
-const ACTIONS: QuickAction[] = [
-  { label: "New deposit", icon: DepositIcon, action: "deposit" },
+const BASE_ACTIONS: QuickAction[] = [
   { href: "/wallet/transfer", label: "New transfer", icon: WalletIcon },
   { href: "/invoices/new", label: "New invoice", icon: InvoicesIcon, hideOnMobile: true },
   { href: "/payment-links/new", label: "New payment link", icon: PaymentLinksIcon },
@@ -34,13 +35,45 @@ interface QuickActionsProps {
 }
 
 export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
+  const router = useRouter();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [depositOpen, setDepositOpen] = useState(false);
+  const [creatingWallet, setCreatingWallet] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  // The first action is "New deposit" once a wallet exists, and
+  // "Create wallet" before that. Everything else stays the same.
+  const actions: QuickAction[] = wallet
+    ? [{ label: "New deposit", icon: DepositIcon, action: "deposit" }, ...BASE_ACTIONS]
+    : [
+        { label: creatingWallet ? "Creating wallet…" : "Create wallet", icon: CreateWalletIcon, action: "create-wallet" },
+        ...BASE_ACTIONS,
+      ];
+
+  async function handleCreateWallet() {
+    if (creatingWallet) return;
+    setCreateError(null);
+    setCreatingWallet(true);
+    try {
+      const res = await fetch("/api/wallet", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCreateError(data.error ?? "Could not create wallet");
+        return;
+      }
+      // Re-render the server component with the new wallet prop.
+      router.refresh();
+    } catch {
+      setCreateError("Could not create wallet");
+    } finally {
+      setCreatingWallet(false);
+    }
+  }
 
   return (
     <>
       <div className="flex flex-nowrap md:flex-wrap gap-3 overflow-x-auto md:overflow-visible snap-x snap-mandatory pb-1 md:pb-0 mx-2 md:mx-0 px-4 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none]">
-        {ACTIONS.map((action, idx) => {
+        {actions.map((action, idx) => {
           const Icon = action.icon;
           const isActive = idx === 0 && hoveredIdx === null;
           const isHighlighted = hoveredIdx === idx || isActive;
@@ -48,7 +81,9 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
           const onClick =
             action.action === "deposit"
               ? () => setDepositOpen(true)
-              : undefined;
+              : action.action === "create-wallet"
+                ? handleCreateWallet
+                : undefined;
 
           const inner = (
             <>
@@ -77,7 +112,7 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
             return (
               <div
                 key={action.label}
-                title="Available once your organization's KYB is approved"
+                title="Temporarily unavailable"
                 aria-disabled="true"
                 className={`flex flex-row items-center justify-start gap-3 rounded-2xl border border-[#E5E9F2] bg-white px-4 py-3 text-left opacity-50 cursor-not-allowed w-fit shrink-0 snap-start ${
                   action.hideOnMobile ? "hidden md:flex" : ""
@@ -93,7 +128,7 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
             );
           }
 
-          if (action.action === "deposit") {
+          if (action.action) {
             return (
               <button
                 key={action.label}
@@ -102,8 +137,12 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
                 onMouseEnter={() => setHoveredIdx(idx)}
                 onMouseLeave={() => setHoveredIdx(null)}
                 className={baseClass}
-                disabled={!wallet}
-                title={!wallet ? "No wallet provisioned yet" : undefined}
+                disabled={action.action === "create-wallet" ? creatingWallet : !wallet}
+                title={
+                  action.action === "deposit" && !wallet
+                    ? "Create a wallet first"
+                    : undefined
+                }
               >
                 {inner}
               </button>
@@ -123,6 +162,10 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
           );
         })}
       </div>
+
+      {createError && (
+        <p className="mt-2 px-4 text-xs text-red-600">{createError}</p>
+      )}
 
       <DepositModal
         open={depositOpen}

@@ -2,8 +2,9 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
-import { prisma } from "@/lib/db/prisma";
-import { KybBanner } from "../../_components/Kyb";
+import { getBalance } from "@/lib/ledger/engine";
+import { toDecimalString } from "@/lib/circle/amount";
+import { getBucket } from "@/lib/buckets/service";
 import SavingsBucketOverview from "./SavingsBucketOverview";
 import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Savings bucket" };
@@ -17,21 +18,20 @@ export default async function SavingsBucketPage({
   const session = await getServerSession(authOptions);
   if (!session?.user?.orgId) redirect("/login");
 
-  const org = await prisma.organization.findUnique({
-    where: { id: session.user.orgId },
-    select: { kybStatus: true },
-  });
-  if (!org) redirect("/login");
+  // getBucket scopes by org, so another org's bucket id 404s here rather
+  // than leaking its balance.
+  const bucket = await getBucket(session.user.orgId, ledgerAccountId).catch(
+    () => null
+  );
+  if (!bucket) redirect("/savings");
 
-  const canManage = session.user.role === "OWNER" || session.user.role === "ADMIN";
+  const balance = await getBalance(bucket.id);
 
   return (
     <div className="max-w-2xl space-y-6">
-      <KybBanner status={org.kybStatus} />
       <SavingsBucketOverview
-        ledgerAccountId={ledgerAccountId}
-        canManage={canManage}
-        kybApproved={org.kybStatus === "APPROVED"}
+        name={bucket.name}
+        balance={toDecimalString(balance)}
       />
     </div>
   );

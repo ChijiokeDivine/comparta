@@ -90,7 +90,7 @@ export async function assertBucketsBelongToOrg(orgId: string, ledgerAccountIds: 
   }
 }
 
-async function resolveOrgWalletId(orgId: string, explicitWalletId?: string): Promise<string> {
+async function resolveOrgWalletId(orgId: string, explicitWalletId?: string): Promise<string | null> {
   if (explicitWalletId) {
     const wallet = await prisma.wallet.findFirst({ where: { id: explicitWalletId, orgId } });
     if (!wallet) throw new BucketValidationError("That wallet does not belong to this organization.");
@@ -98,9 +98,10 @@ async function resolveOrgWalletId(orgId: string, explicitWalletId?: string): Pro
   }
 
   const wallets = await prisma.wallet.findMany({ where: { orgId }, select: { id: true } });
-  if (wallets.length === 0) {
-    throw new BucketValidationError("This organization has no wallet yet - a bucket needs one to attach to.");
-  }
+  // Buckets can exist before a wallet (walletId is nullable) - a user can
+  // set up their bucket layout at signup and attach it when they create a
+  // wallet later.
+  if (wallets.length === 0) return null;
   if (wallets.length > 1) {
     throw new BucketValidationError(
       "This organization has more than one wallet - pass walletId explicitly to choose which one this bucket attaches to."
@@ -132,8 +133,9 @@ export async function createBucket(input: CreateBucketInput): Promise<LedgerAcco
         walletId,
         name,
         type: input.type ?? "CUSTOM",
-        isYieldEnabled: true,
-        yieldAllocationPct: 10000,
+        // Yield/USYC is dormant - never enabled on a newly created bucket.
+        isYieldEnabled: false,
+        yieldAllocationPct: null,
       },
     });
   } catch (err) {
@@ -211,7 +213,8 @@ export interface SparklinePoint {
 export interface BucketSummary {
   id: string;
   orgId: string;
-  walletId: string;
+  /** Null until the org creates a wallet (buckets exist from signup). */
+  walletId: string | null;
   name: string;
   type: LedgerAccountType;
   archived: boolean;

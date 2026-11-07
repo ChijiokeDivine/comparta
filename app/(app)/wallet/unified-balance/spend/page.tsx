@@ -12,7 +12,6 @@ import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { toDecimalString } from "@/lib/circle/amount";
 import { getBalance } from "@/lib/ledger/engine";
-import { KybBanner } from "../../../_components/Kyb";
 import UnifiedSpendForm from "./UnifiedSpendForm";
 import type { Metadata } from "next";
 
@@ -40,12 +39,11 @@ export default async function UnifiedBalanceSpendPage() {
 
   return (
     <div className="max-w-lg space-y-6">
-      <KybBanner status={org.kybStatus} />
       <div>
         <h1 className="text-xl font-semibold text-[#0B1E3F]">Spend Unified Balance</h1>
      
       </div>
-      <UnifiedSpendForm buckets={buckets} disabled={org.kybStatus !== "APPROVED"} />
+      <UnifiedSpendForm buckets={buckets} disabled={false} />
     </div>
   );
 }

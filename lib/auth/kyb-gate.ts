@@ -1,18 +1,16 @@
 // lib/auth/kyb-gate.ts
 //
-// Server-side guard used by every API route that touches money (wallet
-// creation, sending funds, payroll, savings sweeps, DCA). Blocks access
-// unless Organization.kybStatus === 'APPROVED'.
+// Server-side auth guard used by API routes. Historically this module also
+// blocked financial operations unless Organization.kybStatus === 'APPROVED'.
 //
-// Deliberately re-reads kybStatus from Postgres rather than trusting the
-// JWT session claim: an admin can flip an org from PENDING to APPROVED (or
-// vice versa, e.g. on a compliance hold) after a user's session was
-// issued, and financial gating can't lag behind that by a session's
-// lifetime.
+// KYB is currently NOT enforced anywhere: every authenticated member can
+// use every feature regardless of verification status. The
+// `requireApprovedOrg` name is kept so existing routes don't need to change;
+// it now behaves exactly like requireAuth. When real KYB-gated features are
+// introduced later, this is the single place to re-enable the check.
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "./auth";
-import { prisma } from "@/lib/db/prisma";
 
 export class UnauthenticatedError extends Error {
   constructor() {
@@ -34,7 +32,7 @@ export interface AuthedContext {
   role: string;
 }
 
-/** Throws UnauthenticatedError if there's no session. Use for any authed (non-financial) route. */
+/** Throws UnauthenticatedError if there's no session. Use for any authed route. */
 export async function requireAuth(): Promise<AuthedContext> {
   const session = await getServerSession(authOptions);
 
@@ -46,26 +44,11 @@ export async function requireAuth(): Promise<AuthedContext> {
 }
 
 /**
- * Throws UnauthenticatedError or KybNotApprovedError if the gate fails.
- * Call this at the top of every financial API route handler:
- *
- *   const ctx = await requireApprovedOrg();
- *   // ... proceed, ctx.orgId is guaranteed KYB-approved
+ * Temporarily identical to requireAuth: KYB verification is not required
+ * for any feature right now. Kept as a separate function so the historical
+ * call sites remain meaningful and so the gate can be reinstated in one
+ * place.
  */
 export async function requireApprovedOrg(): Promise<AuthedContext> {
-  const ctx = await requireAuth();
-
-  const org = await prisma.organization.findUnique({
-    where: { id: ctx.orgId },
-    select: { kybStatus: true },
-  });
-
-  if (!org) {
-    throw new UnauthenticatedError();
-  }
-  if (org.kybStatus !== "APPROVED") {
-    throw new KybNotApprovedError(org.kybStatus);
-  }
-
-  return ctx;
+  return requireAuth();
 }

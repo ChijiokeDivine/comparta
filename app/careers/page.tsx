@@ -89,7 +89,7 @@ const OPEN_ROLES = [
     location: "Remote · Worldwide",
     type: "Full-time",
     summary:
-      "Deep work on settlement, reconciliation, yield, and the append-only systems that keep every dollar accounted for.",
+      "Deep work on settlement, reconciliation, and the append-only systems that keep every dollar accounted for.",
   },
   {
     id: "product-designer",

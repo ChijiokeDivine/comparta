@@ -2,9 +2,8 @@
 //
 // Single read-model composer for the authenticated dashboard (Tier 0 of
 // the frontend build). Reuses existing, already-battle-tested helpers
-// rather than re-deriving balances or yield math:
+// rather than re-deriving balances:
 //   - lib/buckets/service.ts#listBucketsWithBalances for per-bucket balances
-//   - lib/savings/yieldRate.ts + lib/savings/yield.ts for NAV-implied yield
 // and adds the handful of dashboard-only aggregations (30d inflow/outflow,
 // pending approvals, recent activity) directly against Prisma, scoped by
 // orgId exactly the way lib/insights/dashboard/queries.ts does for its own
@@ -16,28 +15,15 @@
 import { prisma } from "@/lib/db/prisma";
 import { toDecimalString, toSmallestUnit } from "@/lib/circle/amount";
 import { listBucketsWithBalances, type BucketSummary } from "@/lib/buckets/service";
-import { usycToUsdc } from "@/lib/savings/yield";
-import { getCachedUsycNav } from "@/lib/savings/yieldRate";
-import {
-  valueUsdcInPreferredCurrency,
-  type FiatValuationResult,
-} from "@/lib/fx/valuation";
+import { valueUsdcInPreferredCurrency } from "@/lib/fx/valuation";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export interface DashboardKpis {
   liquidBalance: string; // decimal string - sum of non-archived bucket balances
-  deployedBalance: string; // decimal string - NAV-implied value of ACTIVE yield positions
-  totalBalance: string; // liquidBalance + deployedBalance
+  totalBalance: string; // same as liquidBalance (savings/yield is dormant)
   inflow30d: string;
   outflow30d: string;
-  netYieldAccrued: string; // deployedBalance - cost basis, across ACTIVE positions
-  /** True if there are ACTIVE yield positions but the live NAV couldn't be
-   * fetched (e.g. Circle's USYC endpoint erroring) - deployedBalance and
-   * netYieldAccrued above fall back to cost basis (no markup) in that
-   * case, so the UI should hint the figure may be stale rather than
-   * presenting it as precise. */
-  yieldDataStale: boolean;
   pendingPayrollApprovals: number;
   overdueInvoices: number;
 }
@@ -103,7 +89,6 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
 
   const [
     buckets,
-    activePositions,
     inflowAgg,
     outflowAgg,
     pendingPayrollApprovals,
@@ -116,10 +101,6 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
     activeRecurringTransfers,
   ] = await Promise.all([
     listBucketsWithBalances(orgId, { includeSparkline: false }),
-    prisma.yieldPosition.findMany({
-      where: { status: "ACTIVE", ledgerAccount: { orgId } },
-      select: { usycAmount: true, usdcEquivalentAtDeploy: true },
-    }),
     prisma.onchainTransaction.aggregate({
       where: { wallet: { orgId }, direction: "IN", status: "CONFIRMED", createdAt: { gte: thirtyDaysAgo } },
       _sum: { amount: true },
@@ -209,43 +190,11 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
   // than Number()/parseFloat() so we never lose precision on cents.
   const liquidBalance = buckets.reduce((sum, b) => sum + toSmallestUnit(b.balance), 0n);
 
-  let deployedBalance = 0n;
-  let costBasis = 0n;
-  let yieldDataStale = false;
-
-  if (activePositions.length > 0) {
-    // Only hit Circle's USYC NAV endpoint when there's actually something
-    // to value - and never let that call take the whole dashboard down
-    // with it. A transient/misconfigured NAV endpoint (e.g. sandbox
-    // returning 404) should degrade to "show cost basis, flag it as
-    // stale" rather than an uncaught error crashing every other card on
-    // the page.
-    try {
-      const nav = await getCachedUsycNav();
-      for (const p of activePositions) {
-        deployedBalance += usycToUsdc(p.usycAmount, nav.navPerShare);
-        costBasis += p.usdcEquivalentAtDeploy;
-      }
-    } catch (err) {
-      console.error("[dashboard] failed to fetch USYC NAV, falling back to cost basis", err);
-      for (const p of activePositions) {
-        deployedBalance += p.usdcEquivalentAtDeploy;
-        costBasis += p.usdcEquivalentAtDeploy;
-      }
-      yieldDataStale = true;
-    }
-  }
-
-  const netYieldAccrued = deployedBalance - costBasis;
-
   const kpis: DashboardKpis = {
     liquidBalance: toDecimalString(liquidBalance),
-    deployedBalance: toDecimalString(deployedBalance),
-    totalBalance: toDecimalString(liquidBalance + deployedBalance),
+    totalBalance: toDecimalString(liquidBalance),
     inflow30d: toDecimalString(inflowAgg._sum.amount ?? 0n),
     outflow30d: toDecimalString(outflowAgg._sum.amount ?? 0n),
-    netYieldAccrued: toDecimalString(netYieldAccrued < 0n ? 0n : netYieldAccrued),
-    yieldDataStale,
     pendingPayrollApprovals,
     overdueInvoices,
   };
@@ -319,7 +268,7 @@ export async function getDashboardSummary(orgId: string): Promise<DashboardSumma
     .sort((a, b) => (a.nextAt < b.nextAt ? -1 : 1))
     .slice(0, 8);
 
-  const totalMicroUsdc = liquidBalance + deployedBalance;
+  const totalMicroUsdc = liquidBalance;
   const fiatVal = await valueUsdcInPreferredCurrency({
     orgId,
     usdcMicroAmount: totalMicroUsdc,

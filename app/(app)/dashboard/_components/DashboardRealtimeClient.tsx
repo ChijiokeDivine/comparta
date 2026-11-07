@@ -21,9 +21,7 @@ import BucketCards from "./BucketCards";
 import ActivityFeed from "./ActivityFeed";
 import MaskedTotalBalance from "./MaskedTotalBalance";
 import QuickActions from "./QuickActions";
-import { KybBanner } from "../../_components/Kyb";
 import Link from "next/link";
-import type { KybStatus } from "@/app/generated/prisma/client";
 import { useHideBalances, maskBalance } from "../../_components/HideBalancesProvider";
 import UpcomingCard from "./UpcomingCard";
 
@@ -32,7 +30,6 @@ type Wallet = { arcAddress: string; chain: string | null } | null;
 
 type Props = {
   initialSummary: DashboardSummary;
-  kybStatus: KybStatus;
   financialActionsDisabled: boolean;
   wallet: Wallet;
 };
@@ -104,7 +101,6 @@ function UsdcHeroSubLine({ usdc, fiat }: { usdc: string; fiat: DashboardFiat }) 
 
 export default function DashboardRealtimeClient({
   initialSummary,
-  kybStatus,
   financialActionsDisabled,
   wallet,
 }: Props) {
@@ -195,7 +191,6 @@ export default function DashboardRealtimeClient({
 
   return (
     <div className="space-y-6">
-      <KybBanner status={kybStatus} />
 
       <div className="md:mt-5 relative">
         <p className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-2">Total balance</p>

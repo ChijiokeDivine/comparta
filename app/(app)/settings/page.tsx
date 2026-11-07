@@ -216,20 +216,18 @@ export default function OrganizationSettingsPage() {
         ) : (
           <>
             <p className="text-xs text-[#7C8CA6]">
-              Claim a @username so people can send you money without knowing your wallet address.{" "}
-              {org.kybStatus !== "APPROVED" && "Requires an approved KYB."}
+              Claim a @username so people can send you money without knowing your wallet address.
             </p>
             <div className="flex gap-2">
               <input
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
-                disabled={org.kybStatus !== "APPROVED"}
                 placeholder="yourbusiness"
                 className="flex-1 px-4 py-2.5 rounded-xl border border-[#E5E9F2] text-sm text-[#0B1E3F] focus:border-[#2A5CE6] disabled:opacity-50"
               />
               <button
                 type="submit"
-                disabled={claiming || org.kybStatus !== "APPROVED" || !usernameInput.trim()}
+                disabled={claiming || !usernameInput.trim()}
                 className="btn-3d btn-3d--sm btn-3d--neutral shrink-0"
               >
                 {claiming ? "Claiming…" : "Claim"}

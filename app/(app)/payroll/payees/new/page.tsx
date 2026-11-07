@@ -4,7 +4,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { KybBanner } from "../../../_components/Kyb";
 
 const PAY_TYPES = ["SALARY", "HOURLY", "CONTRACT"] as const;
 
@@ -12,7 +11,7 @@ export default function NewPayeePage() {
   const router = useRouter();
   const { data: session } = useSession();
   const kybStatus = session?.user?.kybStatus ?? "PENDING";
-  const disabled = kybStatus !== "APPROVED";
+  const disabled = false;
 
   const [name, setName] = useState("");
   const [identifier, setIdentifier] = useState("");
@@ -58,7 +57,6 @@ export default function NewPayeePage() {
 
   return (
     <div className="max-w-lg space-y-6">
-      <KybBanner status={kybStatus} />
       <h1 className="text-xl font-semibold text-[#0B1E3F]">New payee</h1>
 
       <form onSubmit={handleSubmit} className="space-y-5">

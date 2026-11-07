@@ -5,7 +5,6 @@ import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { toDecimalString } from "@/lib/circle/amount";
 import { getBalance } from "@/lib/ledger/engine";
-import { KybBanner } from "../../_components/Kyb";
 import TransferForm from "./TransferForm";
 import type { Metadata } from "next";
 
@@ -39,11 +38,10 @@ export default async function NewTransferPage({
 
   return (
     <div className="max-w-lg space-y-6">
-      <KybBanner status={org.kybStatus} />
       <h1 className="text-xl font-semibold text-[#0B1E3F]">New transfer</h1>
       <TransferForm
         buckets={buckets}
-        disabled={org.kybStatus !== "APPROVED"}
+        disabled={false}
         initialTo={prefillTo}
       />
     </div>

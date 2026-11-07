@@ -285,8 +285,8 @@ export default function Home() {
       key: "savings",
       variant: "hero-card--savings",
       lordIconSrc: "https://cdn.lordicon.com/tzovitfd.json",
-      text: "Put idle cash to work with savings that earn yield quietly in the background.",
-      littleText: "Savings that earn yield"
+      text: "Put idle cash to work with savings buckets that keep every goal separate and ready.",
+      littleText: "Savings with purpose"
     }
   ];
 
@@ -301,7 +301,7 @@ export default function Home() {
       { question: "Can I get paid from anywhere in the world?", answer: "Yes. Clients can pay you from a wallet on nearly any major network, or with a card or bank transfer if they don't use crypto at all - it all lands as one unified USDC balance in your account, regardless of where it came from." },
       { question: "How do multiple balances work?", answer: "You can split your incoming revenue into separate buckets - Operating, Tax, Payroll, Savings, or custom ones you name yourself - without opening multiple accounts. Set rules to auto-allocate a percentage of every payment, or move funds between buckets manually." },
       { question: "Can I run payroll for my team through Comparta?", answer: "Yes. Add your team as payees, set a pay schedule, and approve each run with one click. Every payment is tracked individually, so you always know who's been paid and when." },
-      { question: "What happens to money I'm not using right away?", answer: "Idle cash in a savings bucket can automatically earn yield in the background, instead of sitting flat. You can redeem back to spendable USDC at any time." },
+      { question: "What happens to money I'm not using right away?", answer: "Move it into a savings bucket and keep it separate from day-to-day spending. Your balance stays available to transfer or spend whenever you need it, and you can set rules to move a share of every payment into savings automatically." },
       { question: "Do I need a business to sign up, or can individuals use Comparta too?", answer: "Both. Freelancers and individuals can send, receive, and save. Registered businesses get additional tools like payroll, team permissions, and multi-user access after a quick verification step." },
       { question: "What's the verification process like?", answer: "For individuals, it's a simple identity check. For businesses, we verify your registration details before enabling money-movement features - this typically takes a few business days and is a one-time step." },
       { question: "What does it cost to use Comparta?", answer: "There's no cost to create an account, send invoices, or generate payment links. Fees apply only where value is created - for card/bank payment processing and select premium features - and are always shown upfront before you confirm." },
@@ -819,10 +819,10 @@ export default function Home() {
                   Digital Businesses
                 </h3>
                 <p className="text-gray-400 text-sm leading-relaxed sm:hidden">
-                  Get paid instantly. Earn while it sits.
+                  Get paid instantly. Keep it organized.
                 </p>
                 <p className="text-gray-400 text-sm sm:text-base leading-relaxed hidden sm:block">
-                  Share a payment link. Watch it settle instantly, then quietly earn yield.
+                  Share a payment link. Watch it settle instantly, then split it straight into the buckets you planned for.
                 </p>
               </div>
             </div>

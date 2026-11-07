@@ -13,9 +13,9 @@ const PILL_STYLES: Record<KybStatus, string> = {
 };
 
 const PILL_LABEL: Record<KybStatus, string> = {
-  PENDING: "KYB pending",
-  APPROVED: "KYB approved",
-  REJECTED: "KYB rejected",
+  PENDING: "Not verified",
+  APPROVED: "Verified",
+  REJECTED: "Verification rejected",
 };
 
 export function KybPill({ status }: { status: KybStatus }) {
@@ -30,29 +30,11 @@ export function KybPill({ status }: { status: KybStatus }) {
 }
 
 /**
- * Sticky banner for financial pages. Per the KYB gate spec: PENDING and
- * REJECTED both disable financial CTAs elsewhere on the page — this banner
- * is the visible half of that gate. Not shown at all when APPROVED.
+ * Historically a sticky banner for financial pages that disabled CTAs.
+ * KYB is not enforced anywhere right now, so this intentionally renders
+ * nothing. Kept as a no-op so older imports keep compiling.
  */
 export function KybBanner({ status }: { status: KybStatus }) {
-  if (status === "APPROVED") return null;
-
-  const isPending = status === "PENDING";
-
-  return (
-    <div
-      className={`rounded-2xl border px-4 py-3 text-sm flex items-center gap-3 ${
-        isPending
-          ? "bg-amber-50 border-amber-200 text-amber-800"
-          : "bg-red-50 border-red-200 text-red-800"
-      }`}
-    >
-      <span className="w-2 h-2 rounded-full bg-current shrink-0" />
-      {isPending ? (
-        <span>We&apos;re reviewing your organization. Most actions are disabled until approved.</span>
-      ) : (
-        <span>Your KYB was rejected. Contact support.</span>
-      )}
-    </div>
-  );
+  void status;
+  return null;
 }

@@ -8,10 +8,10 @@ import { getBalance } from "@/lib/ledger/engine";
 import { getUsdcBalance, getUnifiedUsdcBalance } from "@/lib/circle/wallets";
 import { getNetworkProfile, resolveAppNetwork } from "@/lib/config/network";
 import { toDecimalString } from "@/lib/circle/amount";
-import { KybBanner } from "../_components/Kyb";
 import { formatMoney } from "@/app/invoices/_components/format";
 import { StatusPill } from "@/app/components/StatusPill";
 import CopyAddressButton from "./_components/CopyAddressButton";
+import CreateWalletButton from "./_components/CreateWalletButton";
 import InfoTooltip from "@/app/components/InfoTooltip";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -44,48 +44,42 @@ export default async function WalletPage() {
     }))
   );
   const ledgerTotal = bucketBalances.reduce((sum, b) => sum + Number(b.balance), 0);
-  const isApproved = org.kybStatus === "APPROVED";
 
-  // Live onchain + Unified Balance require an approved org (same gate as
-  // app/api/wallet/balance and app/api/wallet/unified-balance).
+  // Live onchain + Unified Balance require a wallet. KYB is not required.
   //
   // Failures are logged, not silently swallowed: rendering "—" is fine, but a
   // production Circle key that cannot see the wallet (e.g. a stale sandbox
   // wallet row after the mainnet cutover) must be diagnosable from the logs.
-  const onchainUsdc =
-    isApproved && wallet
-      ? await getUsdcBalance(wallet.circleWalletId).catch((err) => {
-          console.error("[wallet/page] onchain USDC read failed", {
-            circleWalletId: wallet.circleWalletId,
-            chain: wallet.chain,
-            error: err instanceof Error ? err.message : err,
-          });
-          return null;
-        })
-      : null;
+  const onchainUsdc = wallet
+    ? await getUsdcBalance(wallet.circleWalletId).catch((err) => {
+        console.error("[wallet/page] onchain USDC read failed", {
+          circleWalletId: wallet.circleWalletId,
+          chain: wallet.chain,
+          error: err instanceof Error ? err.message : err,
+        });
+        return null;
+      })
+    : null;
 
-  const unifiedBalance =
-    isApproved && wallet
-      ? await getUnifiedUsdcBalance(wallet.arcAddress).catch((err) => {
-          console.error("[wallet/page] unified balance read failed", {
-            address: wallet.arcAddress,
-            error: err instanceof Error ? err.message : err,
-          });
-          return null;
-        })
-      : null;
+  const unifiedBalance = wallet
+    ? await getUnifiedUsdcBalance(wallet.arcAddress).catch((err) => {
+        console.error("[wallet/page] unified balance read failed", {
+          address: wallet.arcAddress,
+          error: err instanceof Error ? err.message : err,
+        });
+        return null;
+      })
+    : null;
 
   const ubConfirmed = unifiedBalance ? toDecimalString(unifiedBalance.totalConfirmed) : null;
   const ubPending = unifiedBalance ? toDecimalString(unifiedBalance.totalPending) : null;
 
   return (
     <div className="space-y-6">
-      <KybBanner status={org.kybStatus} />
-
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-xl font-semibold text-[#0B1E3F]">Wallet</h1>
         <div className="flex items-center gap-2">
-          {isApproved ? (
+          {wallet ? (
             <>
               <Link
                 href="/wallet/unified-balance/deposit"
@@ -99,22 +93,7 @@ export default async function WalletPage() {
               </Link>
             </>
           ) : (
-            <>
-              <span
-                title="Available once your organization's KYB is approved"
-                className="btn-3d btn-3d--sm opacity-50 cursor-not-allowed"
-                style={secondaryBtnStyle}
-              >
-                Fund Unified Balance
-              </span>
-              <span
-                title="Available once your organization's KYB is approved"
-                className="btn-3d btn-3d--sm opacity-50 cursor-not-allowed"
-                style={sendBtnStyle}
-              >
-                Send
-              </span>
-            </>
+            <CreateWalletButton />
           )}
         </div>
       </div>
@@ -164,9 +143,6 @@ export default async function WalletPage() {
                 />
                 {onchainUsdc !== null ? formatMoney(onchainUsdc) : "—"}
               </p>
-              {!isApproved && (
-                <p className="md:text-sm text-xs text-[#7C8CA6] mt-2">Visible once KYB is approved</p>
-              )}
             </div>
             <div className="col-span-2 md:col-span-1">
               <div className="md:text-sm text-xs font-medium text-[#7C8CA6] mb-2 inline-flex items-center gap-1.5">
@@ -199,7 +175,9 @@ export default async function WalletPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6]">
-          No wallet has been provisioned for this organization yet.
+          <p>No wallet has been provisioned for this organization yet.</p>
+          <p className="mt-1">Create one to start sending and receiving USDC.</p>
+          <CreateWalletButton className="mt-4" />
         </div>
       )}
 

@@ -44,7 +44,6 @@ export default function InvoiceDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { data: session } = useSession();
-  const kybApproved = session?.user?.kybStatus === "APPROVED";
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,7 +115,7 @@ export default function InvoiceDetailPage() {
   if (loading) return <div className="text-sm text-[#7C8CA6]">Loading…</div>;
   if (notFound || !invoice) return <div className="text-sm text-[#7C8CA6]">Invoice not found.</div>;
 
-  const canSend = invoice.status === "DRAFT" && kybApproved;
+  const canSend = invoice.status === "DRAFT";
   const canVoid = invoice.status !== "PAID" && invoice.status !== "VOID";
   const recipientIdentifier = isValidAddress(invoice.recipientIdentifier)
     ? `${invoice.recipientIdentifier.slice(0, 5)}...${invoice.recipientIdentifier.slice(-4)}`
@@ -208,11 +207,6 @@ export default function InvoiceDetailPage() {
               >
                 {sending ? "Sending…" : "Send invoice"}
               </button>
-            )}
-            {invoice.status === "DRAFT" && !kybApproved && (
-              <span className="text-xs text-[#7C8CA6] self-center">
-                Sending requires an approved KYB.
-              </span>
             )}
             {canVoid && !confirmVoid && (
               <button onClick={() => setConfirmVoid(true)} className="btn-3d btn-3d--sm btn-3d--neutral">

@@ -1,41 +1,32 @@
 // app/api/onboarding/route.ts
 //
 // Finalizes signup for OAuth (Google) users who arrived via /onboarding.
-// A Google sign-up only gets us email + name — we need org legal name,
-// country, and account type before we can approve the org. This endpoint:
+// A Google sign-up only gets us email + name — we need a display/legal
+// name, country, and account type before we can finish setting up the
+// account. This endpoint:
 //
 //   1. Validates the signed-in user still requires onboarding.
 //   2. Updates organization.legalName, .country, and .accountType with
 //      the submitted values.
-//   3. In demo mode (DEMO_KYB_APPROVED, i.e. non-production), provisions
-//      the org's Circle Developer-Controlled Wallet on Arc and creates the
-//      four default ledger buckets (Operating, Tax Reserve, Payroll,
-//      Savings) — EXACTLY the same work as /api/org/kyb/approve. Reuses
-//      lib/org/provisioning.ts so the two code paths stay in sync.
-//   4. In demo mode, flips organization.kybStatus = APPROVED with
-//      timestamps. In production the org stays PENDING and is approved by
-//      an operator via /api/org/kyb/approve, which is what provisions the
-//      wallet.
-//   5. Sets user.onboardingCompleted = true.
+//   3. Creates the four default ledger buckets for that account type
+//      (business vs individual) — without a wallet. A wallet is only
+//      created when the user explicitly asks for one later.
+//   4. Sets user.onboardingCompleted = true.
 //
 // The response includes { requiresJwtUpdate: true } so the client can
-// call `update({ onboardingCompleted: true, kybStatus: "APPROVED" })`
-// — this avoids forcing a full logout/login before the new kybStatus
-// propagates into the session token.
+// call `update({ onboardingCompleted: true })` — this avoids forcing a
+// full logout/login before the new flag propagates into the session token.
 //
-// Idempotent: if the org is already APPROVED and/or wallet is already
-// provisioned, provisionOrgWallet is a no-op and the status update is
-// harmless. Credential sign-ups go through /api/auth/register instead
-// (they collect legalName/country/accountType up front), so this is a
-// no-op for them.
+// Idempotent: bucket creation only adds missing defaults. Credential
+// sign-ups go through /api/auth/register instead (they collect these
+// details up front), so this is a no-op for them.
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
-import { provisionOrgWallet } from "@/lib/org/provisioning";
-import { DEMO_KYB_APPROVED } from "@/lib/config/demoMode";
+import { ensureDefaultBucketsForOrg } from "@/lib/org/defaultBuckets";
 
 // Keep in sync with the AccountType enum in schema.prisma.
 const ACCOUNT_TYPES = ["STUDENT", "PERSONAL", "BUSINESS", "ORGANIZATION"] as const;
@@ -73,25 +64,8 @@ export async function POST(req: Request) {
   const userId = session.user.id;
 
   try {
-    // Step 1 (demo mode only): provision wallet + default ledger buckets
-    // first. This is idempotent (returns the existing wallet if already
-    // provisioned). We intentionally provision BEFORE flipping kybStatus,
-    // mirroring /api/org/kyb/approve's ordering. If Circle is unreachable,
-    // we return 500 and the user can retry — the org stays PENDING,
-    // nothing irreversible has happened.
-    //
-    // In production this is skipped entirely: a PENDING org must not get a
-    // live custody wallet before a human has reviewed it.
-    const provisioning = DEMO_KYB_APPROVED
-      ? await provisionOrgWallet(orgId).catch((err) => {
-          console.error(`[onboarding] provisioning failed for org ${orgId}`, err);
-          throw new Error(
-            "We couldn't provision your wallet right now. Please try again in a moment."
-          );
-        })
-      : null;
-
-    // Step 2: write everything else atomically.
+    // Step 1: write the org/user fields atomically. No wallet is created
+    // here — the user can create one from the dashboard when ready.
     const [, updatedUser, updatedOrg] = await prisma.$transaction([
       prisma.organization.update({
         where: { id: orgId },
@@ -99,16 +73,6 @@ export async function POST(req: Request) {
           legalName,
           country,
           accountType,
-          ...(DEMO_KYB_APPROVED
-            ? {
-                kybStatus: "APPROVED" as const,
-                kybApprovedAt: new Date(),
-                // "onboarding" is treated as a self-approval in demo mode;
-                // since Google OAuth already verified the owner's email, we
-                // mirror the same fields that /api/org/kyb/approve sets.
-                kybApprovedBy: userId,
-              }
-            : {}),
         },
       }),
       prisma.user.update({
@@ -125,20 +89,21 @@ export async function POST(req: Request) {
       }),
     ]);
 
+    // Step 2: create the account-type-appropriate default buckets, no
+    // wallet required. A failure is logged but doesn't fail onboarding —
+    // wallet creation will backfill any missing defaults.
+    try {
+      await ensureDefaultBucketsForOrg(orgId, { accountType });
+    } catch (err) {
+      console.error(`[onboarding] default bucket creation failed for org ${orgId}`, err);
+    }
+
     return NextResponse.json({
-      message: DEMO_KYB_APPROVED
-        ? "Onboarding complete"
-        : "Onboarding complete. Your organization is now under review.",
+      message: "Onboarding complete",
       requiresJwtUpdate: true,
       user: { onboardingCompleted: updatedUser.onboardingCompleted },
       organization: { kybStatus: updatedOrg?.kybStatus ?? "PENDING" },
-      wallet: provisioning
-        ? {
-            id: provisioning.wallet.id,
-            arcAddress: provisioning.wallet.arcAddress,
-            alreadyProvisioned: provisioning.alreadyProvisioned,
-          }
-        : null,
+      wallet: null,
     });
   } catch (err) {
     if (err instanceof Error) {

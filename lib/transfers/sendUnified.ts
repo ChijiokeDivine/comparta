@@ -164,6 +164,16 @@ export async function sendUnifiedBalancePayment(
   if (!ledgerAccount) {
     throw new SendUnifiedPaymentError("Source ledger account not found.", "ACCOUNT_NOT_FOUND");
   }
+  // Buckets exist before a wallet (created at signup); cross-chain sends
+  // require a real wallet, so bail with a clear message instead of
+  // dereferencing a missing relation.
+  if (!ledgerAccount.wallet) {
+    throw new SendUnifiedPaymentError(
+      "Create a wallet before sending payments from this account.",
+      "ACCOUNT_NOT_FOUND"
+    );
+  }
+  const wallet = ledgerAccount.wallet;
 
   // Estimated once, against the exact same params spend() will use (see
   // buildSpendParams in lib/circle/unifiedBalance.ts) — this number is
@@ -172,7 +182,7 @@ export async function sendUnifiedBalancePayment(
   // the org's own bucket (step 7), not left as an untracked drain on
   // whatever happens to be sitting in Gateway.
   const feeEstimate = await estimateUnifiedBalanceSpendFee(
-    ledgerAccount.wallet.arcAddress,
+    wallet.arcAddress,
     toAddress,
     amountSmallestUnit,
     input.destinationChain
@@ -205,13 +215,13 @@ export async function sendUnifiedBalancePayment(
     try {
       onchainTx = await prisma.onchainTransaction.create({
         data: {
-          walletId: ledgerAccount.walletId,
+          walletId: wallet.id,
           fromLedgerAccountId: ledgerAccount.id,
           direction: "OUT",
           amount: amountSmallestUnit,
           counterpartyAddress: toAddress,
           chain: input.destinationChain,
-          sourceChain: ledgerAccount.wallet.chain,
+          sourceChain: wallet.chain,
           status: "PENDING",
           idempotencyKey,
           referenceType: input.referenceType,
@@ -253,15 +263,15 @@ export async function sendUnifiedBalancePayment(
   // 5.5. Hybrid model C — Unified Balance coverage + optional Arc top-up.
   // Ledger debit (step 7) only equals the Arc top-up shortfall, not the full
   // transfer: money already in UB left the ledger at Fund Unified Balance.
-  let preSpend = await getUnifiedBalance(ledgerAccount.wallet.arcAddress);
+  let preSpend = await getUnifiedBalance(wallet.arcAddress);
   let ledgerDebitNeeded = 0n;
 
   if (preSpend.totalConfirmed < totalCost) {
     const shortfall = totalCost - preSpend.totalConfirmed;
     // Top up from Arc only the shortfall (user already picked a bucket;
     // that bucket pays the top-up, not the whole send).
-    const coverage = await ensureUnifiedBalanceCovers(ledgerAccount.wallet, totalCost);
-    preSpend = await getUnifiedBalance(ledgerAccount.wallet.arcAddress);
+    const coverage = await ensureUnifiedBalanceCovers(wallet, totalCost);
+    preSpend = await getUnifiedBalance(wallet.arcAddress);
 
     if (preSpend.totalConfirmed < amountSmallestUnit) {
       await prisma.onchainTransaction.update({
@@ -307,7 +317,7 @@ export async function sendUnifiedBalancePayment(
   let circleResult: Awaited<ReturnType<typeof circleSendUnified>>;
   try {
     circleResult = await circleSendUnified(
-      ledgerAccount.wallet.arcAddress,
+      wallet.arcAddress,
       toAddress,
       amountSmallestUnit,
       input.destinationChain

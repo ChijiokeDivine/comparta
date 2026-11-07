@@ -582,8 +582,11 @@ model LedgerAccount {
   orgId                  String
   organization           Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
-  walletId               String
-  wallet                 Wallet            @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  // Optional: buckets are created at signup, before a Circle wallet is
+  // provisioned. They're attached to the wallet when the org creates one
+  // (see lib/org/provisioning.ts). Existing rows always have a wallet.
+  walletId               String?
+  wallet                 Wallet?           @relation(fields: [walletId], references: [id], onDelete: Restrict)
 
   name                   String
   type                   LedgerAccountType @default(CUSTOM)
@@ -596,12 +599,10 @@ model LedgerAccount {
   // into USYC (tracked in YieldPosition, valued separately) rather than
   // sitting idle. See lib/savings/sweep.ts and lib/savings/yield.ts.
   //
-  // 2026-08-16: Yield is now ENABLED BY DEFAULT for every new bucket.
-  // Operator can explicitly opt a bucket out via PATCH /api/savings/:id
-  // (setBucketYieldConfig with isYieldEnabled=false). Default allocation
-  // = 100% (10000 bps) to USYC; dial down via the same endpoint if a
-  // liquid-withdrawal buffer is wanted (e.g. payroll buckets).
-  isYieldEnabled         Boolean           @default(true)
+  // Yield/USYC is currently disabled platform-wide: new buckets default to
+  // off and no UI surfaces it. The underlying columns are retained so the
+  // feature can be re-enabled later without a destructive migration.
+  isYieldEnabled         Boolean           @default(false)
   // Basis points (0–10000) of a fresh sweep INTO this bucket that should
   // be deployed into USYC; the remainder stays liquid as an instant-
   // withdrawal buffer. Defaults to 10000 (=100%) because most savings
@@ -610,7 +611,7 @@ model LedgerAccount {
   // Enforced (non-null iff isYieldEnabled) in
   // lib/savings/service.ts#setBucketYieldConfig (a DB CHECK can't
   // express "required iff sibling column is true" declaratively).
-  yieldAllocationPct     Int?              @default(10000)
+  yieldAllocationPct     Int?              @default(10000) // only meaningful when isYieldEnabled is true
   // Smallest USDC unit. Any sweep (savings or allocation) sourcing FROM
   // this bucket must never bring its liquid balance below this floor —
   // see lib/savings/sweep.ts#computeFloorConstrainedAmount. 0 (default)

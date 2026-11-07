@@ -195,13 +195,6 @@ export async function createSavingsRule(input: CreateSavingsRuleInput): Promise<
   ]);
   if (source.archived) throw new SavingsValidationError(`Bucket "${source.name}" is archived.`);
   if (target.archived) throw new SavingsValidationError(`Bucket "${target.name}" is archived.`);
-  let targetConfigured = target;
-  if (!target.isYieldEnabled) {
-    targetConfigured = await setBucketYieldConfig(input.orgId, input.targetLedgerAccountId, {
-      isYieldEnabled: true,
-      yieldAllocationPct: "100",
-    });
-  }
 
   if (input.trigger === "FIXED_RECURRING" && !input.scheduleCron?.trim()) {
     throw new SavingsValidationError("A schedule (cron expression) is required for FIXED_RECURRING rules.");

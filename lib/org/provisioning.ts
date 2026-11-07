@@ -1,34 +1,25 @@
 // lib/org/provisioning.ts
 //
-// Provisions an org's single Circle Developer-Controlled Wallet on Arc,
-// then creates the four default LedgerAccount buckets (Operating, Tax
-// Reserve, Payroll, Savings), all backed by that one wallet.
+// Creates an org's single Circle Developer-Controlled Wallet on Arc and
+// connects it to the org's existing default buckets.
 //
-// This used to live inline in app/api/org/kyb/approve/route.ts. It's
-// pulled out here so app/api/auth/register/route.ts can call the exact
-// same logic when DEMO_KYB_APPROVED is on (see lib/config/demoMode.ts)
-// - new signups get a wallet immediately instead of waiting for a KYB
-// approval that, in demo mode, never actually happens as a separate step.
+// Buckets are now created independently at signup (see
+// lib/org/defaultBuckets.ts) because a user does not need KYB or a wallet
+// to start using the platform's local ledger. When a wallet is created:
+//   - any wallet-less buckets are attached to the new wallet, and
+//   - if the org somehow has none (e.g. an older Google sign-up), the
+//     defaults are created at that point.
 //
-// Idempotent by design: if a wallet already exists for the org, this is
-// a no-op that returns the existing wallet. That matters because BOTH
-// callers can reach it for the same org depending on how demo mode is
-// toggled over the org's lifetime - e.g. an org provisioned at signup
-// under demo mode must never be re-provisioned (and billed a second
-// Circle wallet) if /api/org/kyb/approve is ever also called for it.
+// Idempotent by design: if a wallet already exists for the org on the
+// active network, this is a no-op that returns the existing wallet.
+
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { createWalletForOrg, ensureWalletDerivedOnDepositChains } from "@/lib/circle/wallets";
 import { mapCircleBlockchain } from "@/lib/circle/chainMapping";
 import { getNetworkProfile, resolveAppNetwork } from "@/lib/config/network";
+import { ensureDefaultBucketsForOrg } from "@/lib/org/defaultBuckets";
 import type { LedgerAccount, Wallet } from "@/app/generated/prisma/client";
-
-const DEFAULT_LEDGER_BUCKETS = [
-  { name: "Operating", type: "OPERATING" as const },
-  { name: "Tax Reserve", type: "RESERVE" as const },
-  { name: "Payroll", type: "PAYROLL" as const },
-  { name: "Savings", type: "SAVINGS" as const },
-];
 
 export interface ProvisionOrgWalletResult {
   wallet: Wallet;
@@ -49,8 +40,21 @@ export async function provisionOrgWallet(orgId: string): Promise<ProvisionOrgWal
   const existing = await prisma.wallet.findFirst({
     where: { orgId, chain: activeChain },
   });
+
   if (existing) {
-    const ledgerAccounts = await prisma.ledgerAccount.findMany({ where: { orgId, walletId: existing.id } });
+    // Attach any buckets that were created before this wallet existed and
+    // backfill defaults for orgs that predate signup-time bucket creation.
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.ledgerAccount.updateMany({
+        where: { orgId, walletId: null },
+        data: { walletId: existing.id },
+      });
+      await ensureDefaultBucketsForOrg(orgId, { walletId: existing.id, db: tx });
+    });
+
+    const ledgerAccounts = await prisma.ledgerAccount.findMany({
+      where: { orgId, walletId: existing.id },
+    });
     return { wallet: existing, ledgerAccounts, alreadyProvisioned: true };
   }
 
@@ -73,20 +77,23 @@ export async function provisionOrgWallet(orgId: string): Promise<ProvisionOrgWal
         },
       });
 
-      const ledgerAccounts = await Promise.all(
-        DEFAULT_LEDGER_BUCKETS.map((bucket) =>
-          tx.ledgerAccount.create({
-            data: {
-              orgId,
-              walletId: walletRow.id,
-              name: bucket.name,
-              type: bucket.type,
-              isYieldEnabled: true,
-              yieldAllocationPct: 10000,
-            },
-          })
-        )
-      );
+      // Buckets created at signup live without a wallet; attach them now.
+      await tx.ledgerAccount.updateMany({
+        where: { orgId, walletId: null },
+        data: { walletId: walletRow.id },
+      });
+
+      // Creates any missing defaults (and sets the org's default receiving
+      // bucket) for orgs that had no buckets at all.
+      await ensureDefaultBucketsForOrg(orgId, {
+        walletId: walletRow.id,
+        db: tx,
+      });
+
+      const ledgerAccounts = await tx.ledgerAccount.findMany({
+        where: { orgId, walletId: walletRow.id },
+        orderBy: { createdAt: "asc" },
+      });
 
       return { walletRow, ledgerAccounts };
     });

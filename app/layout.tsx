@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s | Comparta",
   },
   description:
-    "Comparta is the all-in-one financial OS for modern teams: send USDC payments, issue invoices, run payroll, create payment links, allocate balances, earn yield on savings, and gain AI-powered spending insights - all on one secure, onchain platform.",
+    "Comparta is the all-in-one financial OS for modern teams: send USDC payments, issue invoices, run payroll, create payment links, allocate balances, and gain AI-powered spending insights - all on one secure, onchain platform.",
   keywords: [
     "Comparta",
     "USDC payments",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     "financial OS",
     "Arc blockchain",
     "Circle wallets",
-    "smart savings USYC",
+    "smart savings",
     "DCA crypto",
     "spending insights",
     "team finance",
@@ -95,7 +95,7 @@ export const metadata: Metadata = {
     siteName: "Comparta",
     title: "Comparta - Smart Financial Operating System for Teams",
     description:
-      "Send, receive, and manage USDC with your team. Invoicing, payroll, payment links, automated allocations, yield on savings, DCA, and AI-driven insights - unified onchain.",
+      "Send, receive, and manage USDC with your team. Invoicing, payroll, payment links, automated allocations, DCA, and AI-driven insights - unified onchain.",
     images: [
       {
         url: "/IMG-20260716-WA0038.jpg",
@@ -113,7 +113,7 @@ export const metadata: Metadata = {
     creator: "@comparta",
     title: "Comparta - Smart Financial Operating System for Teams",
     description:
-      "Send, receive, and manage USDC with your team. Invoicing, payroll, payment links, automated allocations, yield on savings, DCA, and AI-driven insights - unified onchain.",
+      "Send, receive, and manage USDC with your team. Invoicing, payroll, payment links, automated allocations, DCA, and AI-driven insights - unified onchain.",
     images: [
       {
         url: "/IMG-20260716-WA0038.jpg",

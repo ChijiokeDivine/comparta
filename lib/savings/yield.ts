@@ -111,6 +111,9 @@ export interface DeployToYieldResult {
 export async function deployToYield(params: DeployToYieldParams): Promise<DeployToYieldResult> {
   const bucket = await getBucket(params.orgId, params.ledgerAccountId);
   if (!bucket.isYieldEnabled) throw new YieldNotEnabledError();
+  if (!bucket.walletId) {
+    throw new YieldError("This bucket isn't connected to a wallet yet. Create a wallet first.");
+  }
   if (params.amount <= 0n) throw new YieldError("Deploy amount must be positive.");
 
   const nav = await getCachedUsycNav();
@@ -242,6 +245,9 @@ export async function requestRedemption(
     throw new InsufficientYieldPositionError(totalAvailable, requestedUsyc);
   }
 
+  if (!bucket.walletId) {
+    throw new YieldError("This bucket isn't connected to a wallet yet. Create a wallet first.");
+  }
   const wallet = await prisma.wallet.findUnique({ where: { id: bucket.walletId } });
   if (!wallet) throw new YieldError("Bucket's wallet not found.");
 
@@ -371,6 +377,9 @@ export async function retryRedemptionSubmission(
   if (request.status !== "PENDING") return; // already submitted or terminal - nothing to retry
 
   const bucket = await getBucket(orgId, ledgerAccountId);
+  if (!bucket.walletId) {
+    throw new YieldError("This bucket isn't connected to a wallet yet. Create a wallet first.");
+  }
   const wallet = await prisma.wallet.findUnique({ where: { id: bucket.walletId } });
   if (!wallet) throw new YieldError("Bucket's wallet not found.");
 

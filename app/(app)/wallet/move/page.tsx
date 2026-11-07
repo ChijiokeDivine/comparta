@@ -13,7 +13,6 @@ import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { toDecimalString } from "@/lib/circle/amount";
 import { getBalance } from "@/lib/ledger/engine";
-import { KybBanner } from "../../_components/Kyb";
 import BucketTransferForm from "./BucketTransferForm";
 import type { Metadata } from "next";
 
@@ -53,7 +52,6 @@ export default async function MoveBetweenBucketsPage({
 
   return (
     <div className="max-w-lg space-y-6">
-      <KybBanner status={org.kybStatus} />
       <div className="space-y-1">
         <h1 className="text-xl font-semibold text-[#0B1E3F]">
           Move between buckets
@@ -64,7 +62,7 @@ export default async function MoveBetweenBucketsPage({
       </div>
       <BucketTransferForm
         buckets={buckets}
-        disabled={org.kybStatus !== "APPROVED"}
+        disabled={false}
         initialFrom={prefillFrom}
         initialTo={prefillTo}
       />

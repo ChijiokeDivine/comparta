@@ -1,40 +1,24 @@
 // app/api/auth/register/route.ts
 //
-// Signs up a new business: creates the Organization and its first User
-// (role: OWNER). Now also collects country and accountType up front
-// (see AccountType enum in schema.prisma) — Google sign-ups collect the
-// same two fields later, in /api/onboarding, since OAuth only hands us
-// email + name.
+// Signs up a new account: creates the Organization and its first User
+// (role: OWNER). The signup form asks whether this is a business or an
+// individual/personal account (submitted as accountType BUSINESS or
+// PERSONAL) and the default bucket layout is chosen from that.
 //
-// New organizations are auto-approved ONLY when DEMO_KYB_APPROVED is on
-// (non-production builds — see lib/config/demoMode.ts). In production the
-// org stays PENDING with no wallet provisioned until an operator approves it
-// via POST /api/org/kyb/approve; every financial page already renders the KYB
-// banner and disables its actions in that state.
+// KYB is NOT required at signup. The org starts PENDING (not verified),
+// but that does not block any product feature today. The user can create
+// a wallet later from the dashboard/wallet page.
 //
-// Wallet + default-bucket provisioning (demo mode only) is kicked off via
-// next/server's after() right after the response is sent — so signup still
-// responds fast even though provisioning calls out to Circle, but (unlike a
-// bare fire-and-forget promise) the platform keeps the function alive until
-// it finishes, instead of risking it getting frozen/killed the instant the
-// response flushes on serverless. This still means there's a brief window
-// (typically well under a second) right after signup where kybStatus reads
-// APPROVED but the wallet/buckets don't exist yet; every page that reads
-// them (app/(app)/wallet, app/(app)/dashboard, etc.) already renders an
-// empty state rather than erroring when a wallet is missing, so that's safe
-// to leave unsynchronized rather than blocking the response on a Circle
-// round-trip.
+// Default buckets are created immediately at signup. They do NOT require
+// a wallet (LedgerAccount.walletId is nullable), so there is no Circle
+// call and signup stays fast. A wallet is only created when the user
+// explicitly asks for one via POST /api/wallet.
 
-import { NextResponse, after } from "next/server";
-// NOTE: after() requires Next.js 15+ (stable) / 14.1+ (as unstable_after).
-// If your Next version predates that, this import will fail — swap back
-// to a plain un-awaited provisionOrgWallet(...).catch(...) call, or
-// upgrade Next, whichever's faster.
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
-import { provisionOrgWallet } from "@/lib/org/provisioning";
-import { DEMO_KYB_APPROVED } from "@/lib/config/demoMode";
+import { ensureDefaultBucketsForOrg } from "@/lib/org/defaultBuckets";
 import { issueOtp } from "@/lib/otp/service";
 import { sendEmailVerificationOtpEmail } from "@/lib/notifications/notify";
 
@@ -83,9 +67,11 @@ export async function POST(req: Request) {
       legalName,
       country,
       accountType,
-      kybStatus: DEMO_KYB_APPROVED ? "APPROVED" : "PENDING",
-      kybApprovedAt: DEMO_KYB_APPROVED ? new Date() : null,
-      kybApprovedBy: DEMO_KYB_APPROVED ? "auto-approved-on-signup" : null,
+      // Every new account starts unverified. KYB is not enforced anywhere
+      // in the product yet, so this does not limit functionality.
+      kybStatus: "PENDING",
+      kybApprovedAt: null,
+      kybApprovedBy: null,
       users: {
         create: {
           email: normalizedEmail,
@@ -97,6 +83,15 @@ export async function POST(req: Request) {
     },
     include: { users: true },
   });
+
+  // Create the default bucket layout now, without a wallet. Failures are
+  // logged rather than failing the whole signup - the account exists and
+  // the buckets can be backfilled on the next wallet creation.
+  try {
+    await ensureDefaultBucketsForOrg(org.id, { accountType });
+  } catch (err) {
+    console.error(`[register] default bucket creation failed for org ${org.id}`, err);
+  }
 
   // Issue + email a verification OTP.
   //   - Best-effort: even if email delivery fails (e.g. no Resend key in dev),
@@ -123,24 +118,8 @@ export async function POST(req: Request) {
     console.error(`[register] OTP send failed for ${normalizedEmail}`, err);
   }
 
-  // after() schedules this to run once the response has been sent, but
-  // — unlike a bare un-awaited promise — the platform (Vercel, etc.)
-  // keeps the serverless function alive until it settles, so it can't
-  // get silently cut off. provisionOrgWallet is idempotent, so even if
-  // this races with a later manual /api/org/kyb/approve call for the
-  // same org, only one wallet is ever created.
-  //
-  // Production signups skip this entirely: a PENDING org must not get a
-  // live custody wallet before a human has reviewed it.
-  if (DEMO_KYB_APPROVED) {
-    after(async () => {
-      try {
-        await provisionOrgWallet(org.id);
-      } catch (err) {
-        console.error(`[register] background provisioning failed for org ${org.id}`, err);
-      }
-    });
-  }
+  // after() is no longer used here: signup does not provision a Circle
+  // wallet. Wallet creation is an explicit user action (POST /api/wallet).
 
   return NextResponse.json(
     {
@@ -159,9 +138,8 @@ export async function POST(req: Request) {
       // Signpost for the client to redirect to /verify-otp (not sign in).
       nextStep: "verify-email",
       otpSent,
-      message: DEMO_KYB_APPROVED
-        ? "Account created. Check your email for a 6-digit verification code to confirm your email."
-        : "Account created. Check your email for a 6-digit verification code. Your organization will be reviewed before payments are enabled.",
+      message:
+        "Account created. Check your email for a 6-digit verification code to confirm your email.",
     },
     { status: 201 }
   );

@@ -10,7 +10,7 @@ export const DEFAULT_TERMS_SECTIONS = [
   { id: "payments", title: "6. Payments & Settlement" },
   { id: "buckets", title: "7. Buckets, Allocations & Rules" },
   { id: "fees", title: "8. Fees & Billing" },
-  { id: "custody", title: "9. Custody, Yield & Risk" },
+  { id: "custody", title: "9. Custody & Risk" },
   { id: "prohibited", title: "10. Prohibited Activities" },
   { id: "ip", title: "11. Intellectual Property" },
   { id: "privacy", title: "12. Privacy & Data" },
@@ -44,13 +44,13 @@ export const DEFAULT_TERMS_HTML = `
   <h2>2. Description of Service</h2>
 
   <h3>2.1 Overview</h3>
-  <p>Comparta is a financial operating system designed for modern teams. It enables users to send and receive USDC, issue invoices, run payroll, create shareable payment links, allocate balances across virtual buckets, earn yield on eligible savings balances, schedule recurring transfers (including dollar-cost-averaging), and obtain AI-assisted spending insights and anomaly detection.</p>
+  <p>Comparta is a financial operating system designed for modern teams. It enables users to send and receive USDC, issue invoices, run payroll, create shareable payment links, allocate balances across virtual buckets, schedule recurring transfers (including dollar-cost-averaging), and obtain AI-assisted spending insights and anomaly detection.</p>
 
   <h3>2.2 Settlement Layer</h3>
   <p>Settlement occurs on Circle’s Arc Layer-1 network through Circle Developer-Controlled Wallets. Each organization is provisioned with a single custodied on-chain wallet. Virtual balances (buckets) are maintained in an append-only double-entry ledger that is reconciled against the on-chain wallet balance.</p>
 
   <h3>2.3 Feature Availability</h3>
-  <p>We may add, modify, suspend, or discontinue any feature at any time, with or without notice. Certain features (including money movement, payroll, yield, and advanced allocation rules) require completed KYB verification and an approved organization status. Availability may also depend on your jurisdiction, account type, and risk profile.</p>
+  <p>We may add, modify, suspend, or discontinue any feature at any time, with or without notice. Certain advanced features (including payroll and advanced allocation rules) may require additional verification, and availability may depend on your jurisdiction, account type, and risk profile.</p>
 
   <h3>2.4 Beta & Experimental Features</h3>
   <p>From time to time we may offer beta, pilot, or experimental features. These are provided “as is”, may be unstable, and may be withdrawn at any time. Your use of such features is at your own risk.</p>
@@ -79,13 +79,13 @@ export const DEFAULT_TERMS_HTML = `
   <h2>4. KYB & Verification</h2>
 
   <h3>4.1 Requirement</h3>
-  <p>Before enabling money-movement features (sends, payroll, payment-link settlement, yield deployment, etc.), we require Know-Your-Business (KYB) or equivalent identity verification. Individual users may be subject to simplified identity checks.</p>
+  <p>We may request Know-Your-Business (KYB) or equivalent identity verification to keep the Platform safe and compliant. Verification is not required to create an account, create buckets, or create a wallet, and an unverified status does not by itself restrict access to features. Individual users may be subject to simplified identity checks.</p>
 
   <h3>4.2 Ongoing Monitoring</h3>
   <p>Approval is not permanent. We may re-verify, request additional information, place an organization on hold, or revoke approval if new risk signals appear, regulatory requirements change, or information becomes outdated or inaccurate.</p>
 
-  <h3>4.3 Real-Time Gating</h3>
-  <p>Financial gating always re-reads the current KYB / compliance status from our systems. A session token or cached status alone does not grant access. An organization may be approved or held mid-session; access is evaluated on each relevant request.</p>
+  <h3>4.3 Real-Time Status</h3>
+  <p>Verification status is evaluated from our current records rather than a session token or cached value, so an organization may move between pending, verified, and rejected states as information changes.</p>
 
   <h3>4.4 Authorization to Verify</h3>
   <p>You authorize us and our service providers (including Circle and identity-verification partners) to collect, process, and verify information necessary to comply with anti-money-laundering (AML), counter-terrorist-financing (CTF), sanctions, and other applicable laws.</p>
@@ -138,8 +138,8 @@ export const DEFAULT_TERMS_HTML = `
   <h3>7.2 Allocation Rules</h3>
   <p>You may configure standing allocation rules that automatically move percentages or fixed amounts of inbound payments (or on a schedule) between buckets. Rules execute according to the triggers and parameters you set. Failed rule executions are logged; we do not guarantee that every rule will always succeed (e.g., insufficient balance).</p>
 
-  <h3>7.3 Savings & Yield Rules</h3>
-  <p>Where yield is offered, savings rules (percentage of income, round-up, fixed recurring) may deploy liquid USDC into yield-bearing positions. Redemptions are asynchronous and subject to the underlying protocol’s settlement times and any applicable locks or fees.</p>
+  <h3>7.3 Savings Rules</h3>
+  <p>Savings rules (percentage of income, round-up, fixed recurring) let you move funds into a bucket automatically. Failed rule executions are logged; we do not guarantee that every rule will always succeed (e.g., insufficient balance).</p>
 
   <h3>7.4 Recurring Transfers & DCA</h3>
   <p>Recurring and dollar-cost-averaging transfers execute on the schedule you define. We will attempt execution at the scheduled time; insufficient funds, network issues, or recipient resolution failures may cause a cycle to fail. Failed cycles are logged and may be retried or skipped according to the rule configuration.</p>
@@ -152,7 +152,7 @@ export const DEFAULT_TERMS_HTML = `
   <p>Account creation, basic invoicing, payment-link generation, and standard ledger operations are currently free. We reserve the right to introduce fees for these features with reasonable prior notice.</p>
 
   <h3>8.2 Chargeable Features</h3>
-  <p>Fees may apply to card/ACH processing, certain premium or high-volume features, network gas costs (where not absorbed by us), yield-related costs, or third-party services. All applicable fees are disclosed before you confirm a chargeable action.</p>
+  <p>Fees may apply to card/ACH processing, certain premium or high-volume features, network gas costs (where not absorbed by us), or third-party services. All applicable fees are disclosed before you confirm a chargeable action.</p>
 
   <h3>8.3 Fee Changes</h3>
   <p>We may change the fee schedule at any time. Material increases will be communicated with reasonable notice. Continued use after the effective date constitutes acceptance of the new fees.</p>
@@ -162,7 +162,7 @@ export const DEFAULT_TERMS_HTML = `
 </section>
 
 <section id="custody">
-  <h2>9. Custody, Yield & Risk</h2>
+  <h2>9. Custody & Risk</h2>
 
   <h3>9.1 Custody Model</h3>
   <p>Funds are held in Circle-custodied Developer-Controlled Wallets on Arc. Comparta does not take proprietary custody of your private keys. You acknowledge that Circle’s terms, security practices, and operational status affect the availability and safety of your funds.</p>
@@ -170,13 +170,10 @@ export const DEFAULT_TERMS_HTML = `
   <h3>9.2 Stablecoin Risk</h3>
   <p>USDC is designed to maintain a 1:1 peg with the US dollar. We do not guarantee that the peg will hold at all times. De-pegging, issuer risk, or regulatory action affecting stablecoins could result in loss of value.</p>
 
-  <h3>9.3 Yield Risk</h3>
-  <p>Yield features (where offered) involve smart-contract risk, counterparty risk, liquidity risk, and potential loss of principal. Past performance is not indicative of future results. Yield is not guaranteed and may be zero or negative after fees.</p>
-
-  <h3>9.4 No Deposit Insurance</h3>
+  <h3>9.3 No Deposit Insurance</h3>
   <p>Comparta is not a bank, credit union, or insured depository institution. Balances are not covered by FDIC, SIPC, or equivalent deposit-insurance schemes. You bear the risk of loss.</p>
 
-  <h3>9.5 Operational & Technology Risk</h3>
+  <h3>9.4 Operational & Technology Risk</h3>
   <p>Digital assets can be lost through phishing, malware or social engineering. You are responsible for securing your own devices and credentials.</p>
 </section>
 

@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
-import { KybBanner } from "../../_components/Kyb";
 import NewBucketForm from "./NewBucketForm";
 import type { Metadata } from "next";
 
@@ -26,9 +25,8 @@ export default async function NewBucketPage() {
 
   return (
     <div className="max-w-lg space-y-6">
-      <KybBanner status={org.kybStatus} />
       <h1 className="text-xl font-semibold text-[#0B1E3F]">New bucket</h1>
-      <NewBucketForm disabled={org.kybStatus !== "APPROVED"} />
+      <NewBucketForm disabled={false} />
     </div>
   );
 }

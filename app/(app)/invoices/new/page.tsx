@@ -3,8 +3,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { KybBanner } from "../../_components/Kyb";
 
 interface LineItem {
   description: string;
@@ -18,9 +16,7 @@ function emptyLineItem(): LineItem {
 
 export default function NewInvoicePage() {
   const router = useRouter();
-  const { data: session } = useSession();
-  const kybStatus = session?.user?.kybStatus ?? "PENDING";
-  const disabled = kybStatus !== "APPROVED";
+  const disabled = false;
   const [recipientIdentifier, setRecipientIdentifier] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -90,7 +86,6 @@ export default function NewInvoicePage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <KybBanner status={kybStatus} />
       <h1 className="text-xl font-semibold text-[#0B1E3F]">New invoice</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">

@@ -6,8 +6,6 @@ import { formatMoney } from "@/app/invoices/_components/format";
 import {
   ArrowDownRight,
   ArrowUpRight,
-  CheckCircle2,
-  Clock3,
 } from "lucide-react";
 import Image from "next/image";
 import { useHideBalances, maskBalance } from "@/app/(app)/_components/HideBalancesProvider"; 
@@ -86,71 +84,22 @@ export default function KpiCards({
       <div className="mt-auto pt-6">
         <div className="border-t border-[#EEF2F7]" />
 
-        {/* Yield */}
-        <section className="flex justify-between items-end mt-6">
+        {/* Pending actions */}
+        <section className="flex items-center justify-between mt-6">
           <div>
             <p className="md:text-sm text-xs text-[#7C8CA6]">
-              Yield Earned
-            </p>
-
-            <p className="mt-1 md:text-xl text-lg font-semibold text-[#0B1E3F] tabular-nums inline-flex items-center gap-1.5">
-              <Image
-                src="/usdc.png"
-                alt="USDC"
-                width={22}
-                height={22}
-                className="rounded-3xl shrink-0"
-              />
-              {maskBalance(formatMoney(kpis.netYieldAccrued), hideBalances)}
-            </p>
-          </div>
-
-          <div className="group relative hidden md:inline-block">
-            <div
-              className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium cursor-help ${
-                kpis.yieldDataStale
-                  ? "bg-amber-50 text-amber-700"
-                  : " text-black"
-              }`}
-            >
-              {kpis.yieldDataStale ? (
-                <>
-                  <Clock3 size={14} />
-                  Cost basis
-                </>
-              ) : (
-                <>
-                  
-                  Live Valuation
-                </>
-              )}
-            </div>
-            <div className="pointer-events-none absolute right-0 bottom-full mb-2 w-64 rounded-xl border border-[#E5E9F2] bg-white/90 backdrop-blur-md p-3 text-xs leading-relaxed text-[#0B1E3F] opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-20">
-              {kpis.yieldDataStale
-                ? "Live market prices are currently unavailable. Yield is shown at the original purchase price of your assets (cost basis) and may differ from today's actual market value."
-                : "Uses the latest available market prices to calculate the current value of your assets and accrued yield."}
-            </div>
-          </div>
-        </section>
-
-        {/* <div className="border-t border-[#EEF2F7]" /> */}
-
-        {/* Pending */}
-        {/* <section className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-[#7C8CA6]">
               Pending Actions
             </p>
 
-            <h3 className="mt-1 text-2xl font-semibold text-[#0B1E3F]">
+            <h3 className="mt-1 md:text-xl text-lg font-semibold text-[#0B1E3F]">
               {pendingTotal}
             </h3>
 
-            <p className="mt-1 text-sm text-[#7C8CA6]">
+            <p className="mt-1 text-xs text-[#7C8CA6]">
               {pendingTotal > 0
-                ? `${kpis.pendingPayrollApprovals} payroll • ${kpis.overdueInvoices} invoices`
+                ? `${kpis.pendingPayrollApprovals} payroll · ${kpis.overdueInvoices} invoices`
                 : "Everything is up to date"}
-            </p> 
+            </p>
           </div>
 
           {pendingTotal > 0 && (
@@ -161,7 +110,7 @@ export default function KpiCards({
               Review
             </Link>
           )}
-        </section> */}
+        </section>
       </div>
     </div>
   );

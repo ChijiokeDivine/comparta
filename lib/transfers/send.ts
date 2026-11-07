@@ -146,6 +146,15 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
   if (!ledgerAccount) {
     throw new SendPaymentError("Source ledger account not found.", "ACCOUNT_NOT_FOUND");
   }
+  // Buckets can exist before a wallet (created at signup), so sending is
+  // only possible once a wallet has actually been created.
+  if (!ledgerAccount.wallet) {
+    throw new SendPaymentError(
+      "Create a wallet before sending payments from this account.",
+      "ACCOUNT_NOT_FOUND"
+    );
+  }
+  const wallet = ledgerAccount.wallet;
 
   const currentBalance = await getBalance(ledgerAccount.id);
   if (currentBalance < amountSmallestUnit) {
@@ -180,13 +189,13 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
     try {
       onchainTx = await prisma.onchainTransaction.create({
         data: {
-          walletId: ledgerAccount.walletId,
+          walletId: wallet.id,
           fromLedgerAccountId: ledgerAccount.id,
           direction: "OUT",
           amount: amountSmallestUnit,
           counterpartyAddress: resolved.address,
-          chain: ledgerAccount.wallet.chain,
-          sourceChain: ledgerAccount.wallet.chain,
+          chain: wallet.chain,
+          sourceChain: wallet.chain,
           status: "PENDING",
           idempotencyKey,
           referenceType: input.referenceType,
@@ -235,10 +244,10 @@ export async function sendPayment(input: SendPaymentInput): Promise<SendPaymentR
   let circleResult: Awaited<ReturnType<typeof circleSendTransaction>>;
   try {
     circleResult = await circleSendTransaction(
-      ledgerAccount.wallet.arcAddress,
+      wallet.arcAddress,
       resolved.address,
       amountSmallestUnit,
-      ledgerAccount.wallet.chain,
+      wallet.chain,
       idempotencyKey
     );
   } catch (err) {

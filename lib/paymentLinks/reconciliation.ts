@@ -568,7 +568,16 @@ async function resolveDefaultLedgerAccountId(orgId: string, walletId: string): P
     where: { orgId, walletId, name: "Operating" },
     select: { id: true },
   });
-  return operating?.id ?? null;
+  if (operating) return operating.id;
+
+  // Individual accounts have no "Operating" bucket, so fall back to the
+  // oldest bucket attached to this wallet.
+  const fallback = await prisma.ledgerAccount.findFirst({
+    where: { orgId, walletId, archived: false },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  return fallback?.id ?? null;
 }
 
 async function enqueueConfirmationPolling(label: string, onchainTransactionRefKey: string): Promise<void> {

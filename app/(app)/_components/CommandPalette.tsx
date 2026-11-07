@@ -177,12 +177,12 @@ const SEARCH_INDEX: SearchItem[] = [
   },
   {
     id: "savings",
-    title: "Savings / Yield",
-    subtitle: "Earn yield on idle USDC",
+    title: "Savings buckets",
+    subtitle: "Bucket balances & auto-sweep rules",
     href: "/savings",
     group: "Pages",
     Icon: SavingsIcon,
-    keywords: ["savings", "yield", "interest", "earn", "apy"],
+    keywords: ["savings", "buckets", "interest", "save", "allocations"],
   },
   {
     id: "savings-rules",

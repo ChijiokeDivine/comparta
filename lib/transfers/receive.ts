@@ -321,8 +321,8 @@ export async function handleInboundTransfer(notification: InboundNotification): 
  * Resolves which LedgerAccount inbound funds should land in when there's
  * no payment-link match: Organization.defaultLedgerAccountId if set,
  * otherwise falls back to the org's "Operating" bucket by name (the
- * convention established at KYB approval, see
- * app/api/org/kyb/approve/route.ts).
+ * business default), and finally to the org's oldest bucket on this
+ * wallet — individual accounts start with "Spending", not "Operating".
  *
  * Exported for lib/circle/autoDeposit.ts, which credits a Unified
  * Balance auto-deposit into the same default bucket a stray Arc inbound
@@ -343,7 +343,14 @@ export async function resolveDefaultLedgerAccountId(
     where: { orgId, walletId, name: "Operating" },
     select: { id: true },
   });
-  return operating?.id ?? null;
+  if (operating) return operating.id;
+
+  const fallback = await tx.ledgerAccount.findFirst({
+    where: { orgId, walletId, archived: false },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  return fallback?.id ?? null;
 }
 
 /**

@@ -119,10 +119,9 @@ export default function OnboardingForm() {
       }
 
       // Refresh BOTH onboardingCompleted + kybStatus flags on the JWT via the
-      // `trigger === "update"` jwt callback in authOptions.callbacks.jwt — otherwise
-      // the client's token still shows kybStatus=PENDING until the user logs out
-      // and back in again, which means the KYB gate keeps blocking dashboard
-      // actions (transfers/wallet/etc.) would still say "under review".
+      // `trigger === "update"` jwt callback in authOptions.callbacks.jwt.
+      // New accounts stay PENDING (not verified), which is expected and does
+      // not block any feature.
       const nextKybStatus =
         (data.organization as { kybStatus?: string } | undefined)?.kybStatus ?? "PENDING";
       await update({ onboardingCompleted: true, kybStatus: nextKybStatus });

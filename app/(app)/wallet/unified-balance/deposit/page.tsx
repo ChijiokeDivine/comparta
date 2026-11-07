@@ -5,7 +5,6 @@ import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { getBalance } from "@/lib/ledger/engine";
 import { toDecimalString } from "@/lib/circle/amount";
-import { KybBanner } from "../../../_components/Kyb";
 import UnifiedDepositForm from "./UnifiedDepositForm";
 import type { Metadata } from "next";
 
@@ -37,7 +36,6 @@ export default async function UnifiedBalanceDepositPage() {
 
   return (
     <div className="max-w-lg space-y-6">
-      <KybBanner status={org.kybStatus} />
       <div>
         <h1 className="text-xl font-semibold text-[#0B1E3F]">Fund Unified Balance</h1>
         <p className="mt-1.5 text-sm text-[#7C8CA6]">
@@ -48,7 +46,7 @@ export default async function UnifiedBalanceDepositPage() {
         <UnifiedDepositForm
           walletAddress={wallet.arcAddress}
           buckets={buckets}
-          disabled={org.kybStatus !== "APPROVED"}
+          disabled={false}
         />
       ) : (
         <div className="rounded-2xl border border-dashed border-[#E5E9F2] bg-white px-5 py-8 text-center text-sm text-[#7C8CA6]">

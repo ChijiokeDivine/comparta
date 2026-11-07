@@ -24,7 +24,7 @@ export default async function DashboardPage() {
   const [org, wallet] = await Promise.all([
     prisma.organization.findUnique({
       where: { id: session.user.orgId },
-      select: { kybStatus: true },
+      select: { id: true },
     }),
     prisma.wallet.findFirst({
       where: { orgId: session.user.orgId },
@@ -34,12 +34,11 @@ export default async function DashboardPage() {
   if (!org) redirect(SIGNOUT_REDIRECT);
 
   const summary = await getDashboardSummary(session.user.orgId);
-  const financialActionsDisabled = org.kybStatus !== "APPROVED";
+  const financialActionsDisabled = false;
 
   return (
     <DashboardRealtimeClient
       initialSummary={summary}
-      kybStatus={org.kybStatus}
       financialActionsDisabled={financialActionsDisabled}
       wallet={wallet}
     />

@@ -274,7 +274,16 @@ async function resolveOrgDefaultLedgerAccountId(orgId: string): Promise<string |
     where: { orgId, name: "Operating" },
     select: { id: true },
   });
-  return operating?.id ?? null;
+  if (operating) return operating.id;
+
+  // Individual accounts have no "Operating" bucket (their first bucket is
+  // "Spending"), so fall back to the oldest non-archived bucket.
+  const fallback = await prisma.ledgerAccount.findFirst({
+    where: { orgId, archived: false },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  return fallback?.id ?? null;
 }
 
 /** Resumes a PAUSED link back to ACTIVE. Idempotent. Refuses to resume an EXPIRED link. */
