@@ -44,6 +44,24 @@ type DepositMethod = "onramp" | "crypto";
 // as null on the server, then this flips to true after hydration.
 const emptySubscribe = () => () => {};
 
+// Chain artwork lives in public/chain-logos/. Keys are matched by prefix so
+// the same logo covers both mainnet and testnet enum values (BASE /
+// BASE_SEPOLIA, ETH_MAINNET / ETH_SEPOLIA, …).
+const CHAIN_LOGOS: ReadonlyArray<{
+  prefix: string;
+  src: string;
+  alt: string;
+}> = [
+  { prefix: "ARC_", src: "/chain-logos/arc.svg", alt: "Arc" },
+  { prefix: "ETH_", src: "/chain-logos/ethereum.png", alt: "Ethereum" },
+  { prefix: "BASE", src: "/chain-logos/base.png", alt: "Base" },
+  { prefix: "ARBITRUM", src: "/chain-logos/arbitrum.png", alt: "Arbitrum" },
+];
+
+function chainLogo(chain: string) {
+  return CHAIN_LOGOS.find(({ prefix }) => chain.startsWith(prefix)) ?? null;
+}
+
 interface DepositModalProps {
   open: boolean;
   onClose: () => void;
@@ -160,6 +178,7 @@ export default function DepositModal({
     DEPOSIT_CHAINS.find((c) => c.value === selectedChain)?.label ??
     selectedChain;
   const isArc = selectedChain === SETTLEMENT_CHAIN;
+  const selectedChainLogo = chainLogo(selectedChain);
 
   return createPortal(
     <div
@@ -296,7 +315,18 @@ export default function DepositModal({
                   <div className="md:grid grid-cols-3 gap-2.5 hidden">
                     <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
                       <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
-                        <Network size={14} />
+                        {selectedChainLogo ? (
+                          <Image
+                            src={selectedChainLogo.src}
+                            alt={selectedChainLogo.alt}
+                            width={18}
+                            height={18}
+                            unoptimized
+                            className="h-[18px] w-[18px] object-contain"
+                          />
+                        ) : (
+                          <Network size={14} />
+                        )}
                       </div>
                       <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
                         {displayChain}

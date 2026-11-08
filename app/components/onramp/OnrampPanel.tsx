@@ -294,7 +294,7 @@ export default function OnrampPanel({
         )}
       </div>
 
-      <p className="mt-2.5 text-[11px] leading-relaxed text-[#7C8CA6]">
+      <p className="mt-2.5 text-[11px] leading-relaxed text-[#7C8CA6] hidden">
         Purchases are processed by Circle&apos;s Onramp. Identity verification,
         payment method and fees are handled in the secure checkout. USDC is
         delivered to your Comparta wallet on Arc.
