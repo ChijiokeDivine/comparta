@@ -12,7 +12,7 @@ import {
   ArrowDownLeft as DepositIcon,
   Plus as CreateWalletIcon,
 } from "lucide-react";
-import DepositModal from "./DepositModal";
+import DepositModal from "@/app/components/DepositModal";
 
 interface QuickAction {
   href?: string;
@@ -32,9 +32,16 @@ const BASE_ACTIONS: QuickAction[] = [
 interface QuickActionsProps {
   disabled: boolean;
   wallet?: { arcAddress: string; chain?: string | null } | null;
+  appUserId: string;
+  onrampEnabled: boolean;
 }
 
-export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
+export default function QuickActions({
+  disabled,
+  wallet,
+  appUserId,
+  onrampEnabled,
+}: QuickActionsProps) {
   const router = useRouter();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [depositOpen, setDepositOpen] = useState(false);
@@ -171,7 +178,10 @@ export default function QuickActions({ disabled, wallet }: QuickActionsProps) {
         open={depositOpen}
         onClose={() => setDepositOpen(false)}
         address={wallet?.arcAddress ?? ""}
-        chain={wallet?.chain ?? ""}
+        chain={wallet?.chain ?? undefined}
+        appUserId={appUserId}
+        onrampEnabled={onrampEnabled}
+        onDepositSettled={() => router.refresh()}
       />
     </>
   );

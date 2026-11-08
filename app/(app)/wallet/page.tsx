@@ -12,6 +12,8 @@ import { formatMoney } from "@/app/invoices/_components/format";
 import { StatusPill } from "@/app/components/StatusPill";
 import CopyAddressButton from "./_components/CopyAddressButton";
 import CreateWalletButton from "./_components/CreateWalletButton";
+import DepositButton from "./_components/DepositButton";
+import { isOnrampEnabled } from "@/lib/onramp/config";
 import InfoTooltip from "@/app/components/InfoTooltip";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -81,6 +83,11 @@ export default async function WalletPage() {
         <div className="flex items-center gap-2">
           {wallet ? (
             <>
+              <DepositButton
+                address={wallet.arcAddress}
+                appUserId={session.user.id}
+                onrampEnabled={isOnrampEnabled()}
+              />
               <Link
                 href="/wallet/unified-balance/deposit"
                 className="btn-3d btn-3d--sm"

@@ -26,6 +26,22 @@ export const SETTLEMENT_CHAIN_LABEL = CLIENT_NETWORK_PROFILE.settlementLabel;
 export const SETTLEMENT_CHAIN_ID = CLIENT_NETWORK_PROFILE.chainId;
 export const SETTLEMENT_EXPLORER_URL = CLIENT_NETWORK_PROFILE.explorerBaseUrl;
 
+// ── Onramp (App Kit) ─────────────────────────────────────────────────
+// Onramp is an Arc-only product: the widget always delivers USDC on Arc,
+// in both sandbox and production. The only environment difference exposed
+// to the browser is which hosted widget to load:
+//   - production → https://onramp.arc.io
+//   - testnet / local dev → https://onramp-sandbox.arc.io
+// These values MUST match the server's Onramp config
+// (lib/onramp/config.ts); the SDK rejects a mismatch.
+export const ONRAMP_WIDGET_BASE_URL = IS_MAINNET
+  ? "https://onramp.arc.io"
+  : "https://onramp-sandbox.arc.io";
+/** Network id used by the widget's asset selector. */
+export const ONRAMP_CHAIN_ID = "arc";
+/** Chain pre-selected in the widget for the delivered USDC. */
+export const ONRAMP_DESTINATION_CHAIN = "Arc";
+
 export interface ClientChainOption {
   value: Chain;
   label: string;

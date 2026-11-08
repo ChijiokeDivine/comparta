@@ -47,6 +47,19 @@ const envSchema = z.object({
   // you should persist its id back into this var.
   CIRCLE_WALLET_SET_ID: z.string().optional(),
 
+  // ── Onramp (App Kit) ────────────────────────────────────────────────
+  // "true" (default) / "false". Set to "false" to hide the card & bank
+  // checkout everywhere without removing the integration.
+  ONRAMP_ENABLED: z.string().optional(),
+  // Optional DEDICATED Circle API key for Onramp. When unset, the active
+  // network's regular CIRCLE_API_KEY is used (CIRCLE_API_KEY_MAIN on
+  // mainnet, thanks to lib/config/network.ts).
+  CIRCLE_ONRAMP_API_KEY: z.string().optional(),
+  // Bare hostname allowed to embed the widget, e.g. "app.comparta.io".
+  // Defaults to the hostname of NEXTAUTH_URL. Never derive this from a
+  // request Origin/Referer header.
+  ONRAMP_REFERRER_DOMAIN: z.string().optional(),
+
   ARC_CHAIN: z.enum(["ARC_TESTNET", "ARC_MAINNET"]).default("ARC_TESTNET"),
 
   // Circle's published public-key endpoint for webhook signature verification.

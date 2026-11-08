@@ -210,7 +210,7 @@ comparta/
 │       │       ├── KpiCards.tsx           ← Financial Summary: liquid · deployed · total · 30d in/outflow · net cashflow · pending approvals · overdue count
 │       │       ├── BucketCards.tsx        ← Buckets preview grid (top 5) · semantic icons (OPERATING=Briefcase · RESERVE=Shield · PAYROLL=Users · SAVINGS=Sprout · custom=🪣)
 │       │       ├── MaskedTotalBalance.tsx ← Balance hero w/ navy gradient · HideBalances-aware
-│       │       ├── DepositModal.tsx       ← Custom-styled QR code (qr-code-styling lib) · PNG download · copy address · 1-click-close
+│       │       ├── (shared) app/components/DepositModal.tsx ← Add funds modal: card/bank Onramp + custom-styled QR code · copy address · 1-click-close
 │       │       ├── QuickActions.tsx       ← Shortcut row: New transfer · New invoice · New pay link · Payroll run
 │       │       └── ActivityFeed.tsx       ← Recent unified timeline (7 event kinds) · empty state: /coins.webp · fixed h-[260px]
 │       ├── wallet/

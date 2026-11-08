@@ -32,6 +32,8 @@ type Props = {
   initialSummary: DashboardSummary;
   financialActionsDisabled: boolean;
   wallet: Wallet;
+  appUserId: string;
+  onrampEnabled: boolean;
 };
 
 function formatBalanceHero(decimalString: string): string {
@@ -103,6 +105,8 @@ export default function DashboardRealtimeClient({
   initialSummary,
   financialActionsDisabled,
   wallet,
+  appUserId,
+  onrampEnabled,
 }: Props) {
   const [summary, setSummary] = useState<DashboardSummary>(initialSummary);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -205,7 +209,12 @@ export default function DashboardRealtimeClient({
         ) : null}
       </div>
 
-      <QuickActions disabled={financialActionsDisabled} wallet={wallet} />
+      <QuickActions
+        disabled={financialActionsDisabled}
+        wallet={wallet}
+        appUserId={appUserId}
+        onrampEnabled={onrampEnabled}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <KpiCards kpis={summary.kpis} />
