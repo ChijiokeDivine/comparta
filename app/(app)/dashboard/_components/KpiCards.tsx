@@ -98,7 +98,7 @@ export default function KpiCards({
             <p className="mt-1 text-xs text-[#7C8CA6]">
               {pendingTotal > 0
                 ? `${kpis.pendingPayrollApprovals} payroll · ${kpis.overdueInvoices} invoices`
-                : "Everything is up to date"}
+                : ""}
             </p>
           </div>
 
