@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { getDashboardSummary } from "@/lib/insights/dashboard/getDashboardSummary";
-import { isOnrampEnabled } from "@/lib/onramp/config";
 import DashboardRealtimeClient from "./_components/DashboardRealtimeClient";
 import type { Metadata } from "next";
 
@@ -42,8 +41,6 @@ export default async function DashboardPage() {
       initialSummary={summary}
       financialActionsDisabled={financialActionsDisabled}
       wallet={wallet}
-      appUserId={session.user.id}
-      onrampEnabled={isOnrampEnabled()}
     />
   );
 }

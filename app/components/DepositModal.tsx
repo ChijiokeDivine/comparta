@@ -2,13 +2,8 @@
 
 // app/components/DepositModal.tsx
 //
-// One "Add funds" surface with two clearly separated methods:
-//
-//   • Card or bank  — the Circle Onramp widget (buy USDC with fiat)
-//   • Crypto transfer — the existing address + QR flow
-//
-// The widget is mounted lazily: opening the modal on the crypto tab never
-// mints a session or loads the hosted iframe.
+// One "Add funds" surface: a crypto transfer (address + QR). Card/bank
+// Onramp has been removed, so crypto is the only deposit method.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
@@ -19,16 +14,12 @@ import {
   Check,
   Network,
   Clock3,
-  CircleDollarSign,
-  CreditCard,
-  QrCode,
 } from "lucide-react";
 import QRCodeStyling from "qr-code-styling";
 import {
   DEPOSIT_CHAINS,
   SETTLEMENT_CHAIN,
 } from "@/lib/config/clientChains";
-import OnrampPanel from "./onramp/OnrampPanel";
 
 // The wallet's address is the same across every one of these chains (see
 // lib/circle/unifiedBalance.ts's module docstring) - only the label
@@ -37,8 +28,6 @@ import OnrampPanel from "./onramp/OnrampPanel";
 // extra step; the others are detected and folded into the spendable
 // balance automatically within a few minutes (see lib/circle/autoDeposit.ts).
 // The list itself is network-aware — see lib/config/clientChains.ts.
-
-type DepositMethod = "onramp" | "crypto";
 
 // Hydration-safe "are we on the client yet?" flag. React renders the portal
 // as null on the server, then this flips to true after hydration.
@@ -67,12 +56,6 @@ interface DepositModalProps {
   onClose: () => void;
   address: string;
   chain?: string;
-  /** Signed-in user id — required for the Onramp session. */
-  appUserId?: string;
-  /** False hides the card/bank method entirely. */
-  onrampEnabled?: boolean;
-  /** Called after an Onramp purchase settles so the page can refresh. */
-  onDepositSettled?: () => void;
 }
 
 export default function DepositModal({
@@ -80,25 +63,15 @@ export default function DepositModal({
   onClose,
   address,
   chain = SETTLEMENT_CHAIN,
-  appUserId,
-  onrampEnabled = false,
-  onDepositSettled,
 }: DepositModalProps) {
   const qrRef = useRef<HTMLDivElement | null>(null);
   const qrInstance = useRef<QRCodeStyling | null>(null);
   const [copied, setCopied] = useState(false);
   const [pickedChain, setPickedChain] = useState<string | null>(null);
-  const [pickedMethod, setPickedMethod] = useState<DepositMethod | null>(null);
 
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
-  const canOnramp = Boolean(onrampEnabled && appUserId && address);
   const selectedChain = pickedChain ?? chain;
-  // Card/bank is the default when available; the user's explicit choice wins
-  // for the rest of the session. With no Onramp, only crypto is possible.
-  const method: DepositMethod = canOnramp
-    ? pickedMethod ?? "onramp"
-    : "crypto";
 
   useEffect(() => {
     if (!open) return;
@@ -116,7 +89,7 @@ export default function DepositModal({
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!open || method !== "crypto" || !mounted || !qrRef.current || !address) {
+    if (!open || !mounted || !qrRef.current || !address) {
       return;
     }
 
@@ -160,7 +133,7 @@ export default function DepositModal({
 
     qrRef.current.innerHTML = "";
     qrInstance.current.append(qrRef.current);
-  }, [open, method, mounted, address]);
+  }, [open, mounted, address]);
 
   if (!open || !mounted) return null;
 
@@ -204,7 +177,7 @@ export default function DepositModal({
               Add funds
             </h2>
             <p className="mt-1 text-xs text-[#7C8CA6]">
-              Buy USDC with a card or bank, or transfer it onchain.
+              Transfer USDC to your address onchain.
             </p>
           </div>
           <button
@@ -217,33 +190,7 @@ export default function DepositModal({
         </div>
 
         <div className="px-6 pb-6 space-y-5">
-          {canOnramp && (
-            <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
-             
-              <button
-                type="button"
-                onClick={() => setPickedMethod("crypto")}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                  method === "crypto"
-                    ? "bg-[#2A5CE6] text-white"
-                    : "text-[#3E4A6B] hover:bg-white"
-                }`}
-              >
-                <QrCode size={13} />
-                Crypto transfer
-              </button>
-            </div>
-          )}
-
-          {method === "onramp" && canOnramp ? (
-            <OnrampPanel
-              appUserId={appUserId!}
-              destinationAddress={address}
-              onDepositSettled={onDepositSettled}
-            />
-          ) : (
-            <>
-              <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
+          <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
                 {DEPOSIT_CHAINS.map((c) => (
                   <button
                     key={c.value}
@@ -264,43 +211,23 @@ export default function DepositModal({
                 <div className="flex justify-center shrink-0 mx-auto sm:mx-0">
                   <div className="relative p-4 rounded-xl border border-[#E5E9F2]">
                     <div ref={qrRef} className="w-[260px] h-[260px]" />
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      aria-label={copied ? "Address copied" : "Copy deposit address"}
+                      title={copied ? "Copied" : "Copy deposit address"}
+                      className={`absolute -top-3 -right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm transition-all ${
+                        copied
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                          : "border-[#E5E9F2] bg-white text-[#3E4A6B] hover:border-[#0B1E3F] hover:text-[#0B1E3F] hover:bg-[#F7F8FB]"
+                      }`}
+                    >
+                      {copied ? <Check size={15} /> : <Copy size={15} />}
+                    </button>
                   </div>
                 </div>
 
                 <div className="flex-1 min-w-0 w-full space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-[#7C8CA6] px-1">
-                      Your deposit address
-                    </label>
-                    <div className="flex items-center gap-2 rounded-lg border border-[#E5E9F2] bg-[#FAF9F6] px-3.5 py-3">
-                      <CircleDollarSign
-                        size={18}
-                        className="shrink-0 text-[#2A5CE6]"
-                      />
-                      <code className="flex-1 text-sm font-mono text-[#0B1E3F] truncate">
-                        {address}
-                      </code>
-                      <button
-                        onClick={handleCopy}
-                        className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
-                          copied
-                            ? "bg-emerald-50 text-emerald-600"
-                            : "bg-white text-[#0B1E3F] border border-[#E5E9F2] hover:border-[#0B1E3F] hover:bg-[#F7F8FB]"
-                        }`}
-                      >
-                        {copied ? (
-                          <>
-                            <Check size={13} /> Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy size={13} /> Copy
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
                   <div className="md:grid grid-cols-3 gap-2.5 hidden">
                     <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
                       <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
@@ -361,8 +288,6 @@ export default function DepositModal({
                   </p>
                 </div>
               </div>
-            </>
-          )}
         </div>
       </div>
 

@@ -32,15 +32,11 @@ const BASE_ACTIONS: QuickAction[] = [
 interface QuickActionsProps {
   disabled: boolean;
   wallet?: { arcAddress: string; chain?: string | null } | null;
-  appUserId: string;
-  onrampEnabled: boolean;
 }
 
 export default function QuickActions({
   disabled,
   wallet,
-  appUserId,
-  onrampEnabled,
 }: QuickActionsProps) {
   const router = useRouter();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -179,9 +175,6 @@ export default function QuickActions({
         onClose={() => setDepositOpen(false)}
         address={wallet?.arcAddress ?? ""}
         chain={wallet?.chain ?? undefined}
-        appUserId={appUserId}
-        onrampEnabled={onrampEnabled}
-        onDepositSettled={() => router.refresh()}
       />
     </>
   );

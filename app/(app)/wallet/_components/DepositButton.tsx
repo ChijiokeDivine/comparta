@@ -2,28 +2,22 @@
 
 // app/(app)/wallet/_components/DepositButton.tsx
 //
-// Opens the shared Add funds modal (card/bank Onramp + crypto transfer)
-// from the wallet page. Kept as a tiny client island so the wallet page can
-// stay a server component.
+// Opens the shared Add funds modal (crypto transfer) from the wallet page.
+// Kept as a tiny client island so the wallet page can stay a server
+// component.
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import DepositModal from "@/app/components/DepositModal";
 
 interface DepositButtonProps {
   address: string;
-  appUserId: string;
-  onrampEnabled: boolean;
   className?: string;
 }
 
 export default function DepositButton({
   address,
-  appUserId,
-  onrampEnabled,
   className = "",
 }: DepositButtonProps) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   return (
@@ -49,9 +43,6 @@ export default function DepositButton({
         open={open}
         onClose={() => setOpen(false)}
         address={address}
-        appUserId={appUserId}
-        onrampEnabled={onrampEnabled}
-        onDepositSettled={() => router.refresh()}
       />
     </>
   );
