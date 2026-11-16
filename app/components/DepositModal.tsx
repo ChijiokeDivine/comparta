@@ -248,28 +248,7 @@ export default function DepositModal({
                         {displayChain}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
-                      <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
-                        <Clock3 size={14} />
-                      </div>
-                      <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
-                        ~1 min
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
-                      <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                        <Image
-                          src="/usdc.png"
-                          alt="USDC"
-                          width={18}
-                          height={18}
-                          className="rounded-full"
-                        />
-                      </div>
-                      <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
-                        USDC
-                      </p>
-                    </div>
+                   
                   </div>
                 </div>
               </div>
