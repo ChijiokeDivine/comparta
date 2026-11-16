@@ -186,7 +186,7 @@ export default function DepositModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="deposit-title"
-    >
+     >
       <button
         aria-label="Close deposit modal"
         onClick={onClose}
@@ -219,18 +219,7 @@ export default function DepositModal({
         <div className="px-6 pb-6 space-y-5">
           {canOnramp && (
             <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
-              <button
-                type="button"
-                onClick={() => setPickedMethod("onramp")}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                  method === "onramp"
-                    ? "bg-[#2A5CE6] text-white"
-                    : "text-[#3E4A6B] hover:bg-white"
-                }`}
-              >
-                <CreditCard size={13} />
-                Card or bank
-              </button>
+             
               <button
                 type="button"
                 onClick={() => setPickedMethod("crypto")}

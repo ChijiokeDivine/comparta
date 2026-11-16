@@ -1,9 +1,13 @@
 allowBuilds:
-  '@prisma/engines': set this to true or false
-  msgpackr-extract: set this to true or false
-  prisma: set this to true or false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+  # Required: Prisma downloads its query engines in a postinstall script.
+  '@prisma/engines': true
+  prisma: true
+  # Required by tsx/vitest: installs the platform binary.
+  esbuild: true
+  # Optional native addons. Denied so the install does not need a C++ toolchain.
+  # They fall back to pure-JS implementations.
+  bufferutil: false
+  msgpackr-extract: false
+  sharp: false
+  unrs-resolver: false
+  utf-8-validate: false

@@ -14,13 +14,50 @@
 import { Queue, type ConnectionOptions } from "bullmq";
 import IORedis from "ioredis";
 import { getEnv } from "@/lib/env";
+import { InMemoryRedis } from "@/lib/redis/inMemoryClient";
 
 const globalForQueues = globalThis as unknown as {
   redisConnection: IORedis | undefined;
   queues: Record<string, Queue> | undefined;
+  redisDisabledWarned: Set<string> | undefined;
 };
 
+const REDIS_DISABLED_VALUES = new Set(["1", "true", "yes", "on"]);
+
+/**
+ * True when REDIS_DISABLED is set to a truthy value. Intended for local
+ * development on machines without a Redis server: without this, every
+ * direct Redis command waits on ioredis's retry loop (it is configured with
+ * maxRetriesPerRequest: null for BullMQ) until a connection appears, which
+ * reads as the server "stalling".
+ */
+export function isRedisDisabled(): boolean {
+  return REDIS_DISABLED_VALUES.has(
+    String(getEnv().REDIS_DISABLED ?? "").trim().toLowerCase()
+  );
+}
+
+function warnRedisDisabledOnce(reason: string): void {
+  if (!globalForQueues.redisDisabledWarned) {
+    globalForQueues.redisDisabledWarned = new Set();
+  }
+  if (globalForQueues.redisDisabledWarned.has(reason)) return;
+  globalForQueues.redisDisabledWarned.add(reason);
+  console.warn(
+    `[redis] REDIS_DISABLED is on — ${reason}. ` +
+      `This is a local-dev mode: state is per-process and not durable. ` +
+      `Unset REDIS_DISABLED (or set it to false) to use Redis again.`
+  );
+}
+
 function getConnection(): ConnectionOptions {
+  if (isRedisDisabled()) {
+    throw new Error(
+      "REDIS_DISABLED is on, so there is no BullMQ connection. " +
+        "Unset REDIS_DISABLED (or set it to false) and point REDIS_URL at a " +
+        "running Redis instance to run queues/workers."
+    );
+  }
   return getRawRedisClient() as unknown as ConnectionOptions;
 }
 
@@ -29,9 +66,21 @@ function getConnection(): ConnectionOptions {
  * real command methods (incr, expire, ttl, etc.) - for callers that need
  * to run Redis commands directly (e.g. lib/rateLimit.ts, lib/savings/yieldRate.ts)
  * rather than just handing a connection to BullMQ.
+ *
+ * When REDIS_DISABLED is on, this returns an in-memory implementation of the
+ * same small command surface instead of opening a socket, so those callers
+ * keep working without a Redis server.
  */
 function getRawRedisClient(): IORedis {
   if (!globalForQueues.redisConnection) {
+    if (isRedisDisabled()) {
+      warnRedisDisabledOnce(
+        "using an in-process in-memory store instead of connecting to REDIS_URL"
+      );
+      globalForQueues.redisConnection = new InMemoryRedis() as unknown as IORedis;
+      return globalForQueues.redisConnection;
+    }
+
     const client = new IORedis(getEnv().REDIS_URL, {
       maxRetriesPerRequest: null, // required by BullMQ
     });
@@ -80,15 +129,33 @@ export const QUEUE_NAMES = {
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 
+function createRedisDisabledQueue(name: QueueName): Queue {
+  const add = async () => {
+    warnRedisDisabledOnce(
+      `background jobs are not being enqueued (skipped "${name}"); they will not run`
+    );
+    return { id: `redis-disabled:${name}` };
+  };
+  // Only the enqueue surface is used from API routes; a full Queue would need
+  // a live connection. Callers already treat add() as best-effort.
+  return { name, add, addBulk: async () => [] } as unknown as Queue;
+}
+
 function getQueues(): Record<string, Queue> {
   if (!globalForQueues.queues) {
-    const connection = getConnection();
-    globalForQueues.queues = Object.fromEntries(
-      Object.values(QUEUE_NAMES).map((name) => [
-        name,
-        new Queue(name, { connection }),
-      ])
-    );
+    if (isRedisDisabled()) {
+      globalForQueues.queues = Object.fromEntries(
+        Object.values(QUEUE_NAMES).map((name) => [name, createRedisDisabledQueue(name)])
+      );
+    } else {
+      const connection = getConnection();
+      globalForQueues.queues = Object.fromEntries(
+        Object.values(QUEUE_NAMES).map((name) => [
+          name,
+          new Queue(name, { connection }),
+        ])
+      );
+    }
   }
   return globalForQueues.queues;
 }

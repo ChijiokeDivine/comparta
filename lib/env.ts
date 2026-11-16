@@ -13,6 +13,12 @@ const envSchema = z.object({
 
   REDIS_URL: z.string().min(1, "REDIS_URL is required"),
 
+  // Local-dev escape hatch: "true"/"1" runs the app without Redis. Rate
+  // limiting and the yield-rate cache fall back to in-process memory,
+  // realtime stays single-process, and background job enqueues are skipped
+  // with a warning. Never enable in production.
+  REDIS_DISABLED: z.string().optional(),
+
   NEXTAUTH_URL: z.string().optional(),
   VERCEL_URL: z.string().optional(),
   NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET is required"),

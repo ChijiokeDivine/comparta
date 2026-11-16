@@ -10,6 +10,11 @@ import { resolveAppNetwork } from "./lib/config/network";
 const appNetwork = resolveAppNetwork(process.env);
 
 const nextConfig: NextConfig = {
+  // Pin the Turbopack workspace root to this project. Without it, Next walks up
+  // and finds C:\Users\HP\pnpm-lock.yaml, treating the home directory as root.
+  turbopack: {
+    root: import.meta.dirname,
+  },
   env: {
     NEXT_PUBLIC_APP_NETWORK: appNetwork,
   },
