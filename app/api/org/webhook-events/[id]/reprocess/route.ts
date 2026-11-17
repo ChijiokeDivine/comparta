@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireAuth, UnauthenticatedError } from "@/lib/auth/kyb-gate";
 import { assertIsOwner, OwnerOnlyError } from "@/lib/auth/canManageOrg";
 import { handleInboundTransfer, type InboundNotification } from "@/lib/transfers/receive";
+import { PajServiceError, reprocessPajWebhookEvent } from "@/lib/paj/service";
 
 interface WalletTransferPayload {
   notificationType?: string;
@@ -31,6 +32,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const event = await prisma.webhookEvent.findUnique({ where: { id } });
     if (!event) {
       return NextResponse.json({ error: "Webhook event not found" }, { status: 404 });
+    }
+
+    // Paj deliveries are whole order snapshots. Their reprocess path re-runs
+    // the same forward-only apply, and refuses unverified events.
+    if (event.source === "paj") {
+      const result = await reprocessPajWebhookEvent(event.id);
+      return NextResponse.json({ success: true, result });
     }
 
     const payload = event.rawPayload as WalletTransferPayload;
@@ -83,6 +91,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     if (err instanceof OwnerOnlyError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
+    }
+    if (err instanceof PajServiceError) {
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: err.status }
+      );
     }
     console.error("[org/webhook-events] reprocess failed", err);
     return NextResponse.json({ error: "Reprocessing failed" }, { status: 500 });

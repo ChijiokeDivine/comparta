@@ -73,6 +73,33 @@ const envSchema = z.object({
     .string()
     .default("https://api.circle.com/v2/notifications/publicKey"),
 
+  // ── Paj Cash (Nigerian bank onramp / offramp) ────────────────────────
+  // Optional so the app boots without it; the bank ramp UI hides itself
+  // when no key is present. Server-side only — never expose this key to
+  // the browser. The key is scoped to the business and the rates it
+  // returns already include that business's fee.
+  PAJ_CASH_API_KEY: z.string().optional(),
+  // Selects the Paj API host. "production" (default) pairs with Arc
+  // mainnet; "staging" pairs with Arc testnet, so a testnet deployment
+  // can never accidentally create a real-money order.
+  PAJ_CASH_ENVIRONMENT: z.enum(["production", "staging"]).default("production"),
+  // HMAC secret from the Paj dashboard (starts with "whsec_"). Verifies
+  // X-PAJ-Signature on /api/webhooks/paj. Optional: when unset, Comparta
+  // obtains the key's secret by registering the webhook (PATCH
+  // /pub/v2/webhook) and stores it encrypted in PajWebhookConfig. Set this
+  // only to override that, e.g. when the key is managed elsewhere.
+  PAJ_CASH_WEBHOOK_SECRET: z.string().optional(),
+  // Public URL Paj posts order updates to. Defaults to
+  // ${NEXTAUTH_URL}/api/webhooks/paj. Must be the final https URL — Paj
+  // does not follow redirects, and localhost/non-https URLs are rejected
+  // as unreachable.
+  PAJ_WEBHOOK_URL: z.string().url().optional(),
+  // Point the API key's ramp webhook at PAJ_WEBHOOK_URL (or the derived
+  // URL) automatically before opening an order. Runs on mainnet, or
+  // whenever PAJ_WEBHOOK_URL is explicitly set; also available as a manual
+  // action in Settings → Webhooks. Set to "false" to disable.
+  PAJ_CASH_WEBHOOK_AUTO_REGISTER: z.enum(["true", "false"]).default("true"),
+
   // Shared secret gating the manual KYB-approval stub endpoint
   // (/api/org/kyb/approve). Replace this whole flow once a real KYB
   // provider is integrated.

@@ -288,3 +288,12 @@ export function TagIcon({ className = "w-4 h-4" }: IconProps) {
     </svg>
   );
 }
+
+export function LandmarkIcon({ className = "w-4 h-4" }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9.5 12 4l9 5.5" />
+      <path strokeLinecap="round" d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18" />
+    </svg>
+  );
+}

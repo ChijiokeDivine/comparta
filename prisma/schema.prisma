@@ -126,6 +126,22 @@ enum IdempotencyKeyStatus {
   FAILED
 }
 
+// ── Paj Cash (bank onramp / offramp) ───────────────────────────────────
+// Every order Comparta opens with Paj is recorded locally so the UI can
+// track it, the webhook can update it by Paj's id, and support can trace a
+// bank payout back to the exact on-chain transfer that funded it.
+enum PajOrderType {
+  ONRAMP
+  OFFRAMP
+}
+
+enum PajOrderStatus {
+  INIT
+  PROCESSING
+  COMPLETED
+  ERROR
+}
+
 enum AllocationRuleType {
   PERCENTAGE
   FIXED_AMOUNT
@@ -367,6 +383,8 @@ model Organization {
   transactionCategories  TransactionCategory[]
   transactionCategorizations TransactionCategorization[]
   spendingAnomalies      SpendingAnomaly[]
+  pajBankAccounts        PajBankAccount[]
+  pajOrders              PajOrder[]
   multisigSigners        MultisigSigner[]
   multisigTreasury       MultisigTreasury?
 
@@ -759,11 +777,19 @@ model WebhookEvent {
   status        WebhookEventStatus @default(RECEIVED)
   processError  String?
 
+  // Provider-level idempotency. Paj has no delivery id, so the sender's
+  // exact raw body is hashed: a retry of the same transition is stored once
+  // and never re-applied. Nullable because Circle events don't use it and
+  // Postgres allows many NULLs in a unique index.
+  dedupeKey String?
+
   createdAt   DateTime  @default(now())
   processedAt DateTime?
 
+  @@unique([source, dedupeKey])
   @@index([status])
   @@index([eventType])
+  @@index([source, createdAt])
   @@map("webhook_events")
 }
 
@@ -809,6 +835,127 @@ model IdempotencyKey {
   @@unique([orgId, endpoint, key])
   @@index([orgId])
   @@map("idempotency_keys")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PAJ CASH — BANK ONRAMP / OFFRAMP
+// ─────────────────────────────────────────────────────────────────────────
+// A Nigerian bank account registered with Paj. Paj confirms the account
+// name with the bank and assigns the on-chain addresses that pay it. The
+// row is org-scoped: one org's saved beneficiaries are never visible to
+// another.
+model PajBankAccount {
+  id           String       @id @default(cuid())
+  orgId        String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  pajId         String? // Paj's bank-account id, when returned
+  bankCode      String
+  bankName      String
+  accountNumber String
+  accountName   String
+  // The Solana address that pays this account (Paj `address`). Stored for
+  // future Solana support; the Arc flow uses evmAddress.
+  solanaAddress String?
+  // One EVM address shared by all supported EVM chains.
+  evmAddress    String?
+
+  pajOrders PajOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, bankCode, accountNumber])
+  @@index([orgId])
+  @@map("paj_bank_accounts")
+}
+
+// One row per order opened with Paj. Append-only in spirit: status,
+// amounts and the funding transfer are filled in as Paj reports progress.
+// `pajOrderId` is unique so a webhook can always be matched to one row.
+model PajOrder {
+  id           String       @id @default(cuid())
+  orgId        String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  type   PajOrderType
+  status PajOrderStatus @default(INIT)
+
+  pajOrderId String @unique
+  // Paj chain id ("ARC"). Kept as a string so adding a chain never needs
+  // an enum migration — see lib/config/pajChains.ts.
+  chain      String
+  tokenMint  String
+  currency   String @default("NGN")
+
+  // Display values mirrored from Paj. Whole tokens / whole fiat units;
+  // Decimal (not float) so no rounding is introduced in storage.
+  tokenAmount Decimal? @db.Decimal(24, 6)
+  fiatAmount  Decimal? @db.Decimal(24, 2)
+  rate        Decimal? @db.Decimal(24, 6)
+  fee         Decimal? @db.Decimal(24, 6)
+
+  // ONRAMP: the Comparta wallet address that receives USDC.
+  recipientAddress String?
+  // OFFRAMP: the one-off Paj funding address the USDC is sent to.
+  depositAddress   String?
+
+  // Bank destination for offramp (snapshot — the saved account may later
+  // be removed without erasing the order's audit trail).
+  bankAccountId String?
+  bankAccount   PajBankAccount? @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
+  bankName      String?
+  accountNumber String?
+  accountName   String?
+
+  // OFFRAMP: source bucket + the on-chain transfer that funded the order.
+  fromLedgerAccountId  String?
+  onchainTransactionId String? @unique
+  memo                 String?
+
+  failureReason String?
+  rawPayload    Json?
+  // On-chain hash Paj reports for the deposit/payout, kept for support
+  // tracing. Never used as a ledger idempotency reference.
+  providerSignature String?
+  // Endpoint this order announced its updates to (snapshot; the API key's
+  // rampWebhookURL is used when this is null).
+  webhookUrl        String?
+  lastWebhookAt     DateTime?
+  completedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, createdAt])
+  @@index([orgId, type])
+  @@index([status])
+  @@map("paj_orders")
+}
+
+// One row per deployment (id = "default"), holding the webhook endpoint the
+// Paj API key was pointed at and the signing secret Paj returned for it.
+//
+// Paj issues webhookSecret with the key and only returns it from
+// PATCH /pub/v2/webhook, so requiring an operator to copy it into an env var
+// is how a webhook silently ends up unverified. Registering the endpoint
+// stores the returned secret here so restarts keep verifying.
+//
+// The secret is encrypted at rest with a key derived from PAJ_CASH_API_KEY:
+// a database leak alone cannot forge deliveries. PAJ_CASH_WEBHOOK_SECRET, when
+// set, always wins and skips this table entirely.
+model PajWebhookConfig {
+  id String @id
+
+  rampWebhookUrl String?
+  secretCipher   String?
+  // Last 4 characters, for diagnostics only.
+  secretHint     String?
+  registeredAt   DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("paj_webhook_configs")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

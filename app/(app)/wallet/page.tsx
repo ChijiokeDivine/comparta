@@ -79,10 +79,13 @@ export default async function WalletPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-xl font-semibold text-[#0B1E3F]">Wallet</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {wallet ? (
             <>
               <DepositButton address={wallet.arcAddress} />
+              <Link href="/wallet/ramp" className="btn-3d btn-3d--sm" style={secondaryBtnStyle}>
+                Bank transfers
+              </Link>
               <Link
                 href="/wallet/unified-balance/deposit"
                 className="btn-3d btn-3d--sm"

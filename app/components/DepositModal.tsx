@@ -2,10 +2,13 @@
 
 // app/components/DepositModal.tsx
 //
-// One "Add funds" surface: a crypto transfer (address + QR). Card/bank
-// Onramp has been removed, so crypto is the only deposit method.
+// The single "Add funds" surface. Two ways in:
+//   • Crypto   — transfer USDC to the org's address (QR + copy).
+//   • Bank     — pay naira from a Nigerian bank; Paj delivers USDC on Arc.
+// The bank tab is rendered by BankOnrampPanel and hides itself when Paj
+// isn't configured or the wallet chain isn't supported.
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import {
@@ -13,13 +16,13 @@ import {
   Copy,
   Check,
   Network,
-  Clock3,
 } from "lucide-react";
 import QRCodeStyling from "qr-code-styling";
 import {
   DEPOSIT_CHAINS,
   SETTLEMENT_CHAIN,
 } from "@/lib/config/clientChains";
+import BankOnrampPanel from "@/app/components/BankOnrampPanel";
 
 // The wallet's address is the same across every one of these chains (see
 // lib/circle/unifiedBalance.ts's module docstring) - only the label
@@ -51,6 +54,8 @@ function chainLogo(chain: string) {
   return CHAIN_LOGOS.find(({ prefix }) => chain.startsWith(prefix)) ?? null;
 }
 
+type DepositTab = "crypto" | "bank";
+
 interface DepositModalProps {
   open: boolean;
   onClose: () => void;
@@ -68,16 +73,24 @@ export default function DepositModal({
   const qrInstance = useRef<QRCodeStyling | null>(null);
   const [copied, setCopied] = useState(false);
   const [pickedChain, setPickedChain] = useState<string | null>(null);
+  const [tab, setTab] = useState<DepositTab>("crypto");
 
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   const selectedChain = pickedChain ?? chain;
 
+  // Reset to the crypto tab when closing so the next open starts on the
+  // familiar address/QR view.
+  const handleClose = useCallback(() => {
+    setTab("crypto");
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
     if (!open) return;
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     };
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -86,10 +99,10 @@ export default function DepositModal({
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [open, handleClose]);
 
   useEffect(() => {
-    if (!open || !mounted || !qrRef.current || !address) {
+    if (!open || !mounted || tab !== "crypto" || !qrRef.current || !address) {
       return;
     }
 
@@ -133,7 +146,7 @@ export default function DepositModal({
 
     qrRef.current.innerHTML = "";
     qrInstance.current.append(qrRef.current);
-  }, [open, mounted, address]);
+  }, [open, mounted, address, tab]);
 
   if (!open || !mounted) return null;
 
@@ -159,10 +172,10 @@ export default function DepositModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="deposit-title"
-     >
+    >
       <button
         aria-label="Close deposit modal"
-        onClick={onClose}
+        onClick={handleClose}
         className="absolute inset-0 bg-[#0B1E3F]/50 backdrop-blur-[2px] animate-[fadeIn_.15s_ease]"
         tabIndex={-1}
       />
@@ -177,11 +190,13 @@ export default function DepositModal({
               Add funds
             </h2>
             <p className="mt-1 text-xs text-[#7C8CA6]">
-              Transfer USDC to your address onchain.
+              {tab === "bank"
+                ? "Pay naira from your bank, receive USDC."
+                : "Transfer USDC to your address onchain."}
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close"
             className="rounded-full p-2 text-[#7C8CA6] hover:bg-[#FAF9F6] hover:text-[#0B1E3F] transition-colors"
           >
@@ -190,7 +205,36 @@ export default function DepositModal({
         </div>
 
         <div className="px-6 pb-6 space-y-5">
-          <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
+          <div className="flex gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
+            <button
+              type="button"
+              onClick={() => setTab("crypto")}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
+                tab === "crypto"
+                  ? "bg-[#2A5CE6] text-white"
+                  : "text-[#3E4A6B] hover:bg-white"
+              }`}
+            >
+              Crypto
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("bank")}
+              className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
+                tab === "bank"
+                  ? "bg-[#2A5CE6] text-white"
+                  : "text-[#3E4A6B] hover:bg-white"
+              }`}
+            >
+              Bank transfer
+            </button>
+          </div>
+
+          {tab === "bank" ? (
+            <BankOnrampPanel onClose={handleClose} />
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
                 {DEPOSIT_CHAINS.map((c) => (
                   <button
                     key={c.value}
@@ -248,7 +292,6 @@ export default function DepositModal({
                         {displayChain}
                       </p>
                     </div>
-                   
                   </div>
                 </div>
               </div>
@@ -267,6 +310,8 @@ export default function DepositModal({
                   </p>
                 </div>
               </div>
+            </>
+          )}
         </div>
       </div>
 

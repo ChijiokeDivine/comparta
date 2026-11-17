@@ -10,6 +10,7 @@ import {
   TRANSFER_DESTINATION_CHAINS,
   SETTLEMENT_CHAIN,
 } from "@/lib/config/clientChains";
+import BankPayoutForm from "./_components/BankPayoutForm";
 import type { Chain } from "@/app/generated/prisma/client";
 interface Bucket {
   id: string;
@@ -52,6 +53,7 @@ export default function TransferForm({
   initialTo?: string;
 }) {
   const router = useRouter();
+  const [mode, setMode] = useState<"crypto" | "bank">("crypto");
   const [fromLedgerAccountId, setFromLedgerAccountId] = useState(buckets[0]?.id ?? "");
   const [toIdentifier, setToIdentifier] = useState(initialTo ?? "");
   const [amount, setAmount] = useState("");
@@ -324,9 +326,46 @@ export default function TransferForm({
     };
   }, [confirmOpen]);
 
+  const modeTabs = (
+    <div className="flex gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
+      <button
+        type="button"
+        onClick={() => setMode("crypto")}
+        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
+          mode === "crypto"
+            ? "bg-[#2A5CE6] text-white"
+            : "text-[#3E4A6B] hover:bg-white"
+        }`}
+      >
+        Comparta user
+      </button>
+      <button
+        type="button"
+        onClick={() => setMode("bank")}
+        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
+          mode === "bank"
+            ? "bg-[#2A5CE6] text-white"
+            : "text-[#3E4A6B] hover:bg-white"
+        }`}
+      >
+        Nigerian bank
+      </button>
+    </div>
+  );
+
+  if (mode === "bank") {
+    return (
+      <div className="space-y-5">
+        {modeTabs}
+        <BankPayoutForm buckets={buckets} disabled={disabled} />
+      </div>
+    );
+  }
+
   return (
     <>
       <form onSubmit={handleConfirmClick} className="space-y-5">
+      {modeTabs}
       {error && (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
           {error}

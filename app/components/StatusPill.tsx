@@ -20,6 +20,9 @@ const STYLES: Record<string, string> = {
   PENDING_APPROVAL: "bg-amber-50 text-amber-700 border-amber-200",
   PROCESSING: "bg-blue-50 text-blue-700 border-blue-200",
   COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  // PajOrderStatus
+  INIT: "bg-amber-50 text-amber-700 border-amber-200",
+  ERROR: "bg-red-50 text-red-700 border-red-200",
   // RecurringTransferStatus / RecurringTransferExecutionStatus
   PAUSED: "bg-amber-50 text-amber-700 border-amber-200",
   CANCELLED: "bg-[#F2F4F8] text-[#7C8CA6] border-[#E5E9F2]",

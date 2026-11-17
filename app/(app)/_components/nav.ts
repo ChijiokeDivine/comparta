@@ -37,6 +37,7 @@ import {
   SavingsBucketIcon,
   AlertIcon,
   TagIcon,
+  LandmarkIcon,
 } from "./icons";
 
 export interface NavChild {
@@ -63,6 +64,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: WalletIcon,
     children: [
       { href: "/wallet/transfer", label: "New transfer", icon: SendIcon },
+      { href: "/wallet/ramp", label: "Bank transfers", icon: LandmarkIcon },
       { href: "/wallet/unified-balance/deposit", label: "Fund Unified Balance", icon: PlusIcon },
       { href: "/wallet/move", label: "Move between buckets", icon: MoveIcon, managerOnly: true },
       { href: "/recurring", label: "Recurring transfers", icon: RecurringIcon },

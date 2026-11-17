@@ -25,6 +25,7 @@ import {
   Settings as SettingsIcon,
   History as HistoryIcon,
   Send as SendIcon,
+  Landmark as LandmarkIcon,
   FileText as FileIcon,
   Users as UsersIcon,
 } from "lucide-react";
@@ -75,6 +76,24 @@ const SEARCH_INDEX: SearchItem[] = [
     group: "Pages",
     Icon: HistoryIcon,
     keywords: ["history", "transfers", "activity", "transactions"],
+  },
+  {
+    id: "wallet-ramp",
+    title: "Bank transfers",
+    subtitle: "Bank deposits & Nigerian bank payouts",
+    href: "/wallet/ramp",
+    group: "Pages",
+    Icon: LandmarkIcon,
+    keywords: [
+      "bank",
+      "naira",
+      "ngn",
+      "deposit",
+      "payout",
+      "withdraw",
+      "onramp",
+      "offramp",
+    ],
   },
   {
     id: "buckets",
