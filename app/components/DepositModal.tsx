@@ -236,7 +236,7 @@ export default function DepositModal({
                   network, so the chain switcher shows a single Arc tab. To
                   bring back the other networks, map over DEPOSIT_CHAINS
                   instead of filtering to the settlement chain. */}
-              <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
+              {/* <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
                 {DEPOSIT_CHAINS.filter((c) => c.isSettlement).map((c) => (
                   <button
                     key={c.value}
@@ -251,7 +251,7 @@ export default function DepositModal({
                     {c.label}
                   </button>
                 ))}
-              </div>
+              </div> */}
 
               <div className="flex justify-center pt-2">
                 <div className="relative p-4 rounded-xl border border-[#E5E9F2]">
