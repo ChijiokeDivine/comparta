@@ -10,13 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
-import {
-  X,
-  Copy,
-  Check,
-  Network,
-} from "lucide-react";
+import { X, Copy, Check } from "lucide-react";
 import QRCodeStyling from "qr-code-styling";
 import {
   DEPOSIT_CHAINS,
@@ -106,6 +100,11 @@ export default function DepositModal({
       return;
     }
 
+    // The deposit chain's logo sits at the centre of the QR so the payer can
+    // confirm the network at a glance. Falls back to the Comparta mark if a
+    // chain has no artwork yet.
+    const logo = chainLogo(selectedChain)?.src ?? "/small-logo.webp";
+
     if (!qrInstance.current) {
       qrInstance.current = new QRCodeStyling({
         width: 260,
@@ -138,15 +137,15 @@ export default function DepositModal({
           color: "#2A5CE6",
           type: "dot",
         },
-        image: "/small-logo.webp",
+        image: logo,
       });
     } else {
-      qrInstance.current.update({ data: address });
+      qrInstance.current.update({ data: address, image: logo });
     }
 
     qrRef.current.innerHTML = "";
     qrInstance.current.append(qrRef.current);
-  }, [open, mounted, address, tab]);
+  }, [open, mounted, address, tab, selectedChain]);
 
   if (!open || !mounted) return null;
 
@@ -164,7 +163,6 @@ export default function DepositModal({
     DEPOSIT_CHAINS.find((c) => c.value === selectedChain)?.label ??
     selectedChain;
   const isArc = selectedChain === SETTLEMENT_CHAIN;
-  const selectedChainLogo = chainLogo(selectedChain);
 
   return createPortal(
     <div
@@ -205,7 +203,7 @@ export default function DepositModal({
         </div>
 
         <div className="px-6 pb-6 space-y-5">
-          <div className="flex gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
+          <div className="flex gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit mx-auto">
             <button
               type="button"
               onClick={() => setTab("crypto")}
@@ -234,8 +232,12 @@ export default function DepositModal({
             <BankOnrampPanel onClose={handleClose} />
           ) : (
             <>
+              {/* Only the settlement chain (Arc) is offered as a deposit
+                  network, so the chain switcher shows a single Arc tab. To
+                  bring back the other networks, map over DEPOSIT_CHAINS
+                  instead of filtering to the settlement chain. */}
               <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
-                {DEPOSIT_CHAINS.map((c) => (
+                {DEPOSIT_CHAINS.filter((c) => c.isSettlement).map((c) => (
                   <button
                     key={c.value}
                     type="button"
@@ -251,48 +253,22 @@ export default function DepositModal({
                 ))}
               </div>
 
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pt-2">
-                <div className="flex justify-center shrink-0 mx-auto sm:mx-0">
-                  <div className="relative p-4 rounded-xl border border-[#E5E9F2]">
-                    <div ref={qrRef} className="w-[260px] h-[260px]" />
-                    <button
-                      type="button"
-                      onClick={handleCopy}
-                      aria-label={copied ? "Address copied" : "Copy deposit address"}
-                      title={copied ? "Copied" : "Copy deposit address"}
-                      className={`absolute -top-3 -right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm transition-all ${
-                        copied
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-600"
-                          : "border-[#E5E9F2] bg-white text-[#3E4A6B] hover:border-[#0B1E3F] hover:text-[#0B1E3F] hover:bg-[#F7F8FB]"
-                      }`}
-                    >
-                      {copied ? <Check size={15} /> : <Copy size={15} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-1 min-w-0 w-full space-y-4">
-                  <div className="md:grid grid-cols-3 gap-2.5 hidden">
-                    <div className="rounded-xl bg-[#FAF9F6] border border-[#FAF9F6] p-3 text-center">
-                      <div className="mx-auto mb-1.5 w-8 h-8 rounded-full bg-white border border-[#E5E9F2] flex items-center justify-center text-[#2A5CE6]">
-                        {selectedChainLogo ? (
-                          <Image
-                            src={selectedChainLogo.src}
-                            alt={selectedChainLogo.alt}
-                            width={18}
-                            height={18}
-                            unoptimized
-                            className="h-[18px] w-[18px] object-contain"
-                          />
-                        ) : (
-                          <Network size={14} />
-                        )}
-                      </div>
-                      <p className="text-xs font-semibold text-[#0B1E3F] mt-0.5">
-                        {displayChain}
-                      </p>
-                    </div>
-                  </div>
+              <div className="flex justify-center pt-2">
+                <div className="relative p-4 rounded-xl border border-[#E5E9F2]">
+                  <div ref={qrRef} className="w-[260px] h-[260px]" />
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    aria-label={copied ? "Address copied" : "Copy deposit address"}
+                    title={copied ? "Copied" : "Copy deposit address"}
+                    className={`absolute -top-3 -right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm transition-all ${
+                      copied
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                        : "border-[#E5E9F2] bg-white text-[#3E4A6B] hover:border-[#0B1E3F] hover:text-[#0B1E3F] hover:bg-[#F7F8FB]"
+                    }`}
+                  >
+                    {copied ? <Check size={15} /> : <Copy size={15} />}
+                  </button>
                 </div>
               </div>
 
