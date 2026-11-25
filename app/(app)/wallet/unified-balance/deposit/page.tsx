@@ -35,7 +35,7 @@ export default async function UnifiedBalanceDepositPage() {
   );
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="mx-auto w-full max-w-lg space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-[#0B1E3F]">Fund Unified Balance</h1>
         <p className="mt-1.5 text-sm text-[#7C8CA6]">

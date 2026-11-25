@@ -38,7 +38,7 @@ export default async function UnifiedBalanceSpendPage() {
   );
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="mx-auto w-full max-w-lg space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-[#0B1E3F]">Spend Unified Balance</h1>
      

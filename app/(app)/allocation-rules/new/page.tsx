@@ -25,7 +25,7 @@ export default async function NewAllocationRulePage() {
   if (!org) redirect("/login");
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="mx-auto w-full max-w-lg space-y-6">
       <h1 className="text-xl font-semibold text-[#0B1E3F]">New allocation rule</h1>
       <NewAllocationRuleForm buckets={ledgerAccounts} disabled={false} />
     </div>

@@ -47,7 +47,7 @@ export default async function NewTransferPage({
         : undefined;
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="mx-auto w-full max-w-lg space-y-6">
       <h1 className="text-xl font-semibold text-[#0B1E3F]">New transfer</h1>
       <TransferForm
         buckets={buckets}

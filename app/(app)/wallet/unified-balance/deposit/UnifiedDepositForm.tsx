@@ -4,12 +4,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { UNIFIED_DEPOSIT_SOURCE_CHAINS } from "@/lib/config/clientChains";
+import { SETTLEMENT_CHAIN } from "@/lib/config/clientChains";
 
-// Network-aware (mainnet in production, Sepolia family locally) — see
-// lib/config/clientChains.ts. The API route independently validates
-// against DEPOSIT_SOURCE_SUPPORTED_CHAINS server-side.
-const SOURCE_CHAINS = UNIFIED_DEPOSIT_SOURCE_CHAINS;
+// Deposits are Arc-only (Arc mainnet in production) — there is no source
+// chain picker. The API route independently validates the chain against
+// DEPOSIT_SOURCE_SUPPORTED_CHAINS server-side.
+const SOURCE_CHAIN = SETTLEMENT_CHAIN;
 
 const POLL_INTERVAL_MS = 2_500;
 const POLL_TIMEOUT_MS = 90_000;
@@ -30,7 +30,6 @@ export default function UnifiedDepositForm({
   disabled: boolean;
 }) {
   const router = useRouter();
-  const [sourceChain, setSourceChain] = useState(SOURCE_CHAINS[0].value);
   const [amount, setAmount] = useState("");
   // allocation amounts keyed by bucket id
   const [alloc, setAlloc] = useState<Record<string, string>>({});
@@ -182,7 +181,7 @@ export default function UnifiedDepositForm({
           "Idempotency-Key": idempotencyKey,
         },
         body: JSON.stringify({
-          sourceChain,
+          sourceChain: SOURCE_CHAIN,
           amount: amount.trim(),
           allocations,
         }),
@@ -249,26 +248,6 @@ export default function UnifiedDepositForm({
           </Link>
         </div>
       )}
-
-      <div>
-      
-        <label className="block text-sm font-semibold text-[#0B1E3F] mb-2">Source chain</label>
-        <div className="flex flex-wrap gap-1.5 rounded-full bg-[#FAF9F6] p-1 w-fit">
-          {SOURCE_CHAINS.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => setSourceChain(c.value)}
-              disabled={disabled || submitting || confirming}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
-                sourceChain === c.value ? "bg-[#2A5CE6] text-white" : "text-[#3E4A6B] hover:bg-white"
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div>
         <label htmlFor="amount" className="block text-sm font-semibold text-[#0B1E3F] mb-2">

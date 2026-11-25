@@ -95,7 +95,7 @@ export default function EditSavingsRulePage() {
   if (notFound) return <div className="max-w-lg text-sm text-[#7C8CA6]">Rule not found.</div>;
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="mx-auto w-full max-w-lg space-y-6">
       <h1 className="text-xl font-semibold text-[#0B1E3F]">Edit auto-save rule</h1>
 
       <form onSubmit={handleSubmit} className="space-y-5">
