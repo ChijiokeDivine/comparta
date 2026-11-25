@@ -4,6 +4,7 @@
 import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
 import { HideBalancesProvider } from "./HideBalancesProvider";
+import { FeedbackProvider } from "./FeedbackProvider";
 // or move HideBalancesProvider to app/_components/ to avoid importing from a route group
 
 export function Providers({
@@ -15,7 +16,9 @@ export function Providers({
 }) {
   return (
     <SessionProvider session={session}>
-      <HideBalancesProvider>{children}</HideBalancesProvider>
+      <HideBalancesProvider>
+        <FeedbackProvider>{children}</FeedbackProvider>
+      </HideBalancesProvider>
     </SessionProvider>
   );
 }

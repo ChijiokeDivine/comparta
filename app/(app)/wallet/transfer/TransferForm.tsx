@@ -12,7 +12,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -29,8 +29,6 @@ import {
   Repeat,
   Search,
   Send,
-  Volume2,
-  VolumeX,
   X,
 } from "lucide-react";
 import {
@@ -38,6 +36,7 @@ import {
   SETTLEMENT_CHAIN,
 } from "@/lib/config/clientChains";
 import BankPayoutForm from "./_components/BankPayoutForm";
+import { useFeedback } from "@/app/(app)/_components/FeedbackProvider";
 import type { Chain } from "@/app/generated/prisma/client";
 
 interface Bucket {
@@ -107,118 +106,6 @@ function formatDay(iso: string): string {
 function truncateAddress(addr: string, start = 7, end = 7): string {
   if (addr.length <= start + end + 2) return addr;
   return `${addr.slice(0, start)}..${addr.slice(-end)}`;
-}
-
-// ── feedback (sound + haptics) ───────────────────────────────────────────
-
-let audioCtx: AudioContext | null = null;
-
-function getAudioCtx(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!audioCtx) {
-    const Ctx =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-    if (!Ctx) return null;
-    audioCtx = new Ctx();
-  }
-  return audioCtx;
-}
-
-function tone(freq: number, duration = 0.08, gain = 0.03, delay = 0) {
-  const ctx = getAudioCtx();
-  if (!ctx) return;
-  if (ctx.state === "suspended") void ctx.resume();
-  const start = ctx.currentTime + delay;
-  const osc = ctx.createOscillator();
-  const amp = ctx.createGain();
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(freq, start);
-  amp.gain.setValueAtTime(0.0001, start);
-  amp.gain.linearRampToValueAtTime(gain, start + 0.012);
-  amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  osc.connect(amp);
-  amp.connect(ctx.destination);
-  osc.start(start);
-  osc.stop(start + duration + 0.03);
-}
-
-type Cue = "tap" | "next" | "back" | "success" | "error";
-
-function useFeedback() {
-  const [sound, setSound] = useState(true);
-  const [haptics, setHaptics] = useState(true);
-
-  useEffect(() => {
-    try {
-      setSound(localStorage.getItem("comparta:transfer:sound") !== "off");
-      setHaptics(localStorage.getItem("comparta:transfer:haptics") !== "off");
-    } catch {
-      /* private mode */
-    }
-  }, []);
-
-  const toggleSound = useCallback(() => {
-    setSound((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("comparta:transfer:sound", next ? "on" : "off");
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }, []);
-
-  const toggleHaptics = useCallback(() => {
-    setHaptics((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("comparta:transfer:haptics", next ? "on" : "off");
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }, []);
-
-  const cue = useCallback(
-    (kind: Cue) => {
-      if (haptics) {
-        try {
-          navigator.vibrate?.(
-            kind === "success"
-              ? [14, 40, 18]
-              : kind === "error"
-                ? [30]
-                : kind === "tap"
-                  ? 6
-                  : 10
-          );
-        } catch {
-          /* unsupported */
-        }
-      }
-      if (!sound) return;
-      if (kind === "tap") tone(560, 0.045, 0.018);
-      else if (kind === "next") {
-        tone(660, 0.06, 0.028);
-        tone(880, 0.07, 0.02, 0.055);
-      } else if (kind === "back") tone(420, 0.06, 0.02);
-      else if (kind === "error") {
-        tone(300, 0.09, 0.03);
-        tone(220, 0.1, 0.025, 0.08);
-      } else {
-        tone(660, 0.09, 0.032);
-        tone(880, 0.09, 0.028, 0.09);
-        tone(1320, 0.14, 0.024, 0.18);
-      }
-    },
-    [sound, haptics]
-  );
-
-  return { sound, haptics, toggleSound, toggleHaptics, cue };
 }
 
 // ── small UI primitives ──────────────────────────────────────────────────
@@ -367,7 +254,7 @@ export default function TransferForm({
   initialFrom?: string;
 }) {
   const router = useRouter();
-  const { sound, haptics, toggleSound, toggleHaptics, cue } = useFeedback();
+  const { cue } = useFeedback();
 
   const startType = useMemo<TransferType | null>(() => {
     if (!initialType) return null;
@@ -379,7 +266,6 @@ export default function TransferForm({
   const [type, setType] = useState<TransferType | null>(startType);
   const [step, setStep] = useState<Step>(startType ? "details" : "intent");
   const [sheet, setSheet] = useState<SheetKind>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const initialFromId = (() => {
     const explicit = buckets.find((b) => b.id === initialFrom)?.id;
@@ -796,22 +682,22 @@ export default function TransferForm({
         }
       `}</style>
 
-      {/* Step chrome + feedback settings */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex min-h-8 items-center">
-          {step !== "intent" && step !== "success" && (
-            <button
-              type="button"
-              onClick={goBack}
-              disabled={submitting}
-              className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-medium text-[#3E4A6B] transition-colors hover:bg-[#F2F4F8] hover:text-[#0B1E3F] disabled:opacity-50"
-            >
-              <ArrowLeft size={16} /> Back
-            </button>
-          )}
-        </div>
+      {/* Step chrome */}
+      {step !== "success" && (
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex min-h-8 items-center">
+            {step !== "intent" && (
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={submitting}
+                className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-medium text-[#3E4A6B] transition-colors hover:bg-[#F2F4F8] hover:text-[#0B1E3F] disabled:opacity-50"
+              >
+                <ArrowLeft size={16} /> Back
+              </button>
+            )}
+          </div>
 
-        {step !== "success" && (
           <div className="flex items-center gap-1.5" aria-hidden="true">
             {(["intent", "details", "review"] as Step[]).map((s) => {
               const active = s === step;
@@ -825,28 +711,8 @@ export default function TransferForm({
               );
             })}
           </div>
-        )}
-
-        <div className="relative flex min-h-8 items-center justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              cue("tap");
-              setSettingsOpen((o) => !o);
-            }}
-            aria-label="Sound and vibration"
-            className="rounded-full p-2 text-[#7C8CA6] transition-colors hover:bg-[#F2F4F8] hover:text-[#0B1E3F]"
-          >
-            {sound || haptics ? <Volume2 size={16} /> : <VolumeX size={16} />}
-          </button>
-          {settingsOpen && (
-            <div className="absolute right-0 top-full z-30 mt-1 w-56 rounded-xl border border-[#E5E9F2] bg-white p-1.5 shadow-[0_18px_50px_-12px_rgba(11,30,63,0.28)] animate-[popIn_.15s_ease]">
-              <Toggle label="Sounds" checked={sound} onChange={toggleSound} />
-              <Toggle label="Vibrations" checked={haptics} onChange={toggleHaptics} />
-            </div>
-          )}
         </div>
-      </div>
+      )}
 
       {/* ── intent ─────────────────────────────────────────────────────── */}
       {step === "intent" && (
@@ -1603,36 +1469,5 @@ function ErrorNote({ children }: { children: React.ReactNode }) {
     >
       {children}
     </p>
-  );
-}
-
-function Toggle({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-sm text-[#0B1E3F] transition-colors hover:bg-[#F7F8FB]"
-    >
-      <span>{label}</span>
-      <span
-        className={`relative h-5 w-9 rounded-full transition-colors ${
-          checked ? "bg-[#2A5CE6]" : "bg-[#D8DEE9]"
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
-            checked ? "left-[18px]" : "left-0.5"
-          }`}
-        />
-      </span>
-    </button>
   );
 }

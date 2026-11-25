@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import SettingsSubNav from "../_components/SettingsSubNav";
+import { useFeedback } from "@/app/(app)/_components/FeedbackProvider";
 
 interface CountryOption {
   code: string;
@@ -77,6 +78,7 @@ function AccountSettingsSkeleton() {
 }
 
 export default function AccountSettingsPage() {
+  const { sound, haptics, toggleSound, toggleHaptics } = useFeedback();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
@@ -366,6 +368,30 @@ export default function AccountSettingsPage() {
         </button>
       </form>
 
+      <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-[#0B1E3F]">Sound &amp; vibration</p>
+          <p className="text-xs text-[#7C8CA6]">
+            Tones and haptics play on taps, confirmations and errors. Both are
+            on by default.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <ToggleRow
+            label="Sounds"
+            description="Play a short tone on taps, confirmations and errors."
+            checked={sound}
+            onChange={toggleSound}
+          />
+          <ToggleRow
+            label="Vibrations"
+            description="Vibrate on taps, confirmations and errors (supported devices)."
+            checked={haptics}
+            onChange={toggleHaptics}
+          />
+        </div>
+      </div>
+
       <form onSubmit={handleChangePassword} className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
         <p className="text-sm font-semibold text-[#0B1E3F]">Change password</p>
         <div>
@@ -417,5 +443,48 @@ export default function AccountSettingsPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      className="flex w-full items-center justify-between gap-4 rounded-xl border border-[#E5E9F2] px-4 py-3 text-left transition-colors hover:bg-[#F7F8FB] focus-visible:border-[#2A5CE6] focus-visible:outline-none"
+    >
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-[#0B1E3F]">
+          {label}
+        </span>
+        <span className="mt-0.5 block text-xs text-[#7C8CA6]">
+          {description}
+        </span>
+      </span>
+      <span
+        aria-hidden="true"
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-[#2A5CE6]" : "bg-[#D8DEE9]"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+            checked ? "left-[18px]" : "left-0.5"
+          }`}
+        />
+      </span>
+    </button>
   );
 }
