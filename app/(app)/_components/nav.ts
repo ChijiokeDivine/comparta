@@ -66,8 +66,6 @@ export const NAV_ITEMS: NavItem[] = [
       { href: "/wallet/transfer", label: "New transfer", icon: SendIcon },
       { href: "/wallet/ramp", label: "Bank transfers", icon: LandmarkIcon },
       { href: "/wallet/unified-balance/deposit", label: "Fund Unified Balance", icon: PlusIcon },
-      { href: "/wallet/transfer?type=bucket", label: "Move between buckets", icon: MoveIcon, managerOnly: true },
-      { href: "/recurring", label: "Recurring transfers", icon: RecurringIcon },
       { href: "/wallet/transfers", label: "Transfer history", icon: HistoryIcon },
     ],
 
@@ -81,6 +79,8 @@ export const NAV_ITEMS: NavItem[] = [
     managerOnly: true,
     children: [
       { href: "/buckets/new", label: "New bucket", icon: BucketPlusIcon, managerOnly: true },
+      { href: "/allocation-rules", label: "Bucket allocation", icon: AllocationIcon, managerOnly: true },
+
     ],
   },
 
@@ -106,37 +106,19 @@ export const NAV_ITEMS: NavItem[] = [
     icon: PaymentLinksIcon,
 
   },
+  // do not uncomment until i say so
+  // {
+  //   href: "/payroll",
+  //   label: "Payroll",
+  //   icon: PayrollIcon,
+  //   managerOnly: true,
+  //   children: [
+  //     { href: "/payroll/payees", label: "Payees", icon: UsersIcon, managerOnly: true },
+  //     { href: "/payroll/payees/new", label: "New payee", icon: UserPlusIcon, managerOnly: true },
+  //     { href: "/payroll/runs/new", label: "Run payroll", icon: PlayIcon, managerOnly: true },
+  //   ],
+  // },
 
-  {
-    href: "/payroll",
-    label: "Payroll",
-    icon: PayrollIcon,
-    managerOnly: true,
-    children: [
-      { href: "/payroll/payees", label: "Payees", icon: UsersIcon, managerOnly: true },
-      { href: "/payroll/payees/new", label: "New payee", icon: UserPlusIcon, managerOnly: true },
-      { href: "/payroll/runs/new", label: "Run payroll", icon: PlayIcon, managerOnly: true },
-    ],
-  },
-
-  {
-    href: "/savings",
-    label: "Savings",
-    icon: SavingsIcon,
-    managerOnly: true,
-    children: [
-      { href: "/savings/rules", label: "Savings rules", icon: RulesIcon, managerOnly: true },
-      { href: "/savings/rules/new", label: "New rule", icon: PlusIcon, managerOnly: true },
-    ],
-  },
-
-  {
-    href: "/allocation-rules",
-    label: "Allocation Rules",
-    icon: AllocationIcon,
-    managerOnly: true,
-
-  },
 
 
 
