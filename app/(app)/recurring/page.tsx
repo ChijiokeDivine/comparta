@@ -51,7 +51,7 @@ export default function RecurringTransfersPage() {
         <h1 className="text-xl font-semibold text-[#0B1E3F]">Recurring transfers</h1>
         {canManage && (
           <Link
-            href="/recurring/new"
+            href="/wallet/transfer?type=recurring"
             className="btn-3d btn-3d--sm"
             style={
               {

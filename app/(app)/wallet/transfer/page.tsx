@@ -8,19 +8,21 @@ import { getBalance } from "@/lib/ledger/engine";
 import TransferForm from "./TransferForm";
 import type { Metadata } from "next";
 
-export const metadata : Metadata = {
+export const metadata: Metadata = {
   title: "New transfer",
 };
+
+type TransferType = "wallet" | "bucket" | "recurring" | "bank";
 
 export default async function NewTransferPage({
   searchParams,
 }: {
-  searchParams: Promise<{ to?: string }>;
+  searchParams: Promise<{ to?: string; from?: string; type?: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.orgId) redirect("/login");
 
-  const { to: prefillTo } = await searchParams;
+  const { to: prefillTo, from: prefillFrom, type } = await searchParams;
 
   const [org, ledgerAccounts] = await Promise.all([
     prisma.organization.findUnique({ where: { id: session.user.orgId }, select: { kybStatus: true } }),
@@ -36,13 +38,24 @@ export default async function NewTransferPage({
     }))
   );
 
+  const canManage = session.user.role === "OWNER" || session.user.role === "ADMIN";
+  const initialType: TransferType | undefined =
+    type === "wallet" || type === "bucket" || type === "recurring" || type === "bank"
+      ? type
+      : prefillTo
+        ? "wallet"
+        : undefined;
+
   return (
     <div className="max-w-lg space-y-6">
       <h1 className="text-xl font-semibold text-[#0B1E3F]">New transfer</h1>
       <TransferForm
         buckets={buckets}
         disabled={false}
+        canManage={canManage}
+        initialType={initialType}
         initialTo={prefillTo}
+        initialFrom={prefillFrom}
       />
     </div>
   );

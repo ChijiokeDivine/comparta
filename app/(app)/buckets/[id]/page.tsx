@@ -54,14 +54,14 @@ export default async function BucketDetailPage({ params }: { params: Promise<{ i
         {canManage && !bucket.archived && (
           <div className="flex flex-wrap gap-2">
             <Link
-              href={`/wallet/move?to=${encodeURIComponent(bucket.id)}`}
+              href={`/wallet/transfer?type=bucket&to=${encodeURIComponent(bucket.id)}`}
               className="inline-flex items-center gap-2 text-xs font-semibold text-[#0B1E3F] px-3 py-2 rounded-xl border border-[#E5E9F2] bg-white hover:bg-[#F7F8FB] transition-colors"
             >
               <MoveInIcon className="w-3.5 h-3.5 text-[#2A5CE6]" />
               Move into this bucket
             </Link>
             <Link
-              href={`/wallet/move?from=${encodeURIComponent(bucket.id)}`}
+              href={`/wallet/transfer?type=bucket&from=${encodeURIComponent(bucket.id)}`}
               className="inline-flex items-center gap-2 text-xs font-semibold text-[#0B1E3F] px-3 py-2 rounded-xl border border-[#E5E9F2] bg-white hover:bg-[#F7F8FB] transition-colors"
             >
               <MoveOutIcon className="w-3.5 h-3.5 text-[#2A5CE6]" />

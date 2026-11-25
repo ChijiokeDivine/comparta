@@ -25,7 +25,7 @@ export default function UpcomingCard({ items }: { items: UpcomingItem[] }) {
         </p>
         <div className="mt-4 flex gap-3">
         
-          <Link href="/recurring/new" className="text-xs font-medium text-[#2A5CE6] hover:underline">
+          <Link href="/wallet/transfer?type=recurring" className="text-xs font-medium text-[#2A5CE6] hover:underline">
             Create a recurring payment
           </Link>
         </div>
