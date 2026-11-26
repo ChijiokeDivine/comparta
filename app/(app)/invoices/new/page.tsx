@@ -328,9 +328,7 @@ export default function NewInvoicePage() {
           </button>
           <h1 className="mt-3 text-xl font-semibold text-[#0B1E3F]">New invoice</h1>
         </div>
-        <span className="rounded-full border border-[#E5E9F2] bg-white px-3 py-1 text-xs font-semibold text-[#3E4A6B]">
-          Step {step} of 3
-        </span>
+     
       </div>
 
      
