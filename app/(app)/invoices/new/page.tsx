@@ -333,29 +333,7 @@ export default function NewInvoicePage() {
         </span>
       </div>
 
-      <div className="rounded-2xl border border-[#E5E9F2] bg-white p-4">
-        <div className="flex items-center justify-between text-[11px] font-semibold text-[#7C8CA6] sm:text-xs">
-          {STEPS.map((s) => (
-            <span
-              key={s.id}
-              className={`transition-colors ${step >= s.id ? "text-[#2A5CE6]" : ""}`}
-            >
-              {s.id}. {s.label}
-            </span>
-          ))}
-        </div>
-        <div className="mt-2 flex gap-1.5">
-          {STEPS.map((s) => (
-            <div key={s.id} className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E5E9F2]">
-              <div
-                className={`h-full rounded-full bg-[#2A5CE6] transition-all duration-500 ${
-                  step >= s.id ? "w-full" : "w-0"
-                }`}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
+     
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
@@ -447,9 +425,7 @@ export default function NewInvoicePage() {
                 <h2 className="text-lg font-semibold text-[#0B1E3F]">
                   What are you billing for?
                 </h2>
-                <p className="mt-1 text-sm text-[#7C8CA6]">
-                  Break the work into clear lines. Add as many as you need.
-                </p>
+              
               </div>
 
               <div className="space-y-3">
