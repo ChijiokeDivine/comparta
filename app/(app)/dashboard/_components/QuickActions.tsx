@@ -26,7 +26,7 @@ const BASE_ACTIONS: QuickAction[] = [
   { href: "/wallet/transfer", label: "New transfer", icon: WalletIcon },
   { href: "/invoices/new", label: "New invoice", icon: InvoicesIcon, hideOnMobile: true },
   { href: "/payment-links/new", label: "New payment link", icon: PaymentLinksIcon },
-  { href: "/contacts/new", label: "New payee", icon: ContactsIcon },
+
 ];
 
 interface QuickActionsProps {
