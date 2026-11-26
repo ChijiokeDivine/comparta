@@ -21,8 +21,7 @@ export default async function NewPaymentLinkPage() {
   if (!org) redirect("/login");
 
   return (
-    <div className="mx-auto w-full max-w-lg space-y-6">
-      <h1 className="text-xl font-semibold text-[#0B1E3F]">New payment link</h1>
+    <div className="mx-auto w-full max-w-2xl">
       <NewPaymentLinkForm buckets={ledgerAccounts} disabled={false} />
     </div>
   );

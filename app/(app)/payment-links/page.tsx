@@ -43,7 +43,7 @@ export default function PaymentLinksPage() {
   }, [tab]);
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-[#0B1E3F]">Payment links</h1>
         <Link
