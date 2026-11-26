@@ -180,7 +180,40 @@ export default function InsightsOverviewPage() {
       )}
 
       {loading ? (
-        <p className="text-sm text-[#7C8CA6]">Loading…</p>
+        <div className="space-y-6" role="status" aria-busy="true" aria-label="Loading insights">
+          <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
+            <div className="h-4 w-40 animate-pulse rounded bg-[#E5E9F2]" />
+            <div className="space-y-3">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="h-4 w-28 animate-pulse rounded bg-[#E5E9F2]" />
+                    <div className="h-4 w-16 animate-pulse rounded bg-[#E5E9F2]" />
+                  </div>
+                  <div className="h-2 w-full animate-pulse rounded-full bg-[#F2F4F8]" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5 space-y-4">
+            <div className="h-4 w-32 animate-pulse rounded bg-[#E5E9F2]" />
+            <div className="flex items-end gap-1 h-32">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="flex-1 flex items-end gap-0.5">
+                  <div
+                    className="flex-1 animate-pulse rounded-sm bg-emerald-100"
+                    style={{ height: `${30 + (i % 5) * 12}%` }}
+                  />
+                  <div
+                    className="flex-1 animate-pulse rounded-sm bg-[#E5E9F2]"
+                    style={{ height: `${20 + (i % 4) * 15}%` }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       ) : data ? (
         <>
           <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5">

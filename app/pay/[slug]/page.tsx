@@ -245,7 +245,22 @@ export default function PayLinkPage() {
         </div>
 
         {loading ? (
-          <p className="text-center text-sm text-[#7C8CA6]">Loading…</p>
+          <div
+            className="rounded-2xl border border-[#E5E9F2] bg-white p-6 sm:p-8 space-y-6"
+            role="status"
+            aria-busy="true"
+            aria-label="Loading payment link"
+          >
+            <div className="space-y-2">
+              <div className="h-3 w-24 animate-pulse rounded bg-[#E5E9F2]" />
+              <div className="h-8 w-36 animate-pulse rounded-lg bg-[#E5E9F2]" />
+            </div>
+            <div className="h-[46px] w-full animate-pulse rounded-xl bg-[#E5E9F2]" />
+            <div className="space-y-2">
+              <div className="h-11 w-full animate-pulse rounded-xl bg-[#E5E9F2]" />
+              <div className="h-11 w-full animate-pulse rounded-xl bg-[#E5E9F2]" />
+            </div>
+          </div>
         ) : loadError || !link ? (
           <div className="rounded-2xl border border-[#E5E9F2] bg-white p-8 text-center">
             <p className="text-sm text-[#7C8CA6]">{loadError ?? "Failed to load payment link"}</p>

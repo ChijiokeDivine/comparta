@@ -29,6 +29,10 @@ interface Payment {
   createdAt: string;
 }
 
+function Skeleton({ className = "" }: { className?: string }) {
+  return <div aria-hidden="true" className={`animate-pulse rounded-lg bg-[#E5E9F2] ${className}`} />;
+}
+
 export default function PaymentLinkDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -95,7 +99,54 @@ export default function PaymentLinkDetailPage() {
     }
   }
 
-  if (loading) return <div className="text-sm text-[#7C8CA6]">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="max-w-2xl space-y-6" role="status" aria-busy="true" aria-label="Loading payment link">
+        <Skeleton className="h-4 w-28" />
+
+        <div className="rounded-2xl border border-[#E5E9F2] bg-white p-6 space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-7 w-32" />
+            </div>
+            <Skeleton className="h-6 w-16 rounded-full" />
+          </div>
+
+          <Skeleton className="h-[46px] w-full rounded-xl" />
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
+
+          <Skeleton className="h-9 w-24 rounded-xl" />
+        </div>
+
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-20" />
+          <div className="rounded-2xl border border-[#E5E9F2] bg-white divide-y divide-[#F2F4F8]">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center justify-between px-5 py-3.5">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (notFound || !link) return <div className="text-sm text-[#7C8CA6]">Payment link not found.</div>;
 
   return (

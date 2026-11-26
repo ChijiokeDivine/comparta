@@ -4,6 +4,35 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+function EditSavingsRuleSkeleton() {
+  return (
+    <div
+      className="mx-auto w-full max-w-lg space-y-6"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading auto-save rule"
+    >
+      <div className="h-6 w-48 animate-pulse rounded-lg bg-[#E5E9F2]" />
+      <div className="space-y-5">
+        {[0, 1].map((i) => (
+          <div key={i} className="space-y-2">
+            <div className="h-4 w-20 animate-pulse rounded bg-[#E5E9F2]" />
+            <div className="h-[46px] w-full animate-pulse rounded-xl bg-[#E5E9F2]" />
+          </div>
+        ))}
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 animate-pulse rounded bg-[#E5E9F2]" />
+          <div className="h-4 w-16 animate-pulse rounded bg-[#E5E9F2]" />
+        </div>
+        <div className="h-11 w-full animate-pulse rounded-xl bg-[#E5E9F2]" />
+      </div>
+      <div className="pt-4 border-t border-[#F2F4F8]">
+        <div className="h-4 w-28 animate-pulse rounded bg-[#E5E9F2]" />
+      </div>
+    </div>
+  );
+}
+
 export default function EditSavingsRulePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -91,7 +120,7 @@ export default function EditSavingsRulePage() {
     }
   }
 
-  if (loading) return <div className="max-w-lg text-sm text-[#7C8CA6]">Loading…</div>;
+  if (loading) return <EditSavingsRuleSkeleton />;
   if (notFound) return <div className="max-w-lg text-sm text-[#7C8CA6]">Rule not found.</div>;
 
   return (

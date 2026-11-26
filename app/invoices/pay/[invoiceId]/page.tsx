@@ -107,7 +107,52 @@ export default function PayInvoicePage() {
         </div>
 
         {loading ? (
-          <p className="text-center text-sm text-[#7C8CA6]">Loading…</p>
+          <div
+            className="rounded-2xl border border-[#E5E9F2] bg-white p-6 sm:p-8 space-y-6"
+            role="status"
+            aria-busy="true"
+            aria-label="Loading invoice"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <div className="h-3 w-20 animate-pulse rounded bg-[#E5E9F2]" />
+                <div className="h-5 w-40 animate-pulse rounded bg-[#E5E9F2]" />
+              </div>
+              <div className="h-6 w-16 animate-pulse rounded-full bg-[#E5E9F2]" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="h-8 w-28 animate-pulse rounded-lg bg-[#E5E9F2]" />
+              <div className="h-3 w-24 animate-pulse rounded bg-[#E5E9F2]" />
+            </div>
+
+            <div className="rounded-xl border border-[#E5E9F2] divide-y divide-[#F2F4F8]">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-32 animate-pulse rounded bg-[#E5E9F2]" />
+                    <div className="h-3 w-20 animate-pulse rounded bg-[#E5E9F2]" />
+                  </div>
+                  <div className="h-4 w-16 animate-pulse rounded bg-[#E5E9F2]" />
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-xl bg-[#F7F8FB] p-4 space-y-2">
+              <div className="flex justify-between">
+                <div className="h-3 w-16 animate-pulse rounded bg-[#E5E9F2]" />
+                <div className="h-3 w-12 animate-pulse rounded bg-[#E5E9F2]" />
+              </div>
+              <div className="flex justify-between">
+                <div className="h-3 w-10 animate-pulse rounded bg-[#E5E9F2]" />
+                <div className="h-3 w-12 animate-pulse rounded bg-[#E5E9F2]" />
+              </div>
+              <div className="flex justify-between pt-1 border-t border-[#E5E9F2]">
+                <div className="h-4 w-12 animate-pulse rounded bg-[#E5E9F2]" />
+                <div className="h-4 w-16 animate-pulse rounded bg-[#E5E9F2]" />
+              </div>
+            </div>
+          </div>
         ) : notFound || !invoice ? (
           <div className="rounded-2xl border border-[#E5E9F2] bg-white p-8 text-center">
             <p className="text-sm text-[#7C8CA6]">This invoice doesn&apos;t exist or hasn&apos;t been sent yet.</p>

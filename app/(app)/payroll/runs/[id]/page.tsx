@@ -32,6 +32,10 @@ const RUN_STATUS_LABEL: Record<Run["status"], string> = {
   FAILED: "Failed",
 };
 
+function Skeleton({ className = "" }: { className?: string }) {
+  return <div aria-hidden="true" className={`animate-pulse rounded-lg bg-[#E5E9F2] ${className}`} />;
+}
+
 export default function PayrollRunDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -113,7 +117,50 @@ export default function PayrollRunDetailPage() {
     }
   }
 
-  if (loading) return <div className="text-sm text-[#7C8CA6]">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="max-w-2xl space-y-6" role="status" aria-busy="true" aria-label="Loading payroll run">
+        <Skeleton className="h-4 w-20" />
+
+        <div className="rounded-2xl border border-[#E5E9F2] bg-white p-6 space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-7 w-28" />
+            </div>
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {[0, 1].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-16" />
+            <div className="rounded-xl border border-[#E5E9F2] divide-y divide-[#F2F4F8]">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center justify-between px-4 py-3">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-36" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (notFound || !run) return <div className="text-sm text-[#7C8CA6]">Payroll run not found.</div>;
 
   return (

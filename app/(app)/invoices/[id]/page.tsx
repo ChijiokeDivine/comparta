@@ -40,6 +40,10 @@ interface Invoice {
   events: InvoiceEvent[];
 }
 
+function Skeleton({ className = "" }: { className?: string }) {
+  return <div aria-hidden="true" className={`animate-pulse rounded-lg bg-[#E5E9F2] ${className}`} />;
+}
+
 export default function InvoiceDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -112,7 +116,64 @@ export default function InvoiceDetailPage() {
     }
   }
 
-  if (loading) return <div className="text-sm text-[#7C8CA6]">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="max-w-2xl space-y-6" role="status" aria-busy="true" aria-label="Loading invoice">
+        <Skeleton className="h-4 w-24" />
+
+        <div className="rounded-2xl border border-[#E5E9F2] bg-white p-6 space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+            <Skeleton className="h-6 w-16 rounded-full" />
+          </div>
+
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-20" />
+            <div className="rounded-xl border border-[#E5E9F2] divide-y divide-[#F2F4F8]">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-[#F7F8FB] p-4 space-y-2">
+            <div className="flex justify-between">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+            <div className="flex justify-between">
+              <Skeleton className="h-3 w-10" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+            <div className="flex justify-between pt-1 border-t border-[#E5E9F2]">
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-24 rounded-xl" />
+            <Skeleton className="h-9 w-24 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (notFound || !invoice) return <div className="text-sm text-[#7C8CA6]">Invoice not found.</div>;
 
   const canSend = invoice.status === "DRAFT";

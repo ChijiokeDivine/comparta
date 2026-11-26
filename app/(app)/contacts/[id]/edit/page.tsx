@@ -4,6 +4,35 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 
+function EditContactSkeleton() {
+  return (
+    <div
+      className="mx-auto w-full max-w-lg space-y-6"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading contact"
+    >
+      <div className="h-6 w-36 animate-pulse rounded-lg bg-[#E5E9F2]" />
+      <div className="space-y-5">
+        {[0, 1].map((i) => (
+          <div key={i} className="space-y-2">
+            <div className="h-4 w-20 animate-pulse rounded bg-[#E5E9F2]" />
+            <div className="h-[46px] w-full animate-pulse rounded-xl bg-[#E5E9F2]" />
+          </div>
+        ))}
+        <div className="space-y-2">
+          <div className="h-4 w-24 animate-pulse rounded bg-[#E5E9F2]" />
+          <div className="h-[86px] w-full animate-pulse rounded-xl bg-[#E5E9F2]" />
+        </div>
+        <div className="h-11 w-full animate-pulse rounded-xl bg-[#E5E9F2]" />
+      </div>
+      <div className="pt-4 border-t border-[#F2F4F8]">
+        <div className="h-4 w-32 animate-pulse rounded bg-[#E5E9F2]" />
+      </div>
+    </div>
+  );
+}
+
 export default function EditContactPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -84,7 +113,7 @@ export default function EditContactPage() {
   }
 
   if (loading) {
-    return <div className="max-w-lg text-sm text-[#7C8CA6]">Loading…</div>;
+    return <EditContactSkeleton />;
   }
   if (notFound) {
     return <div className="max-w-lg text-sm text-[#7C8CA6]">Contact not found.</div>;
