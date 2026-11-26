@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { StatusPill } from "@/app/components/StatusPill";
 import { formatMoney, formatDate } from "@/app/invoices/_components/format";
+import { ArrowLeft } from "lucide-react";
 
 interface Transfer {
   id: string;
@@ -173,8 +174,9 @@ export default function RecurringTransferDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <button onClick={() => router.push("/recurring")} className="text-sm font-medium text-[#2A5CE6] hover:underline">
-        ← Recurring transfers
+      <button onClick={() => router.push("/recurring")} className="inline-flex items-center gap-1 text-sm font-medium text-[#2A5CE6] hover:underline">
+        <ArrowLeft size={14} aria-hidden="true" />
+        Recurring transfers
       </button>
 
       {error && (

@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { StatusPill } from "@/app/components/StatusPill";
 import { formatMoney, formatDate } from "@/app/invoices/_components/format";
+import { ArrowLeft } from "lucide-react";
 
 interface RunItem {
   id: string;
@@ -165,8 +166,9 @@ export default function PayrollRunDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <button onClick={() => router.push("/payroll")} className="text-sm font-medium text-[#2A5CE6] hover:underline">
-        ← Payroll
+      <button onClick={() => router.push("/payroll")} className="inline-flex items-center gap-1 text-sm font-medium text-[#2A5CE6] hover:underline">
+        <ArrowLeft size={14} aria-hidden="true" />
+        Payroll
       </button>
 
       {error && (

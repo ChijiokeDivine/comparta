@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { toDecimalString } from "@/lib/circle/amount";
 import { StatusPill } from "@/app/components/StatusPill";
 import { formatMoney, formatDate } from "@/app/invoices/_components/format";
+import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -31,9 +32,10 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
   ];
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <Link href="/wallet/transfers" className="text-sm font-medium text-[#2A5CE6] hover:underline">
-        ← Transfers
+    <div className="mx-auto w-full max-w-lg space-y-6">
+      <Link href="/wallet/transfers" className="inline-flex items-center gap-1 text-sm font-medium text-[#2A5CE6] hover:underline">
+        <ArrowLeft size={14} aria-hidden="true" />
+        Transfers
       </Link>
 
       <div className="rounded-2xl border border-[#E5E9F2] bg-white p-6 space-y-6">

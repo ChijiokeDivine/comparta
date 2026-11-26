@@ -13,6 +13,7 @@ import {
   formatDate,
   type InvoiceStatus,
 } from "@/app/invoices/_components/format";
+import { ArrowLeft } from "lucide-react";
 
 interface LineItem {
   description: string;
@@ -184,8 +185,9 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <button onClick={() => router.push("/invoices")} className="text-sm font-medium text-[#2A5CE6] hover:underline">
-        ← Invoices
+      <button onClick={() => router.push("/invoices")} className="inline-flex items-center gap-1 text-sm font-medium text-[#2A5CE6] hover:underline">
+        <ArrowLeft size={14} aria-hidden="true" />
+        Invoices
       </button>
 
       {actionError && (

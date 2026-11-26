@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth/auth";
 import { getBucketDetail, BucketNotFoundError } from "@/lib/buckets/service";
 import { StatusPill } from "@/app/components/StatusPill";
 import { formatMoney } from "@/app/invoices/_components/format";
-import { ArrowRightLeft as MoveInIcon, ArrowLeftRight as MoveOutIcon } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft as MoveInIcon, ArrowLeftRight as MoveOutIcon } from "lucide-react";
 import BucketActions from "./BucketActions";
 import type { Metadata } from "next";
 
@@ -29,8 +29,9 @@ export default async function BucketDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div className="max-w-2xl space-y-6">
-      <Link href="/buckets" className="text-sm font-medium text-[#2A5CE6] hover:underline">
-        ← Buckets
+      <Link href="/buckets" className="inline-flex items-center gap-1 text-sm font-medium text-[#2A5CE6] hover:underline">
+        <ArrowLeft size={14} aria-hidden="true" />
+        Buckets
       </Link>
 
       <div className="rounded-2xl border border-[#E5E9F2] bg-white p-6 space-y-6">
