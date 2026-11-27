@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { GripVertical } from "lucide-react";
 import { SETTLEMENT_CHAIN } from "@/lib/config/clientChains";
 
 // Deposits are Arc-only (Arc mainnet in production) — there is no source
@@ -13,6 +14,44 @@ const SOURCE_CHAIN = SETTLEMENT_CHAIN;
 
 const POLL_INTERVAL_MS = 2_500;
 const POLL_TIMEOUT_MS = 90_000;
+
+// USDC has 6 decimals. Doing the sequential debit math in integer micro-units
+// avoids floating-point drift when splitting an amount across buckets.
+const MICRO = 1_000_000;
+
+function toMicros(value: string): number {
+  const n = Number.parseFloat(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n * MICRO);
+}
+
+function microsToString(units: number): string {
+  const whole = Math.floor(units / MICRO);
+  const frac = units % MICRO;
+  if (frac === 0) return String(whole);
+  return `${whole}.${String(frac).padStart(6, "0").replace(/0+$/, "")}`;
+}
+
+interface AllocationRow {
+  bucket: Bucket;
+  debitMicros: number;
+}
+
+// Walk the buckets in order, debiting as much as each can cover.
+function computeAllocations(buckets: Bucket[], totalMicros: number) {
+  const rows: AllocationRow[] = [];
+  let remaining = totalMicros;
+  for (const bucket of buckets) {
+    const debitMicros = Math.min(toMicros(bucket.balance), remaining);
+    remaining -= debitMicros;
+    rows.push({ bucket, debitMicros });
+  }
+  return {
+    rows,
+    debitedMicros: totalMicros - remaining,
+    shortfallMicros: remaining,
+  };
+}
 
 interface Bucket {
   id: string;
@@ -31,8 +70,12 @@ export default function UnifiedDepositForm({
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
-  // allocation amounts keyed by bucket id
-  const [alloc, setAlloc] = useState<Record<string, string>>({});
+  // Bucket order defines the debit order: the first bucket is drained first,
+  // then the next, until the requested amount is covered.
+  const [order, setOrder] = useState<string[]>(() => buckets.map((b) => b.id));
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const dragOverIdRef = useRef<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ txHash: string; explorerUrl?: string } | null>(null);
@@ -45,9 +88,88 @@ export default function UnifiedDepositForm({
 
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
 
-  const allocSum = useMemo(() => {
-    return Object.values(alloc).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-  }, [alloc]);
+  // Keep the order in sync if buckets are added/removed by a server refresh:
+  // known ids stay in their user-defined order, new ids are appended.
+  const orderedBuckets = [
+    ...order
+      .map((id) => buckets.find((b) => b.id === id))
+      .filter((b): b is Bucket => Boolean(b)),
+    ...buckets.filter((b) => !order.includes(b.id)),
+  ];
+
+  const totalMicros = toMicros(amount);
+  const {
+    rows: autoAllocations,
+    debitedMicros,
+    shortfallMicros,
+  } = computeAllocations(orderedBuckets, totalMicros);
+  const canReorder = !disabled && !submitting && !confirming;
+
+  function moveBucket(sourceId: string, targetId: string) {
+    if (sourceId === targetId) return;
+    const base = orderedBuckets.map((b) => b.id);
+    const sourceIndex = base.indexOf(sourceId);
+    const targetIndex = base.indexOf(targetId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
+    const next = base.filter((id) => id !== sourceId);
+    // Inserting at the target's original index means "after" when moving
+    // down and "before" when moving up — so dropping on the last row can
+    // move a bucket to the end.
+    next.splice(targetIndex, 0, sourceId);
+    setOrder(next);
+  }
+
+  function handlePointerDown(e: React.PointerEvent<HTMLButtonElement>, id: string) {
+    if (!canReorder) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDraggingId(id);
+    setDragOverId(null);
+    dragOverIdRef.current = null;
+  }
+
+  function handlePointerMove(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!draggingId) return;
+    const row = document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest<HTMLElement>("[data-bucket-id]");
+    const overId = row?.dataset.bucketId;
+    const target = overId && overId !== draggingId ? overId : null;
+    dragOverIdRef.current = target;
+    setDragOverId(target);
+  }
+
+  function handlePointerUp(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!draggingId) return;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    const target = dragOverIdRef.current;
+    if (target && target !== draggingId) {
+      moveBucket(draggingId, target);
+    }
+    dragOverIdRef.current = null;
+    setDraggingId(null);
+    setDragOverId(null);
+  }
+
+  function handlePointerCancel(e: React.PointerEvent<HTMLButtonElement>) {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    dragOverIdRef.current = null;
+    setDraggingId(null);
+    setDragOverId(null);
+  }
+
+  function handleReorderKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, id: string) {
+    if (!canReorder) return;
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    const index = orderedBuckets.findIndex((b) => b.id === id);
+    const neighbour = orderedBuckets[e.key === "ArrowUp" ? index - 1 : index + 1];
+    if (neighbour) moveBucket(id, neighbour.id);
+  }
 
   useEffect(() => {
     if (!confirming || ready) return;
@@ -88,43 +210,6 @@ export default function UnifiedDepositForm({
     };
   }, [confirming, ready, router]);
 
-  function getAvailableAllocation(id: string, currentAlloc: Record<string, string>) {
-    const total = Number.parseFloat(amount) || 0;
-    if (!Number.isFinite(total) || total <= 0) return 0;
-
-    const otherTotal = Object.entries(currentAlloc).reduce((sum, [bucketId, bucketValue]) => {
-      if (bucketId === id) return sum;
-      return sum + (Number.parseFloat(bucketValue) || 0);
-    }, 0);
-
-    return Math.max(0, total - otherTotal);
-  }
-
-  function setBucketAmount(id: string, value: string) {
-    const nextValue = value.trim();
-    const parsed = Number.parseFloat(nextValue);
-    const available = getAvailableAllocation(id, alloc);
-
-    if (!nextValue || !Number.isFinite(parsed) || parsed <= 0) {
-      setAlloc((prev) => ({ ...prev, [id]: "" }));
-      return;
-    }
-
-    const capped = available > 0 ? Math.min(parsed, available) : 0;
-    setAlloc((prev) => ({ ...prev, [id]: capped > 0 ? String(capped) : "" }));
-  }
-
-  function fillFromBucket(id: string, balance: string) {
-    const available = getAvailableAllocation(id, alloc);
-    const balanceValue = Number.parseFloat(balance) || 0;
-    const maxAllowed = Math.min(balanceValue, available);
-
-    setAlloc((prev) => ({
-      ...prev,
-      [id]: maxAllowed > 0 ? String(maxAllowed) : "",
-    }));
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -133,29 +218,27 @@ export default function UnifiedDepositForm({
     setConfirming(false);
     setConfirmedAfter(null);
 
-    const total = parseFloat(amount);
-    if (!amount || !Number.isFinite(total) || total <= 0) {
-      setError("Enter a valid deposit amount.");
+    if (!/^\d+(\.\d{1,6})?$/.test(amount.trim()) || totalMicros <= 0) {
+      setError("Enter a valid USDC amount (up to 6 decimal places).");
       return;
     }
 
-    const allocations = Object.entries(alloc)
-      .filter(([, v]) => parseFloat(v) > 0)
-      .map(([ledgerAccountId, amt]) => ({
-        ledgerAccountId,
-        amount: amt.trim(),
+    if (shortfallMicros > 0) {
+      setError(
+        `Not enough balance across buckets. Short by ${microsToString(shortfallMicros)} USDC.`
+      );
+      return;
+    }
+
+    const allocations = autoAllocations
+      .filter((a) => a.debitMicros > 0)
+      .map((a) => ({
+        ledgerAccountId: a.bucket.id,
+        amount: microsToString(a.debitMicros),
       }));
 
     if (!allocations.length) {
-      setError("Allocate the deposit across one or more buckets.");
-      return;
-    }
-
-    const sum = allocations.reduce((s, a) => s + parseFloat(a.amount), 0);
-    if (Math.abs(sum - total) > 0.000001) {
-      setError(
-        `Bucket allocations (${sum.toFixed(6)}) must equal the deposit amount (${total}).`
-      );
+      setError("No bucket balance available to debit.");
       return;
     }
 
@@ -172,7 +255,7 @@ export default function UnifiedDepositForm({
       } catch {
         baselineConfirmedRef.current = 0;
       }
-      depositedAmountRef.current = total;
+      depositedAmountRef.current = debitedMicros / MICRO;
 
       const res = await fetch("/api/wallet/unified-balance/deposit", {
         method: "POST",
@@ -182,7 +265,7 @@ export default function UnifiedDepositForm({
         },
         body: JSON.stringify({
           sourceChain: SOURCE_CHAIN,
-          amount: amount.trim(),
+          amount: microsToString(totalMicros),
           allocations,
         }),
       });
@@ -258,34 +341,7 @@ export default function UnifiedDepositForm({
           type="text"
           inputMode="decimal"
           value={amount}
-          onChange={(e) => {
-            const nextAmount = e.target.value;
-            setAmount(nextAmount);
-
-            const total = Number.parseFloat(nextAmount) || 0;
-            if (!Number.isFinite(total) || total <= 0) {
-              setAlloc({});
-              return;
-            }
-
-            setAlloc((prev) => {
-              const nextAlloc: Record<string, string> = {};
-              let remaining = total;
-
-              Object.entries(prev).forEach(([bucketId, bucketValue]) => {
-                const parsedValue = Number.parseFloat(bucketValue) || 0;
-                if (parsedValue <= 0) return;
-
-                const allowed = Math.min(parsedValue, remaining);
-                if (allowed > 0) {
-                  nextAlloc[bucketId] = String(allowed);
-                  remaining -= allowed;
-                }
-              });
-
-              return nextAlloc;
-            });
-          }}
+          onChange={(e) => setAmount(e.target.value)}
           disabled={disabled || submitting || confirming}
           placeholder="0.00"
           className="w-full px-4 py-3 rounded-xl border border-[#E5E9F2] text-[#0B1E3F] focus:border-[#2A5CE6] text-sm disabled:opacity-50"
@@ -296,41 +352,74 @@ export default function UnifiedDepositForm({
         <div className="flex items-center justify-between">
           <label className="block text-sm font-semibold text-[#0B1E3F]">Debit from buckets</label>
           <span className="text-xs text-[#7C8CA6]">
-            Allocated {allocSum.toFixed(2)} / {amount || "0"}
+            {totalMicros > 0
+              ? `Debiting ${microsToString(debitedMicros)} / ${microsToString(totalMicros)}`
+              : "Order top to bottom"}
           </span>
         </div>
-        <div className="rounded-xl border border-[#E5E9F2] bg-white divide-y divide-[#F2F4F8]">
-          {buckets.length === 0 ? (
+        <p className="text-xs text-[#7C8CA6]">
+          Drag to reorder. We debit the first bucket first, then the next, until the amount is covered.
+        </p>
+        <div className="overflow-hidden rounded-xl border border-[#E5E9F2] bg-white divide-y divide-[#F2F4F8]">
+          {orderedBuckets.length === 0 ? (
             <p className="px-4 py-3 text-sm text-[#7C8CA6]">No buckets available.</p>
           ) : (
-            buckets.map((b) => (
-              <div key={b.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#0B1E3F] truncate">{b.name}</p>
-                  <p className="text-xs text-[#7C8CA6]">{b.balance} USDC</p>
-                </div>
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-[#333333] cursor-pointer shrink-0"
-                  disabled={disabled || submitting}
-                  onClick={() => fillFromBucket(b.id, b.balance)}
+            autoAllocations.map(({ bucket: b, debitMicros }, index) => {
+              const isDragging = draggingId === b.id;
+              const isOver = dragOverId === b.id && draggingId !== b.id;
+              return (
+                <div
+                  key={b.id}
+                  data-bucket-id={b.id}
+                  className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                    isDragging ? "opacity-40" : ""
+                  } ${isOver ? "bg-[#EEF3FF]" : ""}`}
                 >
-                  Max
-                </button>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={alloc[b.id] ?? ""}
-                  onChange={(e) => setBucketAmount(b.id, e.target.value)}
-                  disabled={disabled || submitting || confirming}
-                  className="w-24 px-2 py-1.5 rounded-lg border border-[#E5E9F2] text-sm text-right tabular-nums disabled:opacity-50"
-                />
-              </div>
-            ))
+                  <button
+                    type="button"
+                    aria-label={`Reorder ${b.name}. Use arrow keys to move up or down.`}
+                    title="Drag to reorder"
+                    disabled={!canReorder}
+                    onPointerDown={(e) => handlePointerDown(e, b.id)}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerCancel}
+                    onKeyDown={(e) => handleReorderKeyDown(e, b.id)}
+                    className={`shrink-0 touch-none rounded p-0.5 text-[#B7C2D6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2A5CE6]/30 disabled:opacity-50 ${
+                      canReorder
+                        ? "cursor-grab hover:text-[#3E4A6B] active:cursor-grabbing"
+                        : ""
+                    }`}
+                  >
+                    <GripVertical size={16} aria-hidden="true" />
+                  </button>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#F2F4F8] text-xs font-semibold text-[#3E4A6B]">
+                    {index + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[#0B1E3F] truncate">{b.name}</p>
+                    <p className="text-xs text-[#7C8CA6]">{b.balance} USDC</p>
+                  </div>
+                  {debitMicros > 0 ? (
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold tabular-nums text-[#0B1E3F]">
+                        −{microsToString(debitMicros)}
+                      </p>
+                      <p className="text-[11px] text-[#7C8CA6]">debited</p>
+                    </div>
+                  ) : (
+                    <span className="shrink-0 text-xs text-[#B7C2D6]">Not used</span>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
-      
+        {totalMicros > 0 && shortfallMicros > 0 && (
+          <p className="text-xs font-medium text-amber-700">
+            Short by {microsToString(shortfallMicros)} USDC across all buckets.
+          </p>
+        )}
       </div>
 
       <button
