@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarClock,
   Check,
   CheckCircle2,
@@ -55,6 +56,8 @@ export default function NewPaymentLinkForm({
   const { cue } = useFeedback();
 
   const [type, setType] = useState<"FIXED_AMOUNT" | "OPEN_AMOUNT">("FIXED_AMOUNT");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
@@ -92,30 +95,61 @@ export default function NewPaymentLinkForm({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    if (!receivingLedgerAccountId) {
-      setError("Choose a bucket to receive payments into.");
-      cue("error");
-      return;
-    }
+  function validateDetails(): boolean {
     if (type === "FIXED_AMOUNT" && !isValidAmount(amount)) {
       setError("Enter an amount greater than zero.");
       cue("error");
-      return;
+      return false;
+    }
+    return true;
+  }
+
+  function validateDestination(): boolean {
+    if (!receivingLedgerAccountId) {
+      setError("Choose a bucket to receive payments into.");
+      cue("error");
+      return false;
     }
     if (expiresAt && expiresAt <= todayPlusDays(0)) {
       setError("Expiry date must be in the future.");
       cue("error");
-      return;
+      return false;
     }
     if (maxUses.trim() && (!/^\d+$/.test(maxUses.trim()) || Number(maxUses) <= 0)) {
       setError("Max uses must be a positive whole number.");
       cue("error");
+      return false;
+    }
+    return true;
+  }
+
+  function goNext() {
+    setError(null);
+    if (step === 1) {
+      if (!validateDetails()) return;
+      cue("next");
+      setDirection("forward");
+      setStep(2);
+    }
+  }
+
+  function goBack() {
+    setError(null);
+    if (step === 1) return;
+    cue("back");
+    setDirection("back");
+    setStep(1);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (step < 2) {
+      goNext();
       return;
     }
+
+    setError(null);
+    if (!validateDetails() || !validateDestination()) return;
 
     cue("tap");
     setSubmitting(true);
@@ -158,6 +192,8 @@ export default function NewPaymentLinkForm({
     cue("tap");
     setCreated(null);
     setCopied(false);
+    setStep(1);
+    setDirection("forward");
     setType("FIXED_AMOUNT");
     setAmount("");
     setDescription("");
@@ -269,6 +305,14 @@ export default function NewPaymentLinkForm({
           from { opacity: 0; transform: translateY(-6px) }
           to   { opacity: 1; transform: translateY(0) }
         }
+        @keyframes paymentLinkStepForward {
+          from { opacity: 0; transform: translateX(24px) }
+          to   { opacity: 1; transform: translateX(0) }
+        }
+        @keyframes paymentLinkStepBack {
+          from { opacity: 0; transform: translateX(-24px) }
+          to   { opacity: 1; transform: translateX(0) }
+        }
       `}</style>
 
       <div>
@@ -297,219 +341,247 @@ export default function NewPaymentLinkForm({
           </div>
         )}
 
-        <div className="space-y-4 rounded-2xl border border-[#E5E9F2] bg-white p-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EEF3FF] text-[#2A5CE6]">
-              <Link2 size={18} />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-[#0B1E3F]">What are you charging for?</p>
-              <p className="text-xs text-[#7C8CA6]">Set a fixed price or let the payer choose.</p>
-            </div>
-          </div>
+        <div
+          key={step}
+          className={`min-h-[360px] ${
+            direction === "forward"
+              ? "animate-[paymentLinkStepForward_.35s_cubic-bezier(.22,1,.36,1)]"
+              : "animate-[paymentLinkStepBack_.35s_cubic-bezier(.22,1,.36,1)]"
+          }`}
+        >
+          {step === 1 && (
+            <div className="space-y-4 rounded-2xl border border-[#E5E9F2] bg-white p-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EEF3FF] text-[#2A5CE6]">
+                  <Link2 size={18} />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-[#0B1E3F]">What are you charging for?</p>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {(["FIXED_AMOUNT", "OPEN_AMOUNT"] as const).map((t) => {
-              const active = type === t;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => {
-                    cue("tap");
-                    setType(t);
-                  }}
-                  className={`relative rounded-xl border p-4 text-left transition-all disabled:opacity-50 ${
-                    active
-                      ? "border-[#2A5CE6] bg-[#EEF3FF] shadow-[0_0_0_4px_rgba(42,92,230,0.08)]"
-                      : "border-[#E5E9F2] bg-white hover:border-[#2A5CE6]"
-                  }`}
-                >
-                  <span className="block text-sm font-semibold text-[#0B1E3F]">
-                    {t === "FIXED_AMOUNT" ? "Fixed amount" : "Open amount"}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-[#7C8CA6]">
-                    {t === "FIXED_AMOUNT" ? "Charge one set price." : "Let the payer decide."}
-                  </span>
-                  {active && (
-                    <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#2A5CE6] text-white">
-                      <Check size={12} strokeWidth={3} />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {(["FIXED_AMOUNT", "OPEN_AMOUNT"] as const).map((t) => {
+                  const active = type === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => {
+                        cue("tap");
+                        setType(t);
+                      }}
+                      className={`relative rounded-xl border p-4 text-left transition-all disabled:opacity-50 ${
+                        active
+                          ? "border-[#2A5CE6] bg-[#EEF3FF] "
+                          : "border-[#E5E9F2] bg-white hover:border-[#2A5CE6]"
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold text-[#0B1E3F]">
+                        {t === "FIXED_AMOUNT" ? "Fixed amount" : "Open amount"}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-[#7C8CA6]">
+                        {t === "FIXED_AMOUNT" ? "Charge one set price." : "Let the payer decide."}
+                      </span>
+                      {active && (
+                        <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#2A5CE6] text-white">
+                          <Check size={12} strokeWidth={3} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {type === "FIXED_AMOUNT" && (
+                <div>
+                  <label
+                    htmlFor="amount"
+                    className="mb-2 block text-sm font-semibold text-[#0B1E3F]"
+                  >
+                    Amount
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="amount"
+                      type="text"
+                      inputMode="decimal"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      disabled={disabled}
+                      placeholder="0.00"
+                      className="w-full rounded-xl border border-[#E5E9F2] bg-white py-3 pl-4 pr-16 text-lg font-semibold text-[#0B1E3F] transition-shadow focus:border-[#2A5CE6] focus:outline-none focus:ring-4 focus:ring-[#2A5CE6]/10 disabled:opacity-50"
+                    />
+                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#7C8CA6]">
+                      USDC
                     </span>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label
+                  htmlFor="description"
+                  className="mb-2 block text-sm font-semibold text-[#0B1E3F]"
+                >
+                  Description <span className="font-normal text-[#7C8CA6]">(optional)</span>
+                </label>
+                <input
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={disabled}
+                  maxLength={500}
+                  placeholder="e.g. Design retainer — May"
+                  className="w-full rounded-xl border border-[#E5E9F2] bg-white px-4 py-3 text-sm text-[#0B1E3F] transition-shadow focus:border-[#2A5CE6] focus:outline-none focus:ring-4 focus:ring-[#2A5CE6]/10 disabled:opacity-50"
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="space-y-4 rounded-2xl border border-[#E5E9F2] bg-white p-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EEF3FF] text-[#2A5CE6]">
+                    <Wallet size={18} />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-[#0B1E3F]">
+                      Where should the money go?
+                    </p>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <select
+                    id="bucket"
+                    value={receivingLedgerAccountId}
+                    onChange={(e) => setReceivingLedgerAccountId(e.target.value)}
+                    disabled={disabled}
+                    className="w-full appearance-none rounded-xl border border-[#E5E9F2] bg-white px-4 py-3 pr-10 text-sm text-[#0B1E3F] focus:border-[#2A5CE6] focus:outline-none focus:ring-4 focus:ring-[#2A5CE6]/10 disabled:opacity-50"
+                  >
+                    {buckets.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={16}
+                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#7C8CA6]"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5">
+                <button
+                  type="button"
+                  onClick={toggleLimits}
+                  disabled={disabled}
+                  className="flex w-full items-center justify-between gap-3 text-left disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F2F4F8] text-[#3E4A6B]">
+                      <CalendarClock size={18} />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold text-[#0B1E3F]">
+                        Optional limits
+                      </span>
+                      <span className="block text-xs text-[#7C8CA6]">
+                        Add an expiry date or cap the number of uses.
+                      </span>
+                    </span>
+                  </span>
+                  {showLimits ? (
+                    <ChevronUp size={18} className="shrink-0 text-[#7C8CA6]" />
+                  ) : (
+                    <ChevronDown size={18} className="shrink-0 text-[#7C8CA6]" />
                   )}
                 </button>
-              );
-            })}
-          </div>
 
-          {type === "FIXED_AMOUNT" && (
-            <div>
-              <label htmlFor="amount" className="mb-2 block text-sm font-semibold text-[#0B1E3F]">
-                Amount
-              </label>
-              <div className="relative">
-                <input
-                  id="amount"
-                  type="text"
-                  inputMode="decimal"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  disabled={disabled}
-                  placeholder="0.00"
-                  className="w-full rounded-xl border border-[#E5E9F2] bg-white py-3 pl-4 pr-16 text-lg font-semibold text-[#0B1E3F] transition-shadow focus:border-[#2A5CE6] focus:outline-none focus:ring-4 focus:ring-[#2A5CE6]/10 disabled:opacity-50"
-                />
-                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#7C8CA6]">
-                  USDC
-                </span>
+                {showLimits && (
+                  <div className="mt-4 grid animate-[paymentLinkReveal_.25s_ease] grid-cols-1 gap-4 border-t border-[#F2F4F8] pt-4 sm:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor="expiresAt"
+                        className="mb-2 block text-sm font-semibold text-[#0B1E3F]"
+                      >
+                        Expires <span className="font-normal text-[#7C8CA6]">(optional)</span>
+                      </label>
+                      <input
+                        id="expiresAt"
+                        type="date"
+                        value={expiresAt}
+                        min={todayPlusDays(1)}
+                        onChange={(e) => setExpiresAt(e.target.value)}
+                        disabled={disabled}
+                        className="w-full rounded-xl border border-[#E5E9F2] bg-white px-4 py-3 text-sm text-[#0B1E3F] focus:border-[#2A5CE6] focus:outline-none focus:ring-4 focus:ring-[#2A5CE6]/10 disabled:opacity-50"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="maxUses"
+                        className="mb-2 block text-sm font-semibold text-[#0B1E3F]"
+                      >
+                        Max uses <span className="font-normal text-[#7C8CA6]">(optional)</span>
+                      </label>
+                      <input
+                        id="maxUses"
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={maxUses}
+                        onChange={(e) => setMaxUses(e.target.value)}
+                        disabled={disabled}
+                        placeholder="Unlimited"
+                        className="w-full rounded-xl border border-[#E5E9F2] bg-white px-4 py-3 text-sm text-[#0B1E3F] focus:border-[#2A5CE6] focus:outline-none focus:ring-4 focus:ring-[#2A5CE6]/10 disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
-
-          <div>
-            <label htmlFor="description" className="mb-2 block text-sm font-semibold text-[#0B1E3F]">
-              Description <span className="font-normal text-[#7C8CA6]">(optional)</span>
-            </label>
-            <input
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={disabled}
-              maxLength={500}
-              placeholder="e.g. Design retainer — May"
-              className="w-full rounded-xl border border-[#E5E9F2] bg-white px-4 py-3 text-sm text-[#0B1E3F] transition-shadow focus:border-[#2A5CE6] focus:outline-none focus:ring-4 focus:ring-[#2A5CE6]/10 disabled:opacity-50"
-            />
-          </div>
         </div>
 
-        <div className="space-y-4 rounded-2xl border border-[#E5E9F2] bg-white p-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EEF3FF] text-[#2A5CE6]">
-              <Wallet size={18} />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-[#0B1E3F]">Where should the money go?</p>
-              <p className="text-xs text-[#7C8CA6]">Choose the bucket that receives payments.</p>
-            </div>
-          </div>
-
-          <div className="relative">
-            <select
-              id="bucket"
-              value={receivingLedgerAccountId}
-              onChange={(e) => setReceivingLedgerAccountId(e.target.value)}
-              disabled={disabled}
-              className="w-full appearance-none rounded-xl border border-[#E5E9F2] bg-white px-4 py-3 pr-10 text-sm text-[#0B1E3F] focus:border-[#2A5CE6] focus:outline-none focus:ring-4 focus:ring-[#2A5CE6]/10 disabled:opacity-50"
+        <div className="flex items-center justify-between gap-3 border-t border-[#F2F4F8] pt-4">
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={submitting}
+              className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium text-[#3E4A6B] transition-colors hover:bg-[#F2F4F8] disabled:opacity-50"
             >
-              {buckets.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={16}
-              className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#7C8CA6]"
-            />
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-[#E5E9F2] bg-white p-5">
-          <button
-            type="button"
-            onClick={toggleLimits}
-            disabled={disabled}
-            className="flex w-full items-center justify-between gap-3 text-left disabled:opacity-50"
-          >
-            <span className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F2F4F8] text-[#3E4A6B]">
-                <CalendarClock size={18} />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold text-[#0B1E3F]">
-                  Optional limits
-                </span>
-                <span className="block text-xs text-[#7C8CA6]">
-                  Add an expiry date or cap the number of uses.
-                </span>
-              </span>
-            </span>
-            {showLimits ? (
-              <ChevronUp size={18} className="shrink-0 text-[#7C8CA6]" />
-            ) : (
-              <ChevronDown size={18} className="shrink-0 text-[#7C8CA6]" />
-            )}
-          </button>
-
-          {showLimits && (
-            <div className="mt-4 grid animate-[paymentLinkReveal_.25s_ease] grid-cols-1 gap-4 border-t border-[#F2F4F8] pt-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="expiresAt" className="mb-2 block text-sm font-semibold text-[#0B1E3F]">
-                  Expires <span className="font-normal text-[#7C8CA6]">(optional)</span>
-                </label>
-                <input
-                  id="expiresAt"
-                  type="date"
-                  value={expiresAt}
-                  min={todayPlusDays(1)}
-                  onChange={(e) => setExpiresAt(e.target.value)}
-                  disabled={disabled}
-                  className="w-full rounded-xl border border-[#E5E9F2] bg-white px-4 py-3 text-sm text-[#0B1E3F] focus:border-[#2A5CE6] focus:outline-none focus:ring-4 focus:ring-[#2A5CE6]/10 disabled:opacity-50"
-                />
-              </div>
-              <div>
-                <label htmlFor="maxUses" className="mb-2 block text-sm font-semibold text-[#0B1E3F]">
-                  Max uses <span className="font-normal text-[#7C8CA6]">(optional)</span>
-                </label>
-                <input
-                  id="maxUses"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={maxUses}
-                  onChange={(e) => setMaxUses(e.target.value)}
-                  disabled={disabled}
-                  placeholder="Unlimited"
-                  className="w-full rounded-xl border border-[#E5E9F2] bg-white px-4 py-3 text-sm text-[#0B1E3F] focus:border-[#2A5CE6] focus:outline-none focus:ring-4 focus:ring-[#2A5CE6]/10 disabled:opacity-50"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-3 rounded-2xl border border-[#E5E9F2] bg-[#F9FBFF] p-5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-[#0B1E3F]">
-            <Link2 size={16} className="text-[#2A5CE6]" />
-            Link preview
-          </div>
-          <div className="rounded-xl border border-[#E5E9F2] bg-white p-4">
-            <p className="truncate text-xs font-medium text-[#7C8CA6]">
-              {description.trim() || "Payment link"}
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-[#0B1E3F] tabular-nums">
-              {previewAmount}
-            </p>
-            <p className="mt-1 text-xs text-[#7C8CA6]">
-              Paid into {selectedBucket?.name ?? "your bucket"}
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={disabled || submitting}
-          className="btn-3d w-full"
-          style={PRIMARY_BTN}
-        >
-          {submitting ? (
-            <>
-              <Loader2 size={16} className="animate-spin" /> Creating…
-            </>
+              <ArrowLeft size={16} /> Back
+            </button>
           ) : (
-            <>
-              <Sparkles size={16} /> Create payment link
-            </>
+            <span />
           )}
-        </button>
+
+          {step < 2 ? (
+            <button type="submit" className="btn-3d min-w-[150px]" style={PRIMARY_BTN}>
+              Continue <ArrowRight size={16} />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={disabled || submitting}
+              className="btn-3d min-w-[170px]"
+              style={PRIMARY_BTN}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" /> Creating…
+                </>
+              ) : (
+                <>Create payment link</>
+              )}
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

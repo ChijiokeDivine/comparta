@@ -28,7 +28,7 @@ export default async function BucketDetailPage({ params }: { params: Promise<{ i
   if (!bucket) notFound();
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-6 mx-auto w-full">
       <Link href="/buckets" className="inline-flex items-center gap-1 text-sm font-medium text-[#2A5CE6] hover:underline">
         <ArrowLeft size={14} aria-hidden="true" />
         Buckets
